@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: benny-centro-automotivo-api
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/produtos
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PORT
+        value: 3000
