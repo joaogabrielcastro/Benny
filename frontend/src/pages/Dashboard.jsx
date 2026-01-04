@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import api from "../services/api";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { formatarMoeda } from "../utils/formatters";
+import { exportDashboardToPDF } from "../utils/pdfExport";
 import {
   BarChart,
   Bar,
@@ -44,12 +46,7 @@ export default function Dashboard() {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      const [
-        osRes,
-        orcRes,
-        estRes,
-        relatorioRes,
-      ] = await Promise.all([
+      const [osRes, orcRes, estRes, relatorioRes] = await Promise.all([
         api.get("/ordens-servico"),
         api.get("/orcamentos"),
         api.get("/produtos/alertas/estoque-baixo"),
@@ -58,7 +55,9 @@ export default function Dashboard() {
 
       const osAbertas = osRes.data.filter((os) => os.status === "Aberta");
       const osFechadas = osRes.data.filter((os) => os.status === "Finalizada");
-      const orcPendentes = orcRes.data.filter((orc) => orc.status === "Pendente");
+      const orcPendentes = orcRes.data.filter(
+        (orc) => orc.status === "Pendente"
+      );
 
       setStats({
         totalOS: osRes.data.length,
@@ -81,16 +80,32 @@ export default function Dashboard() {
       });
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
+      toast.error("Erro ao carregar dados do dashboard");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    exportDashboardToPDF(stats, chartData);
+    toast.success("PDF gerado com sucesso!");
   };
 
   if (loading) return <LoadingSpinner size="xl" />;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Dashboard
+        </h1>
+        <button
+          onClick={handleExportPDF}
+          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+        >
+          📄 Exportar PDF
+        </button>
+      </div>
 
       {/* Cards de Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -124,8 +139,8 @@ export default function Dashboard() {
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico de OS por Status */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
             Ordens de Serviço
           </h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -150,8 +165,8 @@ export default function Dashboard() {
         </div>
 
         {/* Gráfico de Faturamento */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
             Faturamento (Últimos 6 meses)
           </h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -173,8 +188,8 @@ export default function Dashboard() {
         </div>
 
         {/* Produtos Mais Vendidos */}
-        <div className="bg-white rounded-lg shadow-md p-6 lg:col-span-2">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 lg:col-span-2">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
             Produtos Mais Vendidos
           </h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -184,7 +199,11 @@ export default function Dashboard() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="quantidade" fill="#8B5CF6" name="Quantidade Vendida" />
+              <Bar
+                dataKey="quantidade"
+                fill="#8B5CF6"
+                name="Quantidade Vendida"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -194,34 +213,34 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
           to="/ordens-servico"
-          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
         >
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
             Ver Todas as OS
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             {stats.totalOS} ordens de serviço registradas
           </p>
         </Link>
         <Link
           to="/orcamentos"
-          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
         >
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
             Ver Orçamentos
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             {stats.orcamentosPendentes} orçamentos pendentes
           </p>
         </Link>
         <Link
           to="/estoque"
-          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
         >
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
             Gerenciar Estoque
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-400">
             {stats.estoqueBaixo} produtos com estoque baixo
           </p>
         </Link>
@@ -244,11 +263,7 @@ function StatCard({ title, value, total, icon, color }) {
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-3xl">{icon}</span>
-        {total && (
-          <span className="text-sm opacity-80">
-            de {total}
-          </span>
-        )}
+        {total && <span className="text-sm opacity-80">de {total}</span>}
       </div>
       <h3 className="text-lg font-semibold mb-1">{title}</h3>
       <p className="text-3xl font-bold">{value}</p>

@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../services/api";
-import Logo from "../components/Logo";
 
 export default function Home() {
   const [stats, setStats] = useState({
@@ -33,71 +32,63 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header com gradiente e logo */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-8 text-white shadow-2xl">
-        <div className="flex items-center gap-6">
-          <Logo size="xl" className="animate-pulse" />
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Benny's Motorsport</h1>
-            <p className="text-blue-100 text-lg">Sistema de Gestão • Centro Automotivo</p>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Header profissional */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          Benny's Motorsport
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Sistema de Gestão • Centro Automotivo
+        </p>
       </div>
 
-      {/* Cards de estatísticas modernos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Cards de estatísticas clean */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           title="OS Abertas"
           value={stats.osAbertas}
-          icon="🔧"
-          gradient="from-blue-500 to-blue-700"
           link="/ordens-servico?status=Aberta"
+          color="blue"
         />
         <StatCard
           title="Orçamentos Pendentes"
           value={stats.orcamentosPendentes}
-          icon="📋"
-          gradient="from-amber-500 to-orange-600"
           link="/orcamentos?status=Pendente"
+          color="orange"
         />
         <StatCard
-          title="Produtos Estoque Baixo"
+          title="Estoque Baixo"
           value={stats.estoqueBaixo}
-          icon="⚠️"
-          gradient="from-red-500 to-pink-600"
           link="/estoque"
+          color="red"
         />
       </div>
 
-      {/* Cards de ações com hover modernos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Cards de ações profissionais */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <ActionCard
           title="Ver Dashboard"
-          description="Relatórios e análises detalhadas"
+          description="Relatórios e análises"
           link="/dashboard"
-          icon="📊"
           color="indigo"
         />
         <ActionCard
-          title="Nova Ordem de Serviço"
-          description="Criar uma nova OS para atendimento"
+          title="Nova OS"
+          description="Criar ordem de serviço"
           link="/ordens-servico/nova"
-          icon="🔧"
           color="blue"
         />
         <ActionCard
           title="Novo Orçamento"
-          description="Criar um orçamento para o cliente"
+          description="Criar orçamento"
           link="/orcamentos/novo"
-          icon="💰"
           color="green"
         />
         <ActionCard
           title="Gerenciar Estoque"
-          description="Visualizar e gerenciar produtos"
+          description="Produtos e inventário"
           link="/estoque"
-          icon="📦"
           color="purple"
         />
       </div>
@@ -105,47 +96,65 @@ export default function Home() {
   );
 }
 
-function StatCard({ title, value, icon, gradient, link }) {
-  return (
-    <Link
-      to={link}
-      className="block transform transition-all duration-300 hover:scale-105"
-    >
-      <div
-        className={`bg-gradient-to-br ${gradient} text-white rounded-2xl shadow-xl p-6 hover:shadow-2xl`}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold opacity-90">{title}</h3>
-          <span className="text-3xl">{icon}</span>
-        </div>
-        <p className="text-5xl font-bold">{value}</p>
-        <div className="mt-4 text-sm opacity-75">
-          Clique para ver detalhes →
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function ActionCard({ title, description, link, icon, color }) {
+function StatCard({ title, value, link, color }) {
   const colors = {
-    indigo: "border-indigo-200 hover:border-indigo-400 hover:shadow-indigo-100",
-    blue: "border-blue-200 hover:border-blue-400 hover:shadow-blue-100",
-    green: "border-green-200 hover:border-green-400 hover:shadow-green-100",
-    purple: "border-purple-200 hover:border-purple-400 hover:shadow-purple-100",
+    blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600",
+    orange:
+      "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600",
+    red: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 hover:border-red-400 dark:hover:border-red-600",
+  };
+
+  const textColors = {
+    blue: "text-blue-600 dark:text-blue-400",
+    orange: "text-orange-600 dark:text-orange-400",
+    red: "text-red-600 dark:text-red-400",
   };
 
   return (
     <Link
       to={link}
-      className="block transform transition-all duration-300 hover:scale-105"
+      className="block transition-all duration-200 hover:-translate-y-1"
     >
       <div
-        className={`bg-white rounded-2xl shadow-lg p-8 hover:shadow-2xl transition-all border-2 ${colors[color]}`}
+        className={`${colors[color]} border rounded-lg p-6 hover:shadow-md transition-all`}
       >
-        <div className="text-5xl mb-4">{icon}</div>
-        <h3 className="text-2xl font-bold text-gray-800 mb-3">{title}</h3>
-        <p className="text-gray-600 leading-relaxed">{description}</p>
+        <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+          {title}
+        </h3>
+        <p className={`text-4xl font-bold ${textColors[color]}`}>{value}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+          Clique para ver detalhes →
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function ActionCard({ title, description, link, color }) {
+  const colors = {
+    indigo:
+      "border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-indigo-100 dark:hover:shadow-indigo-900/50",
+    blue: "border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-blue-100 dark:hover:shadow-blue-900/50",
+    green:
+      "border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 hover:shadow-green-100 dark:hover:shadow-green-900/50",
+    purple:
+      "border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-purple-100 dark:hover:shadow-purple-900/50",
+  };
+
+  return (
+    <Link
+      to={link}
+      className="block transition-all duration-200 hover:-translate-y-1"
+    >
+      <div
+        className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border ${colors[color]} p-6 hover:shadow-md transition-all`}
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          {title}
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {description}
+        </p>
       </div>
     </Link>
   );

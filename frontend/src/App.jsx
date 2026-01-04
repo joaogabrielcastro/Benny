@@ -7,9 +7,11 @@ import {
   useLocation,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Logo from "./components/Logo";
 import LoadingSpinner from "./components/LoadingSpinner";
+import ThemeToggle from "./components/ThemeToggle";
 
 // Lazy loading das páginas
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -23,50 +25,52 @@ const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
 
 function App() {
   return (
-    <Router>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: "#363636",
-            color: "#fff",
-          },
-          success: {
+    <ThemeProvider>
+      <Router>
+        <Toaster
+          position="top-right"
+          toastOptions={{
             duration: 3000,
-            iconTheme: {
-              primary: "#10B981",
-              secondary: "#fff",
+            style: {
+              background: "#363636",
+              color: "#fff",
             },
-          },
-          error: {
-            duration: 4000,
-            iconTheme: {
-              primary: "#EF4444",
-              secondary: "#fff",
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: "#10B981",
+                secondary: "#fff",
+              },
             },
-          },
-        }}
-      />
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <main className="container mx-auto px-4 py-8">
-          <Suspense fallback={<LoadingSpinner size="xl" />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/estoque" element={<Estoque />} />
-              <Route path="/orcamentos" element={<Orcamentos />} />
-              <Route path="/orcamentos/novo" element={<OrcamentoForm />} />
-              <Route path="/orcamentos/:id" element={<OrcamentoDetalhes />} />
-              <Route path="/ordens-servico" element={<OrdensServico />} />
-              <Route path="/ordens-servico/nova" element={<OSForm />} />
-              <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
-            </Routes>
-          </Suspense>
-        </main>
-      </div>
-    </Router>
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: "#EF4444",
+                secondary: "#fff",
+              },
+            },
+          }}
+        />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+          <Navigation />
+          <main className="container mx-auto px-4 py-8">
+            <Suspense fallback={<LoadingSpinner size="xl" />}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/estoque" element={<Estoque />} />
+                <Route path="/orcamentos" element={<Orcamentos />} />
+                <Route path="/orcamentos/novo" element={<OrcamentoForm />} />
+                <Route path="/orcamentos/:id" element={<OrcamentoDetalhes />} />
+                <Route path="/ordens-servico" element={<OrdensServico />} />
+                <Route path="/ordens-servico/nova" element={<OSForm />} />
+                <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 
@@ -80,17 +84,22 @@ function Navigation() {
   };
 
   return (
-    <nav className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white shadow-lg">
+    <nav className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 dark:from-gray-800 dark:via-gray-900 dark:to-black text-white shadow-lg transition-colors">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+          <Link
+            to="/"
+            className="flex items-center gap-3 hover:opacity-90 transition-opacity"
+          >
             <Logo size="sm" />
             <div>
               <div className="text-xl font-bold">Benny's Motorsport</div>
-              <div className="text-xs text-blue-100">Centro Automotivo</div>
+              <div className="text-xs text-blue-100 dark:text-gray-400">
+                Centro Automotivo
+              </div>
             </div>
           </Link>
-          <div className="flex space-x-1">
+          <div className="flex items-center space-x-1">
             <NavLink to="/" active={location.pathname === "/"}>
               Início
             </NavLink>
@@ -106,6 +115,7 @@ function Navigation() {
             <NavLink to="/estoque" active={isActive("/estoque")}>
               Estoque
             </NavLink>
+            <ThemeToggle />
           </div>
         </div>
       </div>

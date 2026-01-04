@@ -1,4 +1,10 @@
-export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message }) {
+export default function ConfirmDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+}) {
   if (!isOpen) return null;
 
   return (

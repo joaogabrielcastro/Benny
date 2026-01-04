@@ -188,6 +188,41 @@ async function initDatabase() {
       )
     `);
 
+    // Tabela de Auditoria para rastreamento de alterações
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auditoria (
+        id SERIAL PRIMARY KEY,
+        tabela VARCHAR(100) NOT NULL,
+        registro_id INTEGER NOT NULL,
+        acao VARCHAR(20) NOT NULL,
+        dados_anteriores JSONB,
+        dados_novos JSONB,
+        usuario VARCHAR(100),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Criar índices para melhor performance
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro 
+      ON auditoria(tabela, registro_id);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em 
+      ON auditoria(criado_em DESC);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_status 
+      ON ordens_servico(status);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_orcamentos_status 
+      ON orcamentos(status);
+    `);
+
     console.log("✓ Tabelas do banco de dados criadas/verificadas com sucesso!");
   } catch (error) {
     console.error("Erro ao inicializar banco de dados:", error);

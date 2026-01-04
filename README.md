@@ -4,13 +4,29 @@ Sistema web completo para gestão de oficina mecânica, desenvolvido com React +
 
 ## 🚀 Características
 
+### Funcionalidades Principais
+
 - ✅ **Ordens de Serviço (OS)**: Criação, edição, visualização e impressão com layout profissional
 - ✅ **Orçamentos**: Gerenciamento de orçamentos com conversão automática para OS
 - ✅ **Estoque**: Controle de produtos com alertas de estoque baixo e baixa automática
 - ✅ **Clientes e Veículos**: Cadastro integrado com histórico completo
+- ✅ **Dashboard Analítico**: Gráficos de faturamento, produtos mais vendidos e métricas
 - ✅ **Busca Avançada**: Pesquisa por número, cliente, placa ou data
 - ✅ **Impressão**: Layout profissional para impressão de OS
+
+### Novas Funcionalidades 🎉
+
+- 🌙 **Dark Mode**: Tema escuro com salvamento de preferência
+- 🔍 **Filtros Avançados**: Filtro por data, status e cliente
+- 📄 **Exportação PDF**: Relatórios de OS, Orçamentos e Dashboard
+- 📊 **Gráficos Interativos**: Recharts com visualizações em tempo real
+- ⚡ **Performance**: Lazy loading, compressão HTTP e loading states
+- 🎨 **UX Moderna**: Toast notifications, confirmações e animações
+
+### Infraestrutura
+
 - ☁️ **Cloud Ready**: Pronto para deploy na Vercel e Render com banco PostgreSQL (Neon)
+- 🔒 **Segurança**: Variáveis de ambiente, SSL, conexões seguras
 
 ## 📋 Requisitos
 

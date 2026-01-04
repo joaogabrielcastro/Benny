@@ -1,0 +1,126 @@
+/* Estilos para impressão */
+@media print {
+  /* Ocultar elementos desnecessários */
+  header,
+  nav,
+  .no-print,
+  button,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Configurações gerais */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  /* Remover sombras e bordas decorativas */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Forçar cores de texto legíveis */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  div {
+    color: black !important;
+  }
+
+  /* Tabelas */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+    border: 1px solid #000 !important;
+    padding: 8px !important;
+    font-weight: bold !important;
+  }
+
+  td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+  }
+
+  /* Quebras de página */
+  .page-break {
+    page-break-before: always;
+  }
+
+  .no-page-break {
+    page-break-inside: avoid;
+  }
+
+  /* Layout de OS para impressão */
+  .os-print-header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+  }
+
+  .os-print-section {
+    margin-bottom: 30px;
+    page-break-inside: avoid;
+  }
+
+  .os-print-title {
+    font-size: 24pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  .os-print-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .os-print-info-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+  }
+
+  .os-print-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  /* Assinatura */
+  .os-print-signature {
+    margin-top: 60px;
+    border-top: 1px solid #000;
+    padding-top: 10px;
+    text-align: center;
+  }
+
+  /* Rodapé */
+  .os-print-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 10pt;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+  }
+
+  /* Margens */
+  @page {
+    margin: 2cm;
+  }
+}

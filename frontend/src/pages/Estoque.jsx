@@ -13,7 +13,10 @@ export default function Estoque() {
   const [produtoEditando, setProdutoEditando] = useState(null);
   const [filtroEstoque, setFiltroEstoque] = useState("todos");
   const [loading, setLoading] = useState(true);
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, produtoId: null });
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    produtoId: null,
+  });
 
   useEffect(() => {
     carregarProdutos();
@@ -187,7 +190,12 @@ export default function Estoque() {
                       Editar
                     </button>
                     <button
-                      onClick={() => setConfirmDialog({ isOpen: true, produtoId: produto.id })}
+                      onClick={() =>
+                        setConfirmDialog({
+                          isOpen: true,
+                          produtoId: produto.id,
+                        })
+                      }
                       className="text-red-600 hover:text-red-800 font-medium"
                     >
                       Deletar
