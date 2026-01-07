@@ -40,7 +40,7 @@ export default function OSDetalhes() {
   };
 
   const handleImprimir = useReactToPrint({
-    content: () => componentRef.current,
+    contentRef: componentRef,
     documentTitle: `OS_${os?.numero}`,
   });
 
@@ -69,7 +69,9 @@ export default function OSDetalhes() {
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Ordem de Serviço</h1>
+            <h1 className="text-3xl font-bold text-gray-800">
+              Ordem de Serviço
+            </h1>
             <p className="text-gray-600 mt-1 text-lg">{os.numero}</p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -115,12 +117,17 @@ export default function OSDetalhes() {
 
       {/* Badge de Status */}
       <div className="flex items-center gap-3">
-        <span className={`px-6 py-3 rounded-xl font-bold text-lg ${
-          os.status === "Aberta" ? "bg-blue-100 text-blue-700" :
-          os.status === "Em andamento" ? "bg-yellow-100 text-yellow-700" :
-          os.status === "Finalizada" ? "bg-green-100 text-green-700" :
-          "bg-red-100 text-red-700"
-        }`}>
+        <span
+          className={`px-6 py-3 rounded-xl font-bold text-lg ${
+            os.status === "Aberta"
+              ? "bg-blue-100 text-blue-700"
+              : os.status === "Em andamento"
+              ? "bg-yellow-100 text-yellow-700"
+              : os.status === "Finalizada"
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+          }`}
+        >
           {os.status}
         </span>
         <span className="text-gray-600">
@@ -141,12 +148,18 @@ export default function OSDetalhes() {
               <p className="text-lg text-gray-800">{os.cliente_nome}</p>
             </div>
             <div>
-              <span className="text-sm text-gray-600 font-semibold">Telefone:</span>
-              <p className="text-lg text-gray-800">{os.cliente_telefone || "Não informado"}</p>
+              <span className="text-sm text-gray-600 font-semibold">
+                Telefone:
+              </span>
+              <p className="text-lg text-gray-800">
+                {os.cliente_telefone || "Não informado"}
+              </p>
             </div>
             {os.cliente_cpf_cnpj && (
               <div>
-                <span className="text-sm text-gray-600 font-semibold">CPF/CNPJ:</span>
+                <span className="text-sm text-gray-600 font-semibold">
+                  CPF/CNPJ:
+                </span>
                 <p className="text-lg text-gray-800">{os.cliente_cpf_cnpj}</p>
               </div>
             )}
@@ -160,29 +173,41 @@ export default function OSDetalhes() {
           </h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-600 font-semibold">Modelo:</span>
+              <span className="text-sm text-gray-600 font-semibold">
+                Modelo:
+              </span>
               <p className="text-lg text-gray-800">{os.veiculo_modelo}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-sm text-gray-600 font-semibold">Placa:</span>
+                <span className="text-sm text-gray-600 font-semibold">
+                  Placa:
+                </span>
                 <p className="text-lg text-gray-800">{os.veiculo_placa}</p>
               </div>
               <div>
-                <span className="text-sm text-gray-600 font-semibold">Cor:</span>
+                <span className="text-sm text-gray-600 font-semibold">
+                  Cor:
+                </span>
                 <p className="text-lg text-gray-800">{os.veiculo_cor}</p>
               </div>
             </div>
             {os.km && (
               <div>
                 <span className="text-sm text-gray-600 font-semibold">KM:</span>
-                <p className="text-lg text-gray-800">{os.km.toLocaleString()}</p>
+                <p className="text-lg text-gray-800">
+                  {os.km.toLocaleString()}
+                </p>
               </div>
             )}
             {os.observacoes_veiculo && (
               <div className="mt-3 bg-gray-50 p-3 rounded-lg">
-                <span className="text-sm text-gray-600 font-semibold">Observações:</span>
-                <p className="text-sm text-gray-700 mt-1">{os.observacoes_veiculo}</p>
+                <span className="text-sm text-gray-600 font-semibold">
+                  Observações:
+                </span>
+                <p className="text-sm text-gray-700 mt-1">
+                  {os.observacoes_veiculo}
+                </p>
               </div>
             )}
           </div>
@@ -199,28 +224,55 @@ export default function OSDetalhes() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Código</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Descrição</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Qtd</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Valor Unit.</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Código
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Descrição
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                    Qtd
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                    Valor Unit.
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {os.produtos.map((produto, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-800">{produto.codigo}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800">{produto.descricao}</td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-800">{produto.quantidade}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-800">{formatarMoeda(produto.valor_unitario)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">{formatarMoeda(produto.valor_total)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {produto.codigo}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {produto.descricao}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center text-gray-800">
+                      {produto.quantidade}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-800">
+                      {formatarMoeda(produto.valor_unitario)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                      {formatarMoeda(produto.valor_total)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-blue-50 font-semibold">
-                  <td colSpan="4" className="px-4 py-3 text-right text-gray-800">Subtotal Produtos:</td>
-                  <td className="px-4 py-3 text-right text-gray-900">{formatarMoeda(os.valor_produtos)}</td>
+                  <td
+                    colSpan="4"
+                    className="px-4 py-3 text-right text-gray-800"
+                  >
+                    Subtotal Produtos:
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-900">
+                    {formatarMoeda(os.valor_produtos)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -238,28 +290,55 @@ export default function OSDetalhes() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gradient-to-r from-green-50 to-emerald-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Código</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Descrição</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Qtd</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Valor Unit.</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Total</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Código
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    Descrição
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                    Qtd
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                    Valor Unit.
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {os.servicos.map((servico, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-800">{servico.codigo}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800">{servico.descricao}</td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-800">{servico.quantidade}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-800">{formatarMoeda(servico.valor_unitario)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">{formatarMoeda(servico.valor_total)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {servico.codigo}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-800">
+                      {servico.descricao}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center text-gray-800">
+                      {servico.quantidade}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-800">
+                      {formatarMoeda(servico.valor_unitario)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                      {formatarMoeda(servico.valor_total)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-green-50 font-semibold">
-                  <td colSpan="4" className="px-4 py-3 text-right text-gray-800">Subtotal Serviços:</td>
-                  <td className="px-4 py-3 text-right text-gray-900">{formatarMoeda(os.valor_servicos)}</td>
+                  <td
+                    colSpan="4"
+                    className="px-4 py-3 text-right text-gray-800"
+                  >
+                    Subtotal Serviços:
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-900">
+                    {formatarMoeda(os.valor_servicos)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -271,7 +350,9 @@ export default function OSDetalhes() {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-2xl p-6">
         <div className="flex justify-between items-center text-white">
           <span className="text-2xl font-bold">VALOR TOTAL DA OS:</span>
-          <span className="text-4xl font-bold">{formatarMoeda(os.valor_total)}</span>
+          <span className="text-4xl font-bold">
+            {formatarMoeda(os.valor_total)}
+          </span>
         </div>
       </div>
 
@@ -281,7 +362,9 @@ export default function OSDetalhes() {
           <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             📝 Observações Gerais
           </h2>
-          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{os.observacoes_gerais}</p>
+          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {os.observacoes_gerais}
+          </p>
         </div>
       )}
 

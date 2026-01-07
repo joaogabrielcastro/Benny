@@ -19,6 +19,7 @@ const Estoque = lazy(() => import("./pages/Estoque"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
 const OrcamentoDetalhes = lazy(() => import("./pages/OrcamentoDetalhes"));
+const OrcamentoPublico = lazy(() => import("./pages/OrcamentoPublico"));
 const OrdensServico = lazy(() => import("./pages/OrdensServico"));
 const OSForm = lazy(() => import("./pages/OSForm"));
 const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
@@ -52,7 +53,7 @@ function App() {
           }}
         />
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-          <Navigation />
+          <ConditionalNavigation />
           <main className="container mx-auto px-4 py-8">
             <Suspense fallback={<LoadingSpinner size="xl" />}>
               <Routes>
@@ -62,6 +63,10 @@ function App() {
                 <Route path="/orcamentos" element={<Orcamentos />} />
                 <Route path="/orcamentos/novo" element={<OrcamentoForm />} />
                 <Route path="/orcamentos/:id" element={<OrcamentoDetalhes />} />
+                <Route
+                  path="/orcamento-publico/:id"
+                  element={<OrcamentoPublico />}
+                />
                 <Route path="/ordens-servico" element={<OrdensServico />} />
                 <Route path="/ordens-servico/nova" element={<OSForm />} />
                 <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
@@ -72,6 +77,17 @@ function App() {
       </Router>
     </ThemeProvider>
   );
+}
+
+function ConditionalNavigation() {
+  const location = useLocation();
+
+  // Não mostrar navegação na página pública
+  if (location.pathname.startsWith("/orcamento-publico")) {
+    return null;
+  }
+
+  return <Navigation />;
 }
 
 function Navigation() {

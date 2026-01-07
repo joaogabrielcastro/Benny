@@ -1,4 +1,4 @@
-import { FiChevronUp, FiChevronDown, FiChevronsUpDown } from "react-icons/fi";
+import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
 export default function SortableHeader({
   label,
@@ -29,7 +29,12 @@ export default function SortableHeader({
       <div className="flex items-center space-x-1">
         <span>{label}</span>
         <span className="text-gray-400">
-          {!isActive && <FiChevronsUpDown className="h-4 w-4" />}
+          {!isActive && (
+            <div className="flex flex-col h-4 w-4 -space-y-1">
+              <FiChevronUp className="h-2 w-4 opacity-50" />
+              <FiChevronDown className="h-2 w-4 opacity-50" />
+            </div>
+          )}
           {isActive && direction === "asc" && (
             <FiChevronUp className="h-4 w-4 text-blue-500" />
           )}

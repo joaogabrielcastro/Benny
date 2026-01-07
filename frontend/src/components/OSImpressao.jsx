@@ -9,187 +9,277 @@ const OSImpressao = forwardRef(({ os }, ref) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(valor);
+    }).format(Number(valor) || 0);
   };
 
+  const formatarHora = (data) => {
+    return new Date(data).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const dataCriacao = os.criado_em ? new Date(os.criado_em) : new Date();
+  const temObservacoesVeiculo = os.observacoes_veiculo && os.observacoes_veiculo.trim() !== "";
+  const temObservacoesGerais = os.observacoes_gerais && os.observacoes_gerais.trim() !== "";
+
   return (
-    <div ref={ref} className="hidden print:block bg-white p-8 text-black">
+    <div ref={ref} style={{ display: "none" }} className="os-impressao">
       <style>
         {`
           @media print {
-            @page {
-              size: A4;
-              margin: 1cm;
+            @page { 
+              size: A4; 
+              margin: 0.8cm; 
             }
-            body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+            
+            body * {
+              visibility: hidden;
+            }
+            
+            .os-impressao {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              display: block !important;
+            }
+            
+            .os-impressao,
+            .os-impressao * {
+              visibility: visible !important;
+            }
+            
+            .os-impressao {
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              line-height: 1.4;
+              color: #000;
+              background: white;
+            }
+            
+            .os-header { 
+              margin-bottom: 10px; 
+              padding-bottom: 8px; 
+              border-bottom: 3px solid #1e40af; 
+            }
+            
+            .os-section { 
+              margin-bottom: 10px; 
+            }
+            
+            .os-section-title { 
+              font-size: 12px; 
+              font-weight: bold; 
+              margin-bottom: 5px; 
+              padding-bottom: 3px;
+              border-bottom: 1px solid #ddd;
+              color: #000;
+            }
+            
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              font-size: 10px; 
+              margin-top: 5px; 
+            }
+            
+            th, td { 
+              padding: 4px; 
+              border: 1px solid #000; 
+              text-align: left;
+            }
+            
+            th { 
+              background-color: #f0f0f0; 
+              font-weight: 600; 
+            }
+            
+            .os-grid { 
+              display: table; 
+              width: 100%; 
+            }
+            
+            .os-grid > div { 
+              display: table-cell; 
+              padding: 2px 5px; 
+            }
+            
+            .os-grid-3 { 
+              display: table; 
+              width: 100%; 
+            }
+            
+            .os-grid-3 > div { 
+              display: table-cell; 
+              padding: 2px 5px; 
+            }
+            
+            .os-totals { 
+              background-color: #f5f5f5; 
+              padding: 8px; 
+              margin-top: 10px;
+              text-align: right;
+            }
+            
+            .signature-area { 
+              margin-top: 30px; 
+              padding-top: 10px; 
+              border-top: 1px solid #000;
+            }
+            
+            .signature-line { 
+              border-top: 1px solid #000; 
+              margin-top: 40px;
+              padding-top: 5px;
+              text-align: center;
+            }
+          }
+          
+          @media screen {
+            .os-impressao {
+              display: none !important;
             }
           }
         `}
       </style>
 
-      {/* Cabeçalho da Empresa */}
-      <div className="border-b-4 border-blue-600 pb-4 mb-6">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-4">
-            {/* Logo */}
-            <div className="w-20 h-20">
-              <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="100" cy="100" r="95" fill="#1e40af"/>
-                <text 
-                  x="100" 
-                  y="85" 
-                  fontFamily="Arial, sans-serif" 
-                  fontSize="32" 
-                  fontWeight="bold" 
-                  fill="white" 
-                  textAnchor="middle"
+      {/* Cabeçalho com Informações da Empresa */}
+      <div className="os-header">
+        <table style={{ width: "100%", border: "none", marginBottom: "10px" }}>
+          <tbody>
+            <tr>
+              <td style={{ border: "none", width: "15%", verticalAlign: "top" }}>
+                <div
+                  style={{
+                    width: "70px",
+                    height: "70px",
+                    border: "2px solid #000",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#1e40af",
+                  }}
                 >
-                  BENNY'S
-                </text>
-                <line x1="40" y1="100" x2="80" y2="100" stroke="white" strokeWidth="2"/>
-                <text 
-                  x="100" 
-                  y="105" 
-                  fontFamily="Arial, sans-serif" 
-                  fontSize="12" 
-                  fontWeight="normal" 
-                  fill="white" 
-                  textAnchor="middle" 
-                  letterSpacing="2"
-                >
-                  MOTORSPORT
-                </text>
-                <line x1="120" y1="100" x2="160" y2="100" stroke="white" strokeWidth="2"/>
-                <text 
-                  x="100" 
-                  y="125" 
-                  fontFamily="Arial, sans-serif" 
-                  fontSize="11" 
-                  fontWeight="normal" 
-                  fill="white" 
-                  textAnchor="middle" 
-                  letterSpacing="1"
-                >
-                  CENTRO AUTOMOTIVO
-                </text>
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-blue-600">
-                BENNY'S MOTORSPORT
-              </h1>
-              <p className="text-gray-700 mt-1 font-semibold">
-                Centro Automotivo • Excelência em Serviços
-              </p>
-              <div className="mt-2 text-sm text-gray-600">
-                <p>📍 Endereço da Oficina • Cidade - Estado</p>
-                <p>📞 (00) 0000-0000 | 📧 contato@bennysmotorsport.com.br</p>
-                <p>🆔 CNPJ: 00.000.000/0000-00</p>
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="bg-blue-600 text-white px-4 py-2 rounded-lg inline-block">
-              <p className="text-lg font-bold">{os.numero}</p>
-              <p className="text-xs">Ordem de Serviço</p>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Data: {formatarData(os.criado_em)}
-            </p>
-          </div>
-        </div>
+                  <div style={{ textAlign: "center", color: "white" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "bold", lineHeight: "1" }}>
+                      BENNY'S
+                    </div>
+                    <div style={{ fontSize: "8px", marginTop: "2px" }}>
+                      MOTORSPORT
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td style={{ border: "none", width: "50%", verticalAlign: "top", paddingLeft: "10px" }}>
+                <h1 style={{ fontSize: "16px", fontWeight: "bold", margin: "0 0 5px 0" }}>
+                  BENNYS CENTRO AUTOMOTIVO
+                </h1>
+                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                  <strong>CNPJ:</strong> 55.961.553
+                </p>
+                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                  <strong>Telefones:</strong> 91084254-47 | (41) 9 9236-2952
+                </p>
+                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                  <strong>Endereço:</strong> Prefeito João Batista Stocco N°247
+                </p>
+              </td>
+              <td style={{ border: "none", width: "35%", textAlign: "right", verticalAlign: "top" }}>
+                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                  <strong>Data:</strong> {formatarData(dataCriacao)} {formatarHora(dataCriacao)}
+                </p>
+                <p style={{ fontSize: "11px", margin: "5px 0", fontWeight: "bold" }}>
+                  Oficina Integrada
+                </p>
+                <div style={{ border: "2px solid #000", padding: "8px", marginTop: "5px", backgroundColor: "#f5f5f5" }}>
+                  <p style={{ fontSize: "9px", margin: "0 0 3px 0" }}>
+                    Ordem de serviço Numero
+                  </p>
+                  <p style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>
+                    {os.numero || "N/A"}
+                  </p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      {/* Dados do Cliente */}
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1">
-          DADOS DO CLIENTE
-        </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Cliente:</p>
-            <p className="font-semibold">{os.cliente_nome}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Telefone:</p>
-            <p className="font-semibold">
-              {os.cliente_telefone || "Não informado"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">CPF/CNPJ:</p>
-            <p className="font-semibold">
-              {os.cliente_cpf_cnpj || "Não informado"}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Dados do Veículo */}
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1">
-          DADOS DO VEÍCULO
-        </h2>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Modelo:</p>
-            <p className="font-semibold">{os.veiculo_modelo}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Placa:</p>
-            <p className="font-semibold">{os.veiculo_placa}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Cor:</p>
-            <p className="font-semibold">{os.veiculo_cor}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">KM:</p>
-            <p className="font-semibold">
-              {os.km ? os.km.toLocaleString() : "-"}
-            </p>
-          </div>
-        </div>
-        {os.observacoes_veiculo && (
-          <div className="mt-3 bg-gray-50 p-3 rounded">
-            <p className="text-sm text-gray-600">Observações do Veículo:</p>
-            <p className="text-sm">{os.observacoes_veiculo}</p>
+      {/* Dados do Cliente e Veículo */}
+      <div className="os-section">
+        <table style={{ width: "100%", border: "1px solid #000", fontSize: "10px" }}>
+          <tbody>
+            <tr>
+              <td style={{ padding: "5px", width: "50%", borderRight: "1px solid #000" }}>
+                <strong>Cliente:</strong> {os.cliente_nome || "Não informado"}
+              </td>
+              <td style={{ padding: "5px", width: "50%" }}>
+                <strong>Veículo:</strong> {os.veiculo_modelo || "Não informado"}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "5px", borderTop: "1px solid #000", borderRight: "1px solid #000" }}>
+                <strong>Telefone:</strong> {os.cliente_telefone || "Não informado"}
+              </td>
+              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+                <strong>Entrada:</strong> {formatarData(dataCriacao)} {formatarHora(dataCriacao)}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "5px", borderTop: "1px solid #000", borderRight: "1px solid #000" }} colSpan="1">
+                {/* Vazio */}
+              </td>
+              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+                <strong>Previsão:</strong> {os.previsao_entrega ? formatarData(os.previsao_entrega) : "-"}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "5px", borderTop: "1px solid #000", borderRight: "1px solid #000" }}>
+                <strong>Placa:</strong> {os.veiculo_placa || "Não informada"}
+              </td>
+              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+                <strong>Km:</strong> {os.km ? os.km.toLocaleString() : "-"}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "5px", borderTop: "1px solid #000" }} colSpan="2">
+                <strong>Chassi:</strong> {os.chassi || "Não informado"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        
+        {temObservacoesVeiculo && (
+          <div style={{ marginTop: "5px", fontSize: "10px", backgroundColor: "#f5f5f5", padding: "5px", border: "1px solid #ddd" }}>
+            <strong>Observações do Veículo:</strong> {os.observacoes_veiculo}
           </div>
         )}
       </div>
 
       {/* Serviços */}
       {os.servicos && os.servicos.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1">
-            SERVIÇOS REALIZADOS
-          </h2>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100">
+        <div className="os-section">
+          <h2 className="os-section-title">SERVIÇOS</h2>
+          <table>
+            <thead>
               <tr>
-                <th className="text-left p-2 border">Código</th>
-                <th className="text-left p-2 border">Descrição</th>
-                <th className="text-center p-2 border">Qtd</th>
-                <th className="text-right p-2 border">Valor Unit.</th>
-                <th className="text-right p-2 border">Total</th>
+                <th style={{ width: "15%" }}>Código</th>
+                <th style={{ textAlign: "left" }}>Descrição</th>
+                <th style={{ width: "10%", textAlign: "center" }}>Qtd</th>
+                <th style={{ width: "15%", textAlign: "right" }}>Valor Unit.</th>
+                <th style={{ width: "15%", textAlign: "right" }}>Total</th>
               </tr>
             </thead>
             <tbody>
               {os.servicos.map((servico, index) => (
                 <tr key={index}>
-                  <td className="p-2 border">{servico.codigo}</td>
-                  <td className="p-2 border">{servico.descricao}</td>
-                  <td className="text-center p-2 border">
-                    {servico.quantidade}
-                  </td>
-                  <td className="text-right p-2 border">
-                    {formatarMoeda(servico.valor_unitario)}
-                  </td>
-                  <td className="text-right p-2 border font-semibold">
-                    {formatarMoeda(servico.valor_total)}
-                  </td>
+                  <td>{servico.codigo || "-"}</td>
+                  <td>{servico.descricao || "-"}</td>
+                  <td style={{ textAlign: "center" }}>{servico.quantidade || 0}</td>
+                  <td style={{ textAlign: "right" }}>{formatarMoeda(servico.valor_unitario)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "600" }}>{formatarMoeda(servico.valor_total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -199,34 +289,26 @@ const OSImpressao = forwardRef(({ os }, ref) => {
 
       {/* Produtos/Peças */}
       {os.produtos && os.produtos.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1">
-            PEÇAS E PRODUTOS UTILIZADOS
-          </h2>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100">
+        <div className="os-section">
+          <h2 className="os-section-title">PEÇAS E PRODUTOS</h2>
+          <table>
+            <thead>
               <tr>
-                <th className="text-left p-2 border">Código</th>
-                <th className="text-left p-2 border">Descrição</th>
-                <th className="text-center p-2 border">Qtd</th>
-                <th className="text-right p-2 border">Valor Unit.</th>
-                <th className="text-right p-2 border">Total</th>
+                <th style={{ width: "15%" }}>Código</th>
+                <th style={{ textAlign: "left" }}>Descrição</th>
+                <th style={{ width: "10%", textAlign: "center" }}>Qtd</th>
+                <th style={{ width: "15%", textAlign: "right" }}>Valor Unit.</th>
+                <th style={{ width: "15%", textAlign: "right" }}>Total</th>
               </tr>
             </thead>
             <tbody>
               {os.produtos.map((produto, index) => (
                 <tr key={index}>
-                  <td className="p-2 border">{produto.codigo}</td>
-                  <td className="p-2 border">{produto.descricao}</td>
-                  <td className="text-center p-2 border">
-                    {produto.quantidade}
-                  </td>
-                  <td className="text-right p-2 border">
-                    {formatarMoeda(produto.valor_unitario)}
-                  </td>
-                  <td className="text-right p-2 border font-semibold">
-                    {formatarMoeda(produto.valor_total)}
-                  </td>
+                  <td>{produto.codigo || "-"}</td>
+                  <td>{produto.descricao || "-"}</td>
+                  <td style={{ textAlign: "center" }}>{produto.quantidade || 0}</td>
+                  <td style={{ textAlign: "right" }}>{formatarMoeda(produto.valor_unitario)}</td>
+                  <td style={{ textAlign: "right", fontWeight: "600" }}>{formatarMoeda(produto.valor_total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -235,75 +317,88 @@ const OSImpressao = forwardRef(({ os }, ref) => {
       )}
 
       {/* Totais */}
-      <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-        <div className="flex justify-end space-x-12">
-          <div className="text-right">
-            <p className="text-gray-600 mb-1">Serviços:</p>
-            <p className="text-gray-600 mb-1">Produtos:</p>
-            <p className="text-lg font-bold text-gray-800 mt-2">TOTAL:</p>
-          </div>
-          <div className="text-right">
-            <p className="mb-1">{formatarMoeda(os.valor_servicos || 0)}</p>
-            <p className="mb-1">{formatarMoeda(os.valor_produtos || 0)}</p>
-            <p className="text-xl font-bold text-blue-600 mt-2">
-              {formatarMoeda(os.valor_total || 0)}
-            </p>
-          </div>
-        </div>
+      <div className="os-totals">
+        <table style={{ width: "100%", border: "none", fontSize: "11px" }}>
+          <tbody>
+            <tr>
+              <td style={{ border: "none", textAlign: "right", width: "70%" }}>Serviços:</td>
+              <td style={{ border: "none", textAlign: "right", fontWeight: "bold" }}>
+                {formatarMoeda(os.valor_servicos)}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ border: "none", textAlign: "right" }}>Produtos:</td>
+              <td style={{ border: "none", textAlign: "right", fontWeight: "bold" }}>
+                {formatarMoeda(os.valor_produtos)}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ border: "none", textAlign: "right", paddingTop: "5px" }}>
+                <strong>VALOR TOTAL:</strong>
+              </td>
+              <td style={{ border: "none", textAlign: "right", fontWeight: "bold", fontSize: "14px", paddingTop: "5px" }}>
+                {formatarMoeda(os.valor_total)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* Observações Gerais */}
-      {os.observacoes_gerais && (
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-gray-300 pb-1">
-            OBSERVAÇÕES GERAIS
-          </h2>
-          <p className="text-sm whitespace-pre-wrap">{os.observacoes_gerais}</p>
+      {temObservacoesGerais && (
+        <div className="os-section">
+          <p style={{ fontSize: "10px", margin: 0, padding: "5px", backgroundColor: "#f5f5f5", border: "1px solid #ddd" }}>
+            <strong>Observações:</strong> {os.observacoes_gerais}
+          </p>
         </div>
       )}
 
-      {/* Informações Adicionais */}
-      <div className="mb-6">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-gray-600">Status:</p>
-            <p className="font-semibold">{os.status}</p>
-          </div>
-          {os.responsavel_tecnico && (
-            <div>
-              <p className="text-gray-600">Responsável Técnico:</p>
-              <p className="font-semibold">{os.responsavel_tecnico}</p>
-            </div>
-          )}
-        </div>
+      {/* Garantia */}
+      <div style={{ marginTop: "15px", marginBottom: "15px", textAlign: "center", padding: "10px", backgroundColor: "#f5f5f5", border: "1px solid #000" }}>
+        <p style={{ fontSize: "10px", margin: 0, fontWeight: "bold" }}>
+          Todos os nossos serviços e produtos possuem 3 meses de garantia.
+        </p>
+        <p style={{ fontSize: "10px", margin: "5px 0 0 0", fontWeight: "bold" }}>
+          Obrigado pela preferência!
+        </p>
       </div>
+
+      {/* Status e Responsável */}
+      {(os.status || os.responsavel_tecnico) && (
+        <table style={{ width: "100%", border: "none", fontSize: "9px", marginBottom: "10px" }}>
+          <tbody>
+            <tr>
+              <td style={{ border: "none", padding: "2px" }}>
+                <strong>Status:</strong> {os.status || "Não informado"}
+              </td>
+              {os.responsavel_tecnico && (
+                <td style={{ border: "none", padding: "2px" }}>
+                  <strong>Responsável Técnico:</strong> {os.responsavel_tecnico}
+                </td>
+              )}
+            </tr>
+          </tbody>
+        </table>
+      )}
 
       {/* Assinaturas */}
-      <div className="mt-12 pt-6 border-t-2 border-gray-300">
-        <div className="grid grid-cols-2 gap-8">
-          <div className="text-center">
-            <div className="border-t-2 border-gray-400 pt-2 mt-16">
-              <p className="font-semibold">Assinatura do Cliente</p>
-              <p className="text-xs text-gray-600">Data: ___/___/___</p>
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="border-t-2 border-gray-400 pt-2 mt-16">
-              <p className="font-semibold">Benny's Motorsport</p>
-              <p className="text-xs text-gray-600">Centro Automotivo • Responsável Técnico</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Rodapé */}
-      <div className="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
-        <p>
-          Este documento comprova a prestação de serviços automotivos realizados pela <strong>Benny's Motorsport - Centro Automotivo</strong>.
-        </p>
-        <p className="mt-1">
-          Validade: 90 dias • Garantia conforme legislação vigente
-        </p>
+      <div className="signature-area">
+        <table style={{ width: "100%", border: "none", marginTop: "20px" }}>
+          <tbody>
+            <tr>
+              <td style={{ border: "none", width: "50%", textAlign: "center", paddingRight: "20px" }}>
+                <div style={{ borderBottom: "1px solid #000", marginTop: "50px", paddingTop: "5px" }}>
+                  <strong style={{ fontSize: "10px" }}>BENNYS CENTRO AUTOMOTIVO</strong>
+                </div>
+              </td>
+              <td style={{ border: "none", width: "50%", textAlign: "center", paddingLeft: "20px" }}>
+                <div style={{ borderBottom: "1px solid #000", marginTop: "50px", paddingTop: "5px" }}>
+                  <strong style={{ fontSize: "10px" }}>{os.cliente_nome?.toUpperCase() || "CLIENTE"}</strong>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );

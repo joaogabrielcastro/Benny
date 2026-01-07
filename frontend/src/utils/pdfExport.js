@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 export function exportOSListToPDF(ordensServico) {
   const doc = new jsPDF();
@@ -25,7 +25,7 @@ export function exportOSListToPDF(ordensServico) {
     `R$ ${parseFloat(os.valor_total).toFixed(2)}`,
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 40,
     head: [["Número", "Cliente", "Veículo", "Data", "Status", "Valor"]],
     body: tableData,
@@ -39,7 +39,7 @@ export function exportOSListToPDF(ordensServico) {
     (sum, os) => sum + parseFloat(os.valor_total),
     0
   );
-  const finalY = doc.lastAutoTable.finalY + 10;
+  const finalY = doc.previousAutoTable.finalY + 10;
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text(`Total: R$ ${total.toFixed(2)}`, 14, finalY);
@@ -69,7 +69,7 @@ export function exportOrcamentosListToPDF(orcamentos) {
     `R$ ${parseFloat(orc.valor_total).toFixed(2)}`,
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 40,
     head: [["Número", "Cliente", "Veículo", "Data", "Status", "Valor"]],
     body: tableData,
@@ -82,7 +82,7 @@ export function exportOrcamentosListToPDF(orcamentos) {
     (sum, orc) => sum + parseFloat(orc.valor_total),
     0
   );
-  const finalY = doc.lastAutoTable.finalY + 10;
+  const finalY = doc.previousAutoTable.finalY + 10;
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text(`Total: R$ ${total.toFixed(2)}`, 14, finalY);
@@ -126,7 +126,7 @@ export function exportDashboardToPDF(stats, chartData) {
       p.quantidade.toString(),
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 90,
       head: [["Produto", "Quantidade Vendida"]],
       body: tableData,

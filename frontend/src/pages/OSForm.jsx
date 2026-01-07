@@ -14,6 +14,8 @@ export default function OSForm() {
     cliente_id: "",
     veiculo_id: "",
     km: "",
+    chassi: "",
+    previsao_entrega: "",
     observacoes_veiculo: "",
     observacoes_gerais: "",
     responsavel_tecnico: "",
@@ -300,6 +302,39 @@ export default function OSForm() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Chassi
+              </label>
+              <input
+                type="text"
+                value={formData.chassi}
+                onChange={(e) =>
+                  setFormData({ ...formData, chassi: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Previsão de Entrega
+              </label>
+              <input
+                type="date"
+                value={formData.previsao_entrega}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    previsao_entrega: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Observações do Veículo

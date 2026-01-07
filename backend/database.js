@@ -3,7 +3,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const { Pool } = pkg;
+const { Pool, types } = pkg;
+
+// Configurar pg para retornar valores numéricos como números (não strings)
+types.setTypeParser(1700, function (val) {
+  return parseFloat(val);
+});
 
 // Configurar pool de conexões PostgreSQL
 const pool = new Pool({
@@ -182,9 +187,11 @@ async function initDatabase() {
         quantidade INTEGER NOT NULL,
         motivo TEXT,
         os_id INTEGER,
+        orcamento_id INTEGER,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (produto_id) REFERENCES produtos(id),
-        FOREIGN KEY (os_id) REFERENCES ordens_servico(id)
+        FOREIGN KEY (os_id) REFERENCES ordens_servico(id),
+        FOREIGN KEY (orcamento_id) REFERENCES orcamentos(id)
       )
     `);
 
@@ -221,6 +228,19 @@ async function initDatabase() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_orcamentos_status 
       ON orcamentos(status);
+    `);
+
+    // Adicionar campos chassi e previsao_entrega se não existirem
+    await client.query(`
+      ALTER TABLE ordens_servico 
+      ADD COLUMN IF NOT EXISTS chassi VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS previsao_entrega DATE;
+    `);
+
+    // Adicionar coluna orcamento_id na tabela movimentacoes_estoque se não existir
+    await client.query(`
+      ALTER TABLE movimentacoes_estoque 
+      ADD COLUMN IF NOT EXISTS orcamento_id INTEGER REFERENCES orcamentos(id);
     `);
 
     console.log("✓ Tabelas do banco de dados criadas/verificadas com sucesso!");
