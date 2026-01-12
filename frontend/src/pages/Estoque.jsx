@@ -24,7 +24,13 @@ export default function Estoque() {
 
     // Conectar WebSocket
     const conectarWebSocket = () => {
-      const ws = new WebSocket("ws://localhost:3001");
+      // Detecta automaticamente: localhost em dev, wss em produção
+      const wsUrl =
+        window.location.hostname === "localhost"
+          ? "ws://localhost:3001"
+          : "wss://benny-oh3g.onrender.com";
+
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
