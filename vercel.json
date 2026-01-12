@@ -1,8 +1,9 @@
 {
   "$schema": "https://openapis.vercel.sh/vercel.json",
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rootDirectory": "frontend",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/(.*)",
