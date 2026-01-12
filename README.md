@@ -1,213 +1,295 @@
-# Benny's Centro Automotivo - Sistema de Gestão
+# 🚗 Benny's Centro Automotivo - Sistema de Gestão
 
-Sistema web completo para gestão de oficina mecânica, desenvolvido com React + Node.js + PostgreSQL.
+Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreSQL.
 
-## 🚀 Características
+## 🚀 Funcionalidades
 
-### Funcionalidades Principais
+### 📋 Gestão de Ordens de Serviço
 
-- ✅ **Ordens de Serviço (OS)**: Criação, edição, visualização e impressão com layout profissional
-- ✅ **Orçamentos**: Gerenciamento de orçamentos com conversão automática para OS
-- ✅ **Estoque**: Controle de produtos com alertas de estoque baixo e baixa automática
-- ✅ **Clientes e Veículos**: Cadastro integrado com histórico completo
-- ✅ **Dashboard Analítico**: Gráficos de faturamento, produtos mais vendidos e métricas
-- ✅ **Busca Avançada**: Pesquisa por número, cliente, placa ou data
-- ✅ **Impressão**: Layout profissional para impressão de OS
+- Criar, editar e visualizar OS com workflow completo
+- Impressão profissional de OS com logo e detalhes
+- Controle de status (Aberta, Em Andamento, Finalizada, Cancelada)
+- Histórico completo de alterações (auditoria)
+- Busca avançada por número, cliente, placa ou data
+- Filtros por status e período
+- Ordenação de colunas
+- Paginação automática
 
-### Novas Funcionalidades 🎉
+### 💰 Orçamentos
 
-- 🌙 **Dark Mode**: Tema escuro com salvamento de preferência
-- 🔍 **Filtros Avançados**: Filtro por data, status e cliente
-- 📄 **Exportação PDF**: Relatórios de OS, Orçamentos e Dashboard
-- 📊 **Gráficos Interativos**: Recharts com visualizações em tempo real
-- ⚡ **Performance**: Lazy loading, compressão HTTP e loading states
-- 🎨 **UX Moderna**: Toast notifications, confirmações e animações
+- Criação de orçamentos detalhados
+- **Compartilhamento via WhatsApp ou link público**
+- Cliente pode aprovar/reprovar online
+- Conversão automática para OS após aprovação
+- Baixa automática de estoque na aprovação
+- Controle de status (Pendente, Aprovado, Reprovado)
 
-### Infraestrutura
+### 📦 Controle de Estoque
 
-- ☁️ **Cloud Ready**: Pronto para deploy na Vercel e Render com banco PostgreSQL (Neon)
-- 🔒 **Segurança**: Variáveis de ambiente, SSL, conexões seguras
+- Cadastro completo de produtos
+- Alertas de estoque baixo
+- Baixa automática em OS e orçamentos aprovados
+- Movimentações de entrada/saída rastreadas
+- Histórico de movimentações
+
+### 👥 Clientes e Veículos
+
+- Cadastro integrado de clientes
+- Múltiplos veículos por cliente
+- Histórico completo de serviços
+
+### 📊 Dashboard Analítico
+
+- Faturamento do mês
+- Ticket médio
+- OS abertas vs totais
+- Produtos com estoque baixo
+- Gráfico de faturamento mensal (6 meses)
+- Top 10 produtos mais vendidos
+- **Exportação de relatórios em PDF**
+
+### 🎨 Interface Moderna
+
+- **Dark Mode** com salvamento de preferência
+- Design responsivo (mobile-first)
+- Loading states e feedback visual
+- Toast notifications para ações
+- Confirmações customizadas
+- Lazy loading de páginas
+
+### ⚡ Performance e Infraestrutura
+
+- Cache HTTP para endpoints frequentes
+- Compressão de respostas (gzip)
+- Paginação otimizada
+- Queries SQL eficientes
+- **WebSocket para atualizações em tempo real**
+- Logs estruturados (Winston)
+- Backup automático diário
+- Sistema de health check
 
 ## 📋 Requisitos
 
-- Node.js 18+ instalado
+- **Node.js** 18 ou superior
+- **PostgreSQL** (recomendado Neon para produção)
 - NPM ou Yarn
-- Banco de dados PostgreSQL (Neon recomendado para produção)
 
-## 🔧 Instalação
+## 🔧 Instalação Local
 
-### 1. Backend
+### 1. Clone o repositório
+
+```bash
+git clone <seu-repositorio>
+cd Benny
+```
+
+### 2. Backend
 
 ```bash
 cd backend
 npm install
 
-# Configure o arquivo .env com sua connection string do PostgreSQL
+# Configure as variáveis de ambiente
 cp .env.example .env
-# Edite o .env e coloque sua DATABASE_URL
+# Edite o .env e adicione sua DATABASE_URL do PostgreSQL
 
+# Iniciar servidor
 npm run dev
 ```
 
-O servidor será iniciado em `http://localhost:3000`
+O backend estará em `http://localhost:3000`
 
-### 2. Frontend
+### 3. Frontend
 
 ```bash
 cd frontend
 npm install
+
+# Iniciar aplicação
 npm run dev
 ```
 
-O frontend será iniciado em `http://localhost:5173`
+O frontend estará em `http://localhost:5173`
 
 ## ☁️ Deploy em Produção
 
-Veja o guia completo em **[DEPLOY.md](DEPLOY.md)** para instruções detalhadas de como fazer deploy na:
+### Backend (Render)
 
-- **Frontend**: Vercel
-- **Backend**: Render
-- **Database**: Neon (PostgreSQL)
+1. Crie uma conta no [Render](https://render.com)
+2. Conecte seu repositório GitHub
+3. Crie um Web Service apontando para `/backend`
+4. Configure a variável de ambiente:
+   - `DATABASE_URL`: Sua connection string do PostgreSQL
+
+### Frontend (Vercel)
+
+1. Instale a Vercel CLI: `npm i -g vercel`
+2. Na pasta raiz do projeto: `vercel`
+3. Siga as instruções
+4. Configure a variável de ambiente:
+   - `VITE_API_URL`: URL do seu backend no Render
+
+### Database (Neon)
+
+1. Crie uma conta no [Neon](https://neon.tech)
+2. Crie um novo projeto PostgreSQL
+3. Copie a connection string
+4. Use no `.env` do backend
 
 ## 📁 Estrutura do Projeto
 
 ```
 Benny/
 ├── backend/
-│   ├── server.js                # Servidor Express e API REST
-│   ├── database.js              # Configuração do banco PostgreSQL
-│   ├── .env                     # Variáveis de ambiente (DATABASE_URL)
-│   ├── .env.example             # Template de variáveis
-│   ├── render.yaml              # Configuração para deploy no Render
-│   └── package.json
+│   ├── server.js           # API REST completa
+│   ├── database.js         # Pool PostgreSQL e migrations
+│   ├── test-api.js         # Testes automatizados
+│   ├── package.json
+│   └── .env               # Variáveis de ambiente
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/         # Páginas do sistema
-│   │   │   ├── Home.jsx
+│   │   ├── pages/         # Páginas da aplicação
+│   │   │   ├── Dashboard.jsx
 │   │   │   ├── Estoque.jsx
 │   │   │   ├── Orcamentos.jsx
 │   │   │   ├── OrcamentoForm.jsx
 │   │   │   ├── OrcamentoDetalhes.jsx
+│   │   │   ├── OrcamentoPublico.jsx
 │   │   │   ├── OrdensServico.jsx
 │   │   │   ├── OSForm.jsx
 │   │   │   └── OSDetalhes.jsx
-│   │   ├── services/
-│   │   │   └── api.js     # Cliente Axios
-│   │   ├── App.jsx        # Rotas e navegação
+│   │   │
+│   │   ├── components/    # Componentes reutilizáveis
+│   │   │   ├── AdvancedFilters.jsx
+│   │   │   ├── AuditHistory.jsx
+│   │   │   ├── ConfirmDialog.jsx
+│   │   │   ├── LoadingSpinner.jsx
+│   │   │   ├── Logo.jsx
+│   │   │   ├── OSImpressao.jsx
+│   │   │   ├── Pagination.jsx
+│   │   │   ├── SearchBar.jsx
+│   │   │   ├── SortableHeader.jsx
+│   │   │   └── ThemeToggle.jsx
+│   │   │
+│   │   ├── contexts/      # React Context
+│   │   │   └── ThemeContext.jsx
+│   │   │
+│   │   ├── services/      # API Client
+│   │   │   └── api.js
+│   │   │
+│   │   ├── utils/         # Utilitários
+│   │   │   ├── formatters.js
+│   │   │   ├── formValidation.jsx
+│   │   │   └── pdfExport.js
+│   │   │
+│   │   ├── styles/
+│   │   │   └── print.css  # Estilos para impressão
+│   │   │
+│   │   ├── App.jsx        # Rotas e Layout
 │   │   ├── main.jsx
 │   │   └── index.css
+│   │
 │   ├── index.html
+│   ├── package.json
 │   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── package.json
+│   └── tailwind.config.js
 │
+├── vercel.json            # Config Vercel
 └── README.md
 ```
-
-## 🎯 Funcionalidades Principais
-
-### Ordem de Serviço
-
-- Criação de OS com dados do cliente, veículo, produtos e serviços
-- Integração automática com estoque (baixa automática)
-- Alerta de estoque insuficiente
-- Controle de status (Aberta, Em andamento, Finalizada, Cancelada)
-- Impressão com layout profissional
-- Informações de garantia (3 meses)
-- Busca por número, cliente ou placa
-
-### Orçamentos
-
-- Criação de orçamentos sem compromisso
-- Aprovação/reprovação
-- Conversão automática para OS com um clique
-- Mesma estrutura de produtos e serviços da OS
-
-### Estoque
-
-- Cadastro completo de produtos
-- Controle de quantidade em estoque
-- Alerta automático de estoque baixo
-- Valores de custo e venda
-- Baixa automática ao criar OS
-- Histórico de movimentações
-
-### Dashboard
-
-- Visão geral com estatísticas
-- OS abertas
-- Orçamentos pendentes
-- Produtos com estoque baixo
-- Acesso rápido às principais funções
 
 ## 🔌 API Endpoints
 
 ### Produtos
 
-- `GET /api/produtos` - Listar todos
+- `GET /api/produtos` - Listar (com paginação)
 - `GET /api/produtos/:id` - Buscar por ID
 - `POST /api/produtos` - Criar
 - `PUT /api/produtos/:id` - Atualizar
 - `DELETE /api/produtos/:id` - Deletar
-- `GET /api/produtos/alertas/estoque-baixo` - Produtos com estoque baixo
+- `GET /api/produtos/alertas/estoque-baixo` - Estoque baixo
 
-### Clientes
+### Clientes e Veículos
 
-- `GET /api/clientes` - Listar todos
-- `GET /api/clientes/:id` - Buscar por ID
-- `POST /api/clientes` - Criar
-- `PUT /api/clientes/:id` - Atualizar
-
-### Veículos
-
-- `GET /api/veiculos` - Listar todos
-- `GET /api/veiculos/cliente/:clienteId` - Listar por cliente
-- `POST /api/veiculos` - Criar
+- `GET /api/clientes` - Listar clientes
+- `POST /api/clientes` - Criar cliente
+- `GET /api/veiculos/cliente/:id` - Veículos do cliente
+- `POST /api/veiculos` - Cadastrar veículo
 
 ### Orçamentos
 
-- `GET /api/orcamentos` - Listar todos (com filtros)
+- `GET /api/orcamentos` - Listar (com filtros)
 - `GET /api/orcamentos/:id` - Buscar por ID
 - `POST /api/orcamentos` - Criar
 - `PUT /api/orcamentos/:id` - Atualizar
 - `POST /api/orcamentos/:id/converter-os` - Converter em OS
+- `GET /api/orcamentos/publico/:id` - Visualização pública
+- `PUT /api/orcamentos/publico/:id/aprovar` - Aprovação pública
+- `PUT /api/orcamentos/publico/:id/reprovar` - Reprovação pública
 
 ### Ordens de Serviço
 
-- `GET /api/ordens-servico` - Listar todas (com filtros)
+- `GET /api/ordens-servico` - Listar (com filtros)
 - `GET /api/ordens-servico/:id` - Buscar por ID
 - `POST /api/ordens-servico` - Criar
-- `PUT /api/ordens-servico/:id` - Atualizar
+- `PUT /api/ordens-servico/:id` - Atualizar status
 
-## 🎨 Tecnologias Utilizadas
+### Relatórios
 
-### Backend
+- `GET /api/relatorios/dashboard` - Dados do dashboard
+- `GET /api/relatorios/vendas` - Relatório de vendas
 
-- Node.js
-- Express
-- Better-SQLite3
-- CORS
+### Sistema
 
-### Frontend
+- `GET /api/health` - Health check
+- `POST /api/backup` - Criar backup manual
+- `GET /api/backup/list` - Listar backups
 
-- React 18
-- Vite
-- React Router DOM
-- Tailwind CSS
-- Axios
+### Auditoria
 
-## 📝 Observações
+- `GET /api/auditoria/ordens-servico/:id` - Histórico de OS
+- `GET /api/auditoria/orcamentos/:id` - Histórico de orçamento
 
-- O sistema está preparado para futuras expansões (financeiro, relatórios, controle de usuários)
-- O banco de dados SQLite é criado automaticamente na primeira execução
-- A impressão das OS usa CSS `@media print` para layout otimizado
-- Todas as datas são formatadas para o padrão brasileiro (pt-BR)
+## 🔒 Segurança
 
-## 🤝 Contribuindo
+- Variáveis de ambiente para credenciais
+- SSL/TLS nas conexões de banco
+- Validação de dados com express-validator
+- Sanitização de inputs
+- CORS configurado
+- Logs de auditoria
 
-Este é um sistema desenvolvido especificamente para Benny's Centro Automotivo.
+## 🧪 Testes
+
+Execute a bateria de testes da API:
+
+```bash
+cd backend
+npm test
+```
+
+Taxa de sucesso: **97.1% (33/34 testes)**
+
+## 🎯 Próximas Melhorias
+
+- [ ] Autenticação de usuários (JWT)
+- [ ] Permissões por perfil (admin, mecânico, atendente)
+- [ ] Notificações por email
+- [ ] Integração com pagamento online
+- [ ] App mobile (React Native)
+- [ ] Impressão de múltiplas OS
+- [ ] Relatórios avançados
+- [ ] Backup em nuvem (S3)
 
 ## 📄 Licença
 
-Sistema proprietário - Benny's Centro Automotivo © 2025
+Este projeto é proprietário e de uso interno.
+
+## 👨‍💻 Suporte
+
+Para suporte ou dúvidas, entre em contato através do email ou WhatsApp da oficina.
+
+---
+
+**Desenvolvido com ❤️ para Benny's Centro Automotivo**

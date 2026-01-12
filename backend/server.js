@@ -243,13 +243,11 @@ app.post("/api/produtos", validateProduto, async (req, res) => {
 
     logger.info(`Produto criado: ${result.rows[0].id}`);
 
-    res
-      .status(201)
-      .json({
-        id: result.rows[0].id,
-        message: "Produto criado com sucesso",
-        produto: result.rows[0],
-      });
+    res.status(201).json({
+      id: result.rows[0].id,
+      message: "Produto criado com sucesso",
+      produto: result.rows[0],
+    });
   } catch (error) {
     logger.error("Erro ao criar produto:", error);
     res.status(500).json({ error: error.message });
@@ -287,7 +285,7 @@ app.put("/api/produtos/:id", async (req, res) => {
       ]
     );
 
-    console.log(
+    logger.info(
       `Produto ${req.params.id} atualizado - Nova quantidade: ${quantidade}`
     );
 
@@ -303,7 +301,7 @@ app.put("/api/produtos/:id", async (req, res) => {
       produto: result.rows[0],
     });
   } catch (error) {
-    console.error("Erro ao atualizar produto:", error);
+    logger.error("Erro ao atualizar produto:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -606,8 +604,8 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
       if (produtosResult.rows.length > 0) {
         for (const produto of produtosResult.rows) {
           if (produto.produto_id) {
-            console.log(
-              `Aprovação de orçamento: Dando baixa no estoque - produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`
+            logger.info(
+              `Aprovação de orçamento: Dando baixa - produto_id=${produto.produto_id}, qtd=${produto.quantidade}`
             );
 
             await client.query(
@@ -624,8 +622,8 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
         }
       }
     } else {
-      console.log(
-        `Orçamento ${req.params.id} já estava aprovado, baixa de estoque ignorada`
+      logger.info(
+        `Orçamento ${req.params.id} já estava aprovado, baixa ignorada`
       );
     }
 
@@ -641,7 +639,7 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Erro ao aprovar orçamento:", error);
+    logger.error("Erro ao aprovar orçamento:", error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -880,15 +878,17 @@ app.put("/api/orcamentos/:id", async (req, res) => {
         ]
       );
     } catch (auditoriaError) {
-      console.error("Erro ao registrar auditoria:", auditoriaError);
+      logger.error("Erro ao registrar auditoria:", auditoriaError);
     }
 
     // Se o status mudou para "Aprovado", dar baixa no estoque
     const statusAnterior = dadosAnteriores.rows[0]?.status;
-    console.log(`Status anterior: ${statusAnterior}, Status novo: ${status}`);
+    logger.info(
+      `Orçamento ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`
+    );
 
     if (status === "Aprovado" && statusAnterior !== "Aprovado") {
-      console.log(
+      logger.info(
         `Orçamento aprovado via edição: ID=${req.params.id}, dando baixa no estoque`
       );
 
@@ -899,16 +899,12 @@ app.put("/api/orcamentos/:id", async (req, res) => {
           [req.params.id]
         );
 
-        console.log(`  Movimentações existentes: ${movExistente.rows.length}`);
-
         if (movExistente.rows.length === 0) {
           // Buscar produtos do orçamento e dar baixa
           const produtosEstoque = await client.query(
             "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
             [req.params.id]
           );
-
-          console.log(`  Produtos encontrados: ${produtosEstoque.rows.length}`);
 
           if (produtosEstoque.rows.length > 0) {
             for (const produto of produtosEstoque.rows) {
@@ -1208,8 +1204,10 @@ app.post("/api/ordens-servico", async (req, res) => {
       responsavel_tecnico,
     } = req.body;
 
-    console.log("=== CRIANDO NOVA OS ===");
-    console.log("Produtos recebidos:", JSON.stringify(produtos, null, 2));
+    logger.info("Criando nova OS", {
+      produtos: produtos?.length || 0,
+      servicos: servicos?.length || 0,
+    });
 
     const numero = await gerarNumeroOS();
 
@@ -1246,8 +1244,6 @@ app.post("/api/ordens-servico", async (req, res) => {
     // Inserir produtos e dar baixa no estoque
     if (produtos && produtos.length > 0) {
       for (const produto of produtos) {
-        console.log("Produto recebido:", produto); // Debug
-
         await client.query(
           `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque)
            VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
@@ -1263,9 +1259,9 @@ app.post("/api/ordens-servico", async (req, res) => {
         );
 
         if (produto.produto_id) {
-          console.log(
-            `Dando baixa no estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`
-          ); // Debug
+          logger.info(
+            `Baixa estoque OS: produto=${produto.produto_id}, qtd=${produto.quantidade}`
+          );
 
           await client.query(
             "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
@@ -1277,8 +1273,6 @@ app.post("/api/ordens-servico", async (req, res) => {
              VALUES ($1, 'SAIDA', $2, 'Utilizado na OS', $3)`,
             [produto.produto_id, produto.quantidade, os_id]
           );
-        } else {
-          console.log("Produto sem produto_id, baixa de estoque ignorada"); // Debug
         }
       }
     }
@@ -1361,7 +1355,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
         ]
       );
     } catch (auditoriaError) {
-      console.error("Erro ao registrar auditoria:", auditoriaError);
+      logger.error("Erro ao registrar auditoria:", auditoriaError);
       // Continua mesmo se auditoria falhar
     }
 

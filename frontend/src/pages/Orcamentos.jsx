@@ -37,11 +37,11 @@ export default function Orcamentos() {
 
   const getStatusColor = (status) => {
     const colors = {
-      Pendente: "bg-yellow-100 text-yellow-800",
-      Aprovado: "bg-green-100 text-green-800",
-      Reprovado: "bg-red-100 text-red-800",
+      Pendente: "bg-yellow-100 text-yellow-800 border border-yellow-300",
+      Aprovado: "bg-green-100 text-green-800 border border-green-300",
+      Reprovado: "bg-red-100 text-red-800 border border-red-300",
     };
-    return colors[status] || "bg-gray-100 text-gray-800";
+    return colors[status] || "bg-gray-100 text-gray-800 border border-gray-300";
   };
 
   return (

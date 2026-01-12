@@ -30,7 +30,10 @@ export default function Estoque() {
     try {
       setLoading(true);
       const response = await api.get("/produtos");
-      setProdutos(response.data);
+      // A API agora retorna { data: [...], pagination: {...} }
+      setProdutos(
+        Array.isArray(response.data) ? response.data : response.data.data || []
+      );
     } catch (error) {
       toast.error("Erro ao carregar produtos");
     } finally {

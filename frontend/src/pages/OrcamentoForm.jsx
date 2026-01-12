@@ -53,7 +53,10 @@ export default function OrcamentoForm() {
   const carregarProdutos = async () => {
     try {
       const response = await api.get("/produtos");
-      setProdutos(response.data);
+      // A API agora retorna { data: [...], pagination: {...} }
+      setProdutos(
+        Array.isArray(response.data) ? response.data : response.data.data || []
+      );
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
     }
