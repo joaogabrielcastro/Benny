@@ -310,8 +310,13 @@ app.put("/api/produtos/:id", async (req, res) => {
 app.delete("/api/produtos/:id", async (req, res) => {
   try {
     await pool.query("DELETE FROM produtos WHERE id = $1", [req.params.id]);
+
+    // Limpar cache de produtos
+    clearCacheByPattern("/api/produtos");
+
     res.json({ message: "Produto deletado com sucesso" });
   } catch (error) {
+    logger.error("Erro ao deletar produto:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -696,6 +701,7 @@ app.post("/api/orcamentos", async (req, res) => {
       previsao_entrega,
       observacoes_veiculo,
       observacoes_gerais,
+      responsavel_tecnico,
       produtos,
       servicos,
     } = req.body;
@@ -711,8 +717,8 @@ app.post("/api/orcamentos", async (req, res) => {
 
     // Inserir orçamento
     const orcResult = await client.query(
-      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, chassi, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, chassi, previsao_entrega, observacoes_veiculo, observacoes_gerais, responsavel_tecnico, valor_produtos, valor_servicos, valor_total)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [
         numero,
         cliente_id,
@@ -722,6 +728,7 @@ app.post("/api/orcamentos", async (req, res) => {
         previsao_entrega || null,
         observacoes_veiculo,
         observacoes_gerais,
+        responsavel_tecnico || null,
         valor_produtos,
         valor_servicos,
         valor_total,

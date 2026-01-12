@@ -66,6 +66,16 @@ export default function OSForm() {
     }
   };
 
+  const handleVeiculoChange = (veiculoId) => {
+    const veiculoSelecionado = veiculos.find((v) => v.id == veiculoId);
+
+    setFormData({
+      ...formData,
+      veiculo_id: veiculoId,
+      chassi: veiculoSelecionado?.chassi || "",
+    });
+  };
+
   const adicionarProduto = () => {
     setItensProdutos([
       ...itensProdutos,
@@ -225,7 +235,7 @@ export default function OSForm() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cliente *
               </label>
               <div className="flex space-x-2">
@@ -260,18 +270,16 @@ export default function OSForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Veículo *
               </label>
               <div className="flex space-x-2">
                 <select
                   value={formData.veiculo_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, veiculo_id: e.target.value })
-                  }
+                  onChange={(e) => handleVeiculoChange(e.target.value)}
                   required
                   disabled={!formData.cliente_id}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-600"
                 >
                   <option value="">Selecione o veículo</option>
                   {veiculos.map((v) => (
@@ -294,7 +302,7 @@ export default function OSForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Km
               </label>
               <input
@@ -303,12 +311,12 @@ export default function OSForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, km: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Chassi
               </label>
               <input
@@ -317,12 +325,12 @@ export default function OSForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, chassi: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Previsão de Entrega
               </label>
               <input
@@ -334,14 +342,14 @@ export default function OSForm() {
                     previsao_entrega: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Observações do Veículo
               </label>
               <input
@@ -353,12 +361,12 @@ export default function OSForm() {
                     observacoes_veiculo: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Responsável Técnico
               </label>
               <input
@@ -370,7 +378,7 @@ export default function OSForm() {
                     responsavel_tecnico: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -400,12 +408,12 @@ export default function OSForm() {
               return (
                 <div
                   key={index}
-                  className={`grid grid-cols-12 gap-2 items-end border-b pb-3 ${
-                    estoqueInsuficiente ? "bg-red-50" : ""
+                  className={`grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3 ${
+                    estoqueInsuficiente ? "bg-red-50 dark:bg-red-900/20" : ""
                   }`}
                 >
                   <div className="col-span-3">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Produto
                     </label>
                     <select
@@ -413,7 +421,7 @@ export default function OSForm() {
                       onChange={(e) =>
                         atualizarProduto(index, "produto_id", e.target.value)
                       }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Selecione...</option>
                       {produtos.map((p) => (
@@ -424,7 +432,7 @@ export default function OSForm() {
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Código
                     </label>
                     <input
@@ -433,11 +441,11 @@ export default function OSForm() {
                       onChange={(e) =>
                         atualizarProduto(index, "codigo", e.target.value)
                       }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Descrição
                     </label>
                     <input
@@ -446,11 +454,11 @@ export default function OSForm() {
                       onChange={(e) =>
                         atualizarProduto(index, "descricao", e.target.value)
                       }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div className="col-span-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Qtd
                     </label>
                     <input
@@ -473,7 +481,7 @@ export default function OSForm() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Valor Unit.
                     </label>
                     <input
@@ -488,18 +496,18 @@ export default function OSForm() {
                       }
                       min="0"
                       step="0.01"
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div className="col-span-1">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Total
                     </label>
                     <input
                       type="text"
                       value={`R$ ${item.valor_total.toFixed(2)}`}
                       readOnly
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-50"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded bg-gray-50"
                     />
                   </div>
                   <div className="col-span-1">
@@ -536,10 +544,10 @@ export default function OSForm() {
             {itensServicos.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b pb-3"
+                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
               >
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Código
                   </label>
                   <input
@@ -548,11 +556,11 @@ export default function OSForm() {
                     onChange={(e) =>
                       atualizarServico(index, "codigo", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
                   </label>
                   <input
@@ -561,11 +569,11 @@ export default function OSForm() {
                     onChange={(e) =>
                       atualizarServico(index, "descricao", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Qtd/Horas
                   </label>
                   <input
@@ -580,11 +588,11 @@ export default function OSForm() {
                     }
                     min="0"
                     step="0.5"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Valor Unit.
                   </label>
                   <input
@@ -599,18 +607,18 @@ export default function OSForm() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Total
                   </label>
                   <input
                     type="text"
                     value={`R$ ${item.valor_total.toFixed(2)}`}
                     readOnly
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-50"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded bg-gray-50"
                   />
                 </div>
                 <div className="col-span-1">

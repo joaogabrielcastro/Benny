@@ -70,9 +70,11 @@ export default function Estoque() {
     try {
       await api.delete(`/produtos/${id}`);
       toast.success("Produto deletado com sucesso!");
+      setConfirmDialog({ isOpen: false, produtoId: null });
       carregarProdutos();
     } catch (error) {
       toast.error("Erro ao deletar produto");
+      setConfirmDialog({ isOpen: false, produtoId: null });
     }
   };
 
