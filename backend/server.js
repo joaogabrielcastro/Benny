@@ -1060,12 +1060,17 @@ app.put("/api/orcamentos/:id", async (req, res) => {
 
     // Notificar clientes WebSocket
     broadcastUpdate("orcamento_atualizado", { id: req.params.id, status });
-    
+
     // Se orçamento foi aprovado, limpar cache de produtos (estoque foi alterado)
     if (status === "Aprovado" && statusAnterior !== "Aprovado") {
-      console.log(`[CACHE] Limpando cache de produtos após aprovar orçamento ${req.params.id}`);
+      console.log(
+        `[CACHE] Limpando cache de produtos após aprovar orçamento ${req.params.id}`
+      );
       clearCacheByPattern("/api/produtos");
-      broadcastUpdate("estoque_atualizado", { orcamento_id: req.params.id, status });
+      broadcastUpdate("estoque_atualizado", {
+        orcamento_id: req.params.id,
+        status,
+      });
     }
 
     res.json({ message: "Orçamento atualizado com sucesso" });
@@ -1654,10 +1659,12 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
 
     // Notificar clientes WebSocket
     broadcastUpdate("os_atualizada", { id: req.params.id, status });
-    
+
     // Se o estoque foi alterado, notificar também e limpar cache de produtos
     if (status === "Finalizada" || status === "Cancelada") {
-      console.log(`[BROADCAST] Enviando estoque_atualizado: os_id=${req.params.id}, status=${status}`);
+      console.log(
+        `[BROADCAST] Enviando estoque_atualizado: os_id=${req.params.id}, status=${status}`
+      );
       clearCacheByPattern("/api/produtos");
       broadcastUpdate("estoque_atualizado", { os_id: req.params.id, status });
     }

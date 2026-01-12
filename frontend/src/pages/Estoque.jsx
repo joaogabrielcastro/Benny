@@ -21,41 +21,41 @@ export default function Estoque() {
 
   useEffect(() => {
     carregarProdutos();
-    
+
     // Conectar WebSocket
     const conectarWebSocket = () => {
-      const ws = new WebSocket('ws://localhost:3001');
+      const ws = new WebSocket("ws://localhost:3001");
       wsRef.current = ws;
-      
+
       ws.onopen = () => {
-        console.log('[ESTOQUE] WebSocket conectado');
+        console.log("[ESTOQUE] WebSocket conectado");
       };
-      
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[ESTOQUE] Mensagem recebida:', data);
-          if (data.type === 'estoque_atualizado') {
-            console.log('[ESTOQUE] Recarregando produtos instantaneamente...');
+          console.log("[ESTOQUE] Mensagem recebida:", data);
+          if (data.type === "estoque_atualizado") {
+            console.log("[ESTOQUE] Recarregando produtos instantaneamente...");
             carregarProdutos();
           }
         } catch (error) {
-          console.error('[ESTOQUE] Erro ao processar mensagem:', error);
+          console.error("[ESTOQUE] Erro ao processar mensagem:", error);
         }
       };
-      
+
       ws.onerror = (error) => {
-        console.error('[ESTOQUE] Erro WebSocket:', error);
+        console.error("[ESTOQUE] Erro WebSocket:", error);
       };
-      
+
       ws.onclose = () => {
-        console.log('[ESTOQUE] WebSocket desconectado, reconectando em 3s...');
+        console.log("[ESTOQUE] WebSocket desconectado, reconectando em 3s...");
         setTimeout(conectarWebSocket, 3000);
       };
     };
-    
+
     conectarWebSocket();
-    
+
     return () => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close();
