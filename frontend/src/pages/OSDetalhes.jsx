@@ -66,13 +66,15 @@ export default function OSDetalhes() {
   return (
     <div className="space-y-6">
       {/* Header com ações */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
               Ordem de Serviço
             </h1>
-            <p className="text-gray-600 mt-1 text-lg">{os.numero}</p>
+            <p className="text-gray-600 dark:text-gray-300 mt-1 text-lg">
+              {os.numero}
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             {os.status === "Aberta" && (
@@ -107,7 +109,7 @@ export default function OSDetalhes() {
             </button>
             <Link
               to="/ordens-servico"
-              className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all font-semibold"
+              className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-semibold"
             >
               ← Voltar
             </Link>
@@ -130,7 +132,7 @@ export default function OSDetalhes() {
         >
           {os.status}
         </span>
-        <span className="text-gray-600">
+        <span className="text-gray-600 dark:text-gray-300">
           Data: {new Date(os.criado_em).toLocaleDateString("pt-BR")}
         </span>
       </div>
@@ -138,74 +140,88 @@ export default function OSDetalhes() {
       {/* Grid de Informações */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dados do Cliente */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             👤 Cliente
           </h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-600 font-semibold">Nome:</span>
-              <p className="text-lg text-gray-800">{os.cliente_nome}</p>
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                Nome:
+              </span>
+              <p className="text-lg text-gray-800 dark:text-gray-200">
+                {os.cliente_nome}
+              </p>
             </div>
             <div>
-              <span className="text-sm text-gray-600 font-semibold">
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                 Telefone:
               </span>
-              <p className="text-lg text-gray-800">
+              <p className="text-lg text-gray-800 dark:text-gray-200">
                 {os.cliente_telefone || "Não informado"}
               </p>
             </div>
             {os.cliente_cpf_cnpj && (
               <div>
-                <span className="text-sm text-gray-600 font-semibold">
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                   CPF/CNPJ:
                 </span>
-                <p className="text-lg text-gray-800">{os.cliente_cpf_cnpj}</p>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {os.cliente_cpf_cnpj}
+                </p>
               </div>
             )}
           </div>
         </div>
 
         {/* Dados do Veículo */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             🚗 Veículo
           </h2>
           <div className="space-y-3">
             <div>
-              <span className="text-sm text-gray-600 font-semibold">
+              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                 Modelo:
               </span>
-              <p className="text-lg text-gray-800">{os.veiculo_modelo}</p>
+              <p className="text-lg text-gray-800 dark:text-gray-200">
+                {os.veiculo_modelo}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-sm text-gray-600 font-semibold">
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                   Placa:
                 </span>
-                <p className="text-lg text-gray-800">{os.veiculo_placa}</p>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {os.veiculo_placa}
+                </p>
               </div>
               <div>
-                <span className="text-sm text-gray-600 font-semibold">
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                   Cor:
                 </span>
-                <p className="text-lg text-gray-800">{os.veiculo_cor}</p>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {os.veiculo_cor}
+                </p>
               </div>
             </div>
             {os.km && (
               <div>
-                <span className="text-sm text-gray-600 font-semibold">KM:</span>
-                <p className="text-lg text-gray-800">
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  KM:
+                </span>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
                   {os.km.toLocaleString()}
                 </p>
               </div>
             )}
             {os.observacoes_veiculo && (
-              <div className="mt-3 bg-gray-50 p-3 rounded-lg">
-                <span className="text-sm text-gray-600 font-semibold">
+              <div className="mt-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                   Observações:
                 </span>
-                <p className="text-sm text-gray-700 mt-1">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
                   {os.observacoes_veiculo}
                 </p>
               </div>
@@ -216,61 +232,64 @@ export default function OSDetalhes() {
 
       {/* Produtos Utilizados */}
       {os.produtos && os.produtos.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             📦 Produtos Utilizados
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Código
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Descrição
                   </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Qtd
                   </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Valor Unit.
                   </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Total
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {os.produtos.map((produto, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                  <tr
+                    key={index}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
                       {produto.codigo}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
                       {produto.descricao}
                     </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-800">
+                    <td className="px-4 py-3 text-sm text-center text-gray-800 dark:text-gray-200">
                       {produto.quantidade}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-800">
+                    <td className="px-4 py-3 text-sm text-right text-gray-800 dark:text-gray-200">
                       {formatarMoeda(produto.valor_unitario)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
                       {formatarMoeda(produto.valor_total)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-blue-50 font-semibold">
+                <tr className="bg-blue-50 dark:bg-gray-700 font-semibold">
                   <td
                     colSpan="4"
-                    className="px-4 py-3 text-right text-gray-800"
+                    className="px-4 py-3 text-right text-gray-800 dark:text-gray-200"
                   >
                     Subtotal Produtos:
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-900">
+                  <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
                     {formatarMoeda(os.valor_produtos)}
                   </td>
                 </tr>
@@ -282,61 +301,64 @@ export default function OSDetalhes() {
 
       {/* Serviços Realizados */}
       {os.servicos && os.servicos.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             🔧 Serviços Realizados
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gradient-to-r from-green-50 to-emerald-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <tr className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-600">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Código
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Descrição
                   </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Qtd
                   </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Valor Unit.
                   </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Total
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {os.servicos.map((servico, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                  <tr
+                    key={index}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
                       {servico.codigo}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-800">
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
                       {servico.descricao}
                     </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-800">
+                    <td className="px-4 py-3 text-sm text-center text-gray-800 dark:text-gray-200">
                       {servico.quantidade}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-800">
+                    <td className="px-4 py-3 text-sm text-right text-gray-800 dark:text-gray-200">
                       {formatarMoeda(servico.valor_unitario)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
                       {formatarMoeda(servico.valor_total)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-green-50 font-semibold">
+                <tr className="bg-green-50 dark:bg-gray-700 font-semibold">
                   <td
                     colSpan="4"
-                    className="px-4 py-3 text-right text-gray-800"
+                    className="px-4 py-3 text-right text-gray-800 dark:text-gray-200"
                   >
                     Subtotal Serviços:
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-900">
+                  <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
                     {formatarMoeda(os.valor_servicos)}
                   </td>
                 </tr>
@@ -358,11 +380,11 @@ export default function OSDetalhes() {
 
       {/* Observações Gerais */}
       {os.observacoes_gerais && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             📝 Observações Gerais
           </h2>
-          <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
             {os.observacoes_gerais}
           </p>
         </div>
@@ -370,11 +392,13 @@ export default function OSDetalhes() {
 
       {/* Responsável Técnico */}
       {os.responsavel_tecnico && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             👨‍🔧 Responsável Técnico
           </h2>
-          <p className="text-lg text-gray-800">{os.responsavel_tecnico}</p>
+          <p className="text-lg text-gray-800 dark:text-gray-200">
+            {os.responsavel_tecnico}
+          </p>
         </div>
       )}
 

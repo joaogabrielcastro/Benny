@@ -45,7 +45,50 @@ if (process.env.NODE_ENV !== "production") {
 
 // Middlewares
 app.use(compression()); // Compressão de respostas
-app.use(cors());
+
+// Configurar CORS
+const corsOptions = {
+  origin: [
+    "http://localhost:5175", // Vite dev server
+    "https://benny-theta.vercel.app", // Produção no Vercel
+    /\.vercel\.app$/, // Permite todos os preview deployments do Vercel
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
+
+app.use(cors(corsOptions));
+
+// Adicionar headers CORS manualmente para garantir
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Aceitar localhost ou Vercel
+  if (
+    origin &&
+    (origin.startsWith("http://localhost:") || /\.vercel\.app$/.test(origin))
+  ) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With"
+    );
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -170,6 +213,8 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
   try {
     const { limit, offset, page } = req.pagination;
 
+    logger.info(`Listando produtos - limit: ${limit}, offset: ${offset}`);
+
     const result = await pool.query(
       "SELECT * FROM produtos ORDER BY nome LIMIT $1 OFFSET $2",
       [limit, offset]
@@ -177,6 +222,8 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
 
     const countResult = await pool.query("SELECT COUNT(*) FROM produtos");
     const total = parseInt(countResult.rows[0].count);
+
+    logger.info(`Produtos encontrados: ${result.rows.length} de ${total}`);
 
     res.json({
       data: result.rows,
@@ -189,7 +236,11 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
     });
   } catch (error) {
     logger.error("Erro ao listar produtos:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: "Erro ao carregar produtos",
+      message: error.message,
+      details: process.env.NODE_ENV !== "production" ? error.stack : undefined,
+    });
   }
 });
 
@@ -341,6 +392,8 @@ app.get("/api/clientes", async (req, res) => {
   try {
     const { busca } = req.query;
 
+    logger.info(`Buscando clientes - busca: "${busca}"`);
+
     let query = "SELECT * FROM clientes";
     const params = [];
 
@@ -352,9 +405,16 @@ app.get("/api/clientes", async (req, res) => {
 
     query += " ORDER BY nome LIMIT 50";
 
+    logger.info(`Query SQL: ${query}`);
+    logger.info(`Params: ${JSON.stringify(params)}`);
+
     const result = await pool.query(query, params);
+
+    logger.info(`Clientes encontrados: ${result.rows.length}`);
+
     res.json(result.rows);
   } catch (error) {
+    logger.error("Erro ao buscar clientes:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -697,7 +757,6 @@ app.post("/api/orcamentos", async (req, res) => {
       cliente_id,
       veiculo_id,
       km,
-      chassi,
       previsao_entrega,
       observacoes_veiculo,
       observacoes_gerais,
@@ -717,14 +776,13 @@ app.post("/api/orcamentos", async (req, res) => {
 
     // Inserir orçamento
     const orcResult = await client.query(
-      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, chassi, previsao_entrega, observacoes_veiculo, observacoes_gerais, responsavel_tecnico, valor_produtos, valor_servicos, valor_total)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, responsavel_tecnico, valor_produtos, valor_servicos, valor_total)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
       [
         numero,
         cliente_id,
         veiculo_id,
         km,
-        chassi || null,
         previsao_entrega || null,
         observacoes_veiculo,
         observacoes_gerais,
@@ -782,6 +840,8 @@ app.post("/api/orcamentos", async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
+    logger.error("Erro ao criar orçamento:", error);
+    console.error("Erro detalhado ao criar orçamento:", error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -797,7 +857,6 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     const {
       status,
       km,
-      chassi,
       previsao_entrega,
       observacoes_veiculo,
       observacoes_gerais,
@@ -821,14 +880,13 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     // Atualizar orçamento
     await client.query(
       `UPDATE orcamentos 
-       SET status = $1, km = $2, chassi = $3, previsao_entrega = $4, 
-           observacoes_veiculo = $5, observacoes_gerais = $6, 
-           valor_produtos = $7, valor_servicos = $8, valor_total = $9, atualizado_em = CURRENT_TIMESTAMP
-       WHERE id = $10`,
+       SET status = $1, km = $2, previsao_entrega = $3, 
+           observacoes_veiculo = $4, observacoes_gerais = $5, 
+           valor_produtos = $6, valor_servicos = $7, valor_total = $8, atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $9`,
       [
         status,
         km,
-        chassi || null,
         previsao_entrega || null,
         observacoes_veiculo,
         observacoes_gerais,
@@ -1002,6 +1060,13 @@ app.put("/api/orcamentos/:id", async (req, res) => {
 
     // Notificar clientes WebSocket
     broadcastUpdate("orcamento_atualizado", { id: req.params.id, status });
+    
+    // Se orçamento foi aprovado, limpar cache de produtos (estoque foi alterado)
+    if (status === "Aprovado" && statusAnterior !== "Aprovado") {
+      console.log(`[CACHE] Limpando cache de produtos após aprovar orçamento ${req.params.id}`);
+      clearCacheByPattern("/api/produtos");
+      broadcastUpdate("estoque_atualizado", { orcamento_id: req.params.id, status });
+    }
 
     res.json({ message: "Orçamento atualizado com sucesso" });
   } catch (error) {
@@ -1040,15 +1105,14 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
 
     // Criar OS
     const osResult = await client.query(
-      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, chassi, previsao_entrega, observacoes_veiculo, observacoes_gerais, 
+      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, 
                                      valor_produtos, valor_servicos, valor_total, orcamento_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Aberta') RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Aberta') RETURNING id`,
       [
         numero,
         orcamento.cliente_id,
         orcamento.veiculo_id,
         orcamento.km,
-        orcamento.chassi || null,
         orcamento.previsao_entrega || null,
         orcamento.observacoes_veiculo,
         orcamento.observacoes_gerais,
@@ -1143,12 +1207,15 @@ app.get("/api/ordens-servico", async (req, res) => {
     let query = `
       SELECT os.*, 
              c.nome as cliente_nome, c.telefone as cliente_telefone,
-             v.modelo as veiculo_modelo, v.placa as veiculo_placa
+             v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+             v.cor as veiculo_cor, v.ano as veiculo_ano
       FROM ordens_servico os
       LEFT JOIN clientes c ON os.cliente_id = c.id
       LEFT JOIN veiculos v ON os.veiculo_id = v.id
       WHERE 1=1
     `;
+
+    console.log("[DEBUG] Query inicial:", query);
 
     const params = [];
     let paramIndex = 1;
@@ -1172,6 +1239,8 @@ app.get("/api/ordens-servico", async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
+    console.error("[ERROR] Erro em GET /api/ordens-servico:", error.message);
+    console.error("[ERROR] Stack:", error.stack);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1182,7 +1251,8 @@ app.get("/api/ordens-servico/:id", async (req, res) => {
       `
       SELECT os.*, 
              c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
-             v.modelo as veiculo_modelo, v.placa as veiculo_placa, v.cor as veiculo_cor
+             v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa, 
+             v.cor as veiculo_cor, v.ano as veiculo_ano
       FROM ordens_servico os
       LEFT JOIN clientes c ON os.cliente_id = c.id
       LEFT JOIN veiculos v ON os.veiculo_id = v.id
@@ -1210,6 +1280,11 @@ app.get("/api/ordens-servico/:id", async (req, res) => {
       servicos: servicosResult.rows,
     });
   } catch (error) {
+    console.error(
+      "[ERROR] Erro em GET /api/ordens-servico/:id:",
+      error.message
+    );
+    console.error("[ERROR] Stack:", error.stack);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1224,7 +1299,6 @@ app.post("/api/ordens-servico", async (req, res) => {
       cliente_id,
       veiculo_id,
       km,
-      chassi,
       previsao_entrega,
       observacoes_veiculo,
       observacoes_gerais,
@@ -1249,15 +1323,14 @@ app.post("/api/ordens-servico", async (req, res) => {
 
     // Inserir OS
     const osResult = await client.query(
-      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, chassi, previsao_entrega, observacoes_veiculo, observacoes_gerais, 
+      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, 
                                      valor_produtos, valor_servicos, valor_total, responsavel_tecnico, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Aberta') RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Aberta') RETURNING id`,
       [
         numero,
         cliente_id,
         veiculo_id,
         km,
-        chassi || null,
         previsao_entrega || null,
         observacoes_veiculo,
         observacoes_gerais,
@@ -1388,12 +1461,107 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
       // Continua mesmo se auditoria falhar
     }
 
-    // Se a OS foi cancelada, devolver itens ao estoque
+    // Gerenciar estoque baseado no status
     const statusAnterior = dadosAnteriores.rows[0]?.status;
     console.log(
       `OS ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`
     );
 
+    // Se a OS foi FINALIZADA, dar baixa no estoque
+    if (status === "Finalizada" && statusAnterior !== "Finalizada") {
+      console.log(`OS finalizada: ID=${req.params.id}, dando baixa no estoque`);
+
+      try {
+        // Verificar se já existe baixa para esta OS
+        const baixaExistente = await client.query(
+          "SELECT id FROM movimentacoes_estoque WHERE os_id = $1 AND motivo = 'OS finalizada - baixa' LIMIT 1",
+          [req.params.id]
+        );
+
+        console.log(`  Baixas existentes: ${baixaExistente.rows.length}`);
+
+        if (baixaExistente.rows.length === 0) {
+          // Buscar produtos da OS e dar baixa no estoque
+          const produtosOS = await client.query(
+            "SELECT * FROM os_produtos WHERE os_id = $1",
+            [req.params.id]
+          );
+
+          console.log(`  Produtos encontrados: ${produtosOS.rows.length}`);
+
+          if (produtosOS.rows.length > 0) {
+            for (const produto of produtosOS.rows) {
+              if (produto.produto_id) {
+                try {
+                  console.log(
+                    `  Baixa no estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`
+                  );
+
+                  // Verificar quantidade atual antes da baixa
+                  const qtdAntes = await client.query(
+                    "SELECT quantidade FROM produtos WHERE id = $1",
+                    [produto.produto_id]
+                  );
+                  console.log(
+                    `  Quantidade antes: ${
+                      qtdAntes.rows[0]?.quantidade || "não encontrado"
+                    }`
+                  );
+
+                  // Verificar se tem estoque suficiente
+                  if (
+                    qtdAntes.rows[0] &&
+                    qtdAntes.rows[0].quantidade < produto.quantidade
+                  ) {
+                    console.warn(
+                      `  ⚠️ Estoque insuficiente: disponível=${qtdAntes.rows[0].quantidade}, necessário=${produto.quantidade}`
+                    );
+                  }
+
+                  const updateResult = await client.query(
+                    "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2 RETURNING quantidade",
+                    [produto.quantidade, produto.produto_id]
+                  );
+
+                  console.log(
+                    `  Quantidade depois: ${
+                      updateResult.rows[0]?.quantidade || "não atualizado"
+                    }`
+                  );
+                  console.log(`  Linhas afetadas: ${updateResult.rowCount}`);
+
+                  await client.query(
+                    `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
+                     VALUES ($1, 'SAIDA', $2, 'OS finalizada - baixa', $3)`,
+                    [produto.produto_id, produto.quantidade, req.params.id]
+                  );
+
+                  console.log(`  ✓ Baixa registrada com sucesso`);
+                } catch (prodError) {
+                  console.error(
+                    `  ✗ Erro ao processar produto ${produto.produto_id}:`,
+                    prodError.message
+                  );
+                  throw prodError;
+                }
+              } else {
+                console.log(
+                  `  Produto sem produto_id (item manual): ${produto.descricao}`
+                );
+              }
+            }
+            console.log(`  ✓ Todas as baixas processadas com sucesso`);
+          }
+        } else {
+          console.log(`  Baixa já realizada anteriormente, ignorando.`);
+        }
+      } catch (estoqueError) {
+        console.error("Erro ao processar baixa de estoque:", estoqueError);
+        throw estoqueError; // Re-throw para fazer rollback da transação
+      }
+    }
+
+    // Se a OS foi cancelada, devolver itens ao estoque
     if (status === "Cancelada" && statusAnterior !== "Cancelada") {
       console.log(
         `OS cancelada: ID=${req.params.id}, devolvendo itens ao estoque`
@@ -1486,6 +1654,13 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
 
     // Notificar clientes WebSocket
     broadcastUpdate("os_atualizada", { id: req.params.id, status });
+    
+    // Se o estoque foi alterado, notificar também e limpar cache de produtos
+    if (status === "Finalizada" || status === "Cancelada") {
+      console.log(`[BROADCAST] Enviando estoque_atualizado: os_id=${req.params.id}, status=${status}`);
+      clearCacheByPattern("/api/produtos");
+      broadcastUpdate("estoque_atualizado", { os_id: req.params.id, status });
+    }
 
     res.json({ message: "OS atualizada com sucesso" });
   } catch (error) {

@@ -20,8 +20,10 @@ const OSImpressao = forwardRef(({ os }, ref) => {
   };
 
   const dataCriacao = os.criado_em ? new Date(os.criado_em) : new Date();
-  const temObservacoesVeiculo = os.observacoes_veiculo && os.observacoes_veiculo.trim() !== "";
-  const temObservacoesGerais = os.observacoes_gerais && os.observacoes_gerais.trim() !== "";
+  const temObservacoesVeiculo =
+    os.observacoes_veiculo && os.observacoes_veiculo.trim() !== "";
+  const temObservacoesGerais =
+    os.observacoes_gerais && os.observacoes_gerais.trim() !== "";
 
   return (
     <div ref={ref} style={{ display: "none" }} className="os-impressao">
@@ -149,35 +151,64 @@ const OSImpressao = forwardRef(({ os }, ref) => {
         <table style={{ width: "100%", border: "none", marginBottom: "10px" }}>
           <tbody>
             <tr>
-              <td style={{ border: "none", width: "15%", verticalAlign: "top" }}>
+              <td
+                style={{ border: "none", width: "15%", verticalAlign: "top" }}
+              >
                 <div
                   style={{
-                    width: "70px",
-                    height: "70px",
-                    border: "2px solid #000",
+                    width: "80px",
+                    height: "80px",
+                    border: "3px solid #1e40af",
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: "#1e40af",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   }}
                 >
                   <div style={{ textAlign: "center", color: "white" }}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", lineHeight: "1" }}>
+                    <div
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "bold",
+                        lineHeight: "1.1",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
                       BENNY'S
                     </div>
-                    <div style={{ fontSize: "8px", marginTop: "2px" }}>
+                    <div
+                      style={{
+                        fontSize: "9px",
+                        marginTop: "3px",
+                        fontWeight: "600",
+                      }}
+                    >
                       MOTORSPORT
                     </div>
                   </div>
                 </div>
               </td>
-              <td style={{ border: "none", width: "50%", verticalAlign: "top", paddingLeft: "10px" }}>
-                <h1 style={{ fontSize: "16px", fontWeight: "bold", margin: "0 0 5px 0" }}>
+              <td
+                style={{
+                  border: "none",
+                  width: "50%",
+                  verticalAlign: "top",
+                  paddingLeft: "10px",
+                }}
+              >
+                <h1
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "bold",
+                    margin: "0 0 5px 0",
+                  }}
+                >
                   BENNYS CENTRO AUTOMOTIVO
                 </h1>
                 <p style={{ fontSize: "9px", margin: "2px 0" }}>
-                  <strong>CNPJ:</strong> 55.961.553
+                  <strong>CNPJ:</strong> 55.961.553/0001-00
                 </p>
                 <p style={{ fontSize: "9px", margin: "2px 0" }}>
                   <strong>Telefones:</strong> 91084254-47 | (41) 9 9236-2952
@@ -186,18 +217,41 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                   <strong>Endereço:</strong> Prefeito João Batista Stocco N°247
                 </p>
               </td>
-              <td style={{ border: "none", width: "35%", textAlign: "right", verticalAlign: "top" }}>
+              <td
+                style={{
+                  border: "none",
+                  width: "35%",
+                  textAlign: "right",
+                  verticalAlign: "top",
+                }}
+              >
                 <p style={{ fontSize: "9px", margin: "2px 0" }}>
-                  <strong>Data:</strong> {formatarData(dataCriacao)} {formatarHora(dataCriacao)}
+                  <strong>Data:</strong> {formatarData(dataCriacao)}{" "}
+                  {formatarHora(dataCriacao)}
                 </p>
-                <p style={{ fontSize: "11px", margin: "5px 0", fontWeight: "bold" }}>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    margin: "5px 0",
+                    fontWeight: "bold",
+                  }}
+                >
                   Oficina Integrada
                 </p>
-                <div style={{ border: "2px solid #000", padding: "8px", marginTop: "5px", backgroundColor: "#f5f5f5" }}>
+                <div
+                  style={{
+                    border: "2px solid #000",
+                    padding: "8px",
+                    marginTop: "5px",
+                    backgroundColor: "#f5f5f5",
+                  }}
+                >
                   <p style={{ fontSize: "9px", margin: "0 0 3px 0" }}>
                     Ordem de serviço Numero
                   </p>
-                  <p style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>
+                  <p
+                    style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}
+                  >
                     {os.numero || "N/A"}
                   </p>
                 </div>
@@ -209,50 +263,83 @@ const OSImpressao = forwardRef(({ os }, ref) => {
 
       {/* Dados do Cliente e Veículo */}
       <div className="os-section">
-        <table style={{ width: "100%", border: "1px solid #000", fontSize: "10px" }}>
+        <table
+          style={{ width: "100%", border: "1px solid #000", fontSize: "10px" }}
+        >
           <tbody>
             <tr>
-              <td style={{ padding: "5px", width: "50%", borderRight: "1px solid #000" }}>
+              <td
+                style={{
+                  padding: "5px",
+                  width: "50%",
+                  borderRight: "1px solid #000",
+                }}
+              >
                 <strong>Cliente:</strong> {os.cliente_nome || "Não informado"}
               </td>
               <td style={{ padding: "5px", width: "50%" }}>
-                <strong>Veículo:</strong> {os.veiculo_modelo || "Não informado"}
+                <strong>Veículo:</strong> {os.veiculo_marca} {os.veiculo_modelo}{" "}
+                {os.veiculo_cor} {os.veiculo_ano || "Não informado"}
               </td>
             </tr>
             <tr>
-              <td style={{ padding: "5px", borderTop: "1px solid #000", borderRight: "1px solid #000" }}>
-                <strong>Telefone:</strong> {os.cliente_telefone || "Não informado"}
+              <td
+                style={{
+                  padding: "5px",
+                  borderTop: "1px solid #000",
+                  borderRight: "1px solid #000",
+                }}
+              >
+                <strong>Telefone:</strong>{" "}
+                {os.cliente_telefone || "Não informado"}
               </td>
               <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
-                <strong>Entrada:</strong> {formatarData(dataCriacao)} {formatarHora(dataCriacao)}
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: "5px", borderTop: "1px solid #000", borderRight: "1px solid #000" }} colSpan="1">
-                {/* Vazio */}
-              </td>
-              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
-                <strong>Previsão:</strong> {os.previsao_entrega ? formatarData(os.previsao_entrega) : "-"}
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: "5px", borderTop: "1px solid #000", borderRight: "1px solid #000" }}>
                 <strong>Placa:</strong> {os.veiculo_placa || "Não informada"}
+              </td>
+            </tr>
+            <tr>
+              <td
+                style={{
+                  padding: "5px",
+                  borderTop: "1px solid #000",
+                  borderRight: "1px solid #000",
+                }}
+              >
+                <strong>CPF/CNPJ:</strong> {os.cliente_cpf_cnpj || "-"}
               </td>
               <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
                 <strong>Km:</strong> {os.km ? os.km.toLocaleString() : "-"}
               </td>
             </tr>
             <tr>
-              <td style={{ padding: "5px", borderTop: "1px solid #000" }} colSpan="2">
-                <strong>Chassi:</strong> {os.chassi || "Não informado"}
+              <td
+                style={{
+                  padding: "5px",
+                  borderTop: "1px solid #000",
+                  borderRight: "1px solid #000",
+                }}
+              >
+                <strong>Entrada:</strong> {formatarData(dataCriacao)}{" "}
+                {formatarHora(dataCriacao)}
+              </td>
+              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+                <strong>Previsão:</strong>{" "}
+                {os.previsao_entrega ? formatarData(os.previsao_entrega) : "-"}
               </td>
             </tr>
           </tbody>
         </table>
-        
+
         {temObservacoesVeiculo && (
-          <div style={{ marginTop: "5px", fontSize: "10px", backgroundColor: "#f5f5f5", padding: "5px", border: "1px solid #ddd" }}>
+          <div
+            style={{
+              marginTop: "5px",
+              fontSize: "10px",
+              backgroundColor: "#f5f5f5",
+              padding: "5px",
+              border: "1px solid #ddd",
+            }}
+          >
             <strong>Observações do Veículo:</strong> {os.observacoes_veiculo}
           </div>
         )}
@@ -268,7 +355,9 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                 <th style={{ width: "15%" }}>Código</th>
                 <th style={{ textAlign: "left" }}>Descrição</th>
                 <th style={{ width: "10%", textAlign: "center" }}>Qtd</th>
-                <th style={{ width: "15%", textAlign: "right" }}>Valor Unit.</th>
+                <th style={{ width: "15%", textAlign: "right" }}>
+                  Valor Unit.
+                </th>
                 <th style={{ width: "15%", textAlign: "right" }}>Total</th>
               </tr>
             </thead>
@@ -277,9 +366,15 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                 <tr key={index}>
                   <td>{servico.codigo || "-"}</td>
                   <td>{servico.descricao || "-"}</td>
-                  <td style={{ textAlign: "center" }}>{servico.quantidade || 0}</td>
-                  <td style={{ textAlign: "right" }}>{formatarMoeda(servico.valor_unitario)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "600" }}>{formatarMoeda(servico.valor_total)}</td>
+                  <td style={{ textAlign: "center" }}>
+                    {servico.quantidade || 0}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {formatarMoeda(servico.valor_unitario)}
+                  </td>
+                  <td style={{ textAlign: "right", fontWeight: "600" }}>
+                    {formatarMoeda(servico.valor_total)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -297,7 +392,9 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                 <th style={{ width: "15%" }}>Código</th>
                 <th style={{ textAlign: "left" }}>Descrição</th>
                 <th style={{ width: "10%", textAlign: "center" }}>Qtd</th>
-                <th style={{ width: "15%", textAlign: "right" }}>Valor Unit.</th>
+                <th style={{ width: "15%", textAlign: "right" }}>
+                  Valor Unit.
+                </th>
                 <th style={{ width: "15%", textAlign: "right" }}>Total</th>
               </tr>
             </thead>
@@ -306,9 +403,15 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                 <tr key={index}>
                   <td>{produto.codigo || "-"}</td>
                   <td>{produto.descricao || "-"}</td>
-                  <td style={{ textAlign: "center" }}>{produto.quantidade || 0}</td>
-                  <td style={{ textAlign: "right" }}>{formatarMoeda(produto.valor_unitario)}</td>
-                  <td style={{ textAlign: "right", fontWeight: "600" }}>{formatarMoeda(produto.valor_total)}</td>
+                  <td style={{ textAlign: "center" }}>
+                    {produto.quantidade || 0}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {formatarMoeda(produto.valor_unitario)}
+                  </td>
+                  <td style={{ textAlign: "right", fontWeight: "600" }}>
+                    {formatarMoeda(produto.valor_total)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -321,22 +424,50 @@ const OSImpressao = forwardRef(({ os }, ref) => {
         <table style={{ width: "100%", border: "none", fontSize: "11px" }}>
           <tbody>
             <tr>
-              <td style={{ border: "none", textAlign: "right", width: "70%" }}>Serviços:</td>
-              <td style={{ border: "none", textAlign: "right", fontWeight: "bold" }}>
+              <td style={{ border: "none", textAlign: "right", width: "70%" }}>
+                Serviços:
+              </td>
+              <td
+                style={{
+                  border: "none",
+                  textAlign: "right",
+                  fontWeight: "bold",
+                }}
+              >
                 {formatarMoeda(os.valor_servicos)}
               </td>
             </tr>
             <tr>
               <td style={{ border: "none", textAlign: "right" }}>Produtos:</td>
-              <td style={{ border: "none", textAlign: "right", fontWeight: "bold" }}>
+              <td
+                style={{
+                  border: "none",
+                  textAlign: "right",
+                  fontWeight: "bold",
+                }}
+              >
                 {formatarMoeda(os.valor_produtos)}
               </td>
             </tr>
             <tr>
-              <td style={{ border: "none", textAlign: "right", paddingTop: "5px" }}>
+              <td
+                style={{
+                  border: "none",
+                  textAlign: "right",
+                  paddingTop: "5px",
+                }}
+              >
                 <strong>VALOR TOTAL:</strong>
               </td>
-              <td style={{ border: "none", textAlign: "right", fontWeight: "bold", fontSize: "14px", paddingTop: "5px" }}>
+              <td
+                style={{
+                  border: "none",
+                  textAlign: "right",
+                  fontWeight: "bold",
+                  fontSize: "14px",
+                  paddingTop: "5px",
+                }}
+              >
                 {formatarMoeda(os.valor_total)}
               </td>
             </tr>
@@ -347,25 +478,51 @@ const OSImpressao = forwardRef(({ os }, ref) => {
       {/* Observações Gerais */}
       {temObservacoesGerais && (
         <div className="os-section">
-          <p style={{ fontSize: "10px", margin: 0, padding: "5px", backgroundColor: "#f5f5f5", border: "1px solid #ddd" }}>
+          <p
+            style={{
+              fontSize: "10px",
+              margin: 0,
+              padding: "5px",
+              backgroundColor: "#f5f5f5",
+              border: "1px solid #ddd",
+            }}
+          >
             <strong>Observações:</strong> {os.observacoes_gerais}
           </p>
         </div>
       )}
 
       {/* Garantia */}
-      <div style={{ marginTop: "15px", marginBottom: "15px", textAlign: "center", padding: "10px", backgroundColor: "#f5f5f5", border: "1px solid #000" }}>
+      <div
+        style={{
+          marginTop: "15px",
+          marginBottom: "15px",
+          textAlign: "center",
+          padding: "10px",
+          backgroundColor: "#f5f5f5",
+          border: "1px solid #000",
+        }}
+      >
         <p style={{ fontSize: "10px", margin: 0, fontWeight: "bold" }}>
           Todos os nossos serviços e produtos possuem 3 meses de garantia.
         </p>
-        <p style={{ fontSize: "10px", margin: "5px 0 0 0", fontWeight: "bold" }}>
+        <p
+          style={{ fontSize: "10px", margin: "5px 0 0 0", fontWeight: "bold" }}
+        >
           Obrigado pela preferência!
         </p>
       </div>
 
       {/* Status e Responsável */}
       {(os.status || os.responsavel_tecnico) && (
-        <table style={{ width: "100%", border: "none", fontSize: "9px", marginBottom: "10px" }}>
+        <table
+          style={{
+            width: "100%",
+            border: "none",
+            fontSize: "9px",
+            marginBottom: "10px",
+          }}
+        >
           <tbody>
             <tr>
               <td style={{ border: "none", padding: "2px" }}>
@@ -386,14 +543,44 @@ const OSImpressao = forwardRef(({ os }, ref) => {
         <table style={{ width: "100%", border: "none", marginTop: "20px" }}>
           <tbody>
             <tr>
-              <td style={{ border: "none", width: "50%", textAlign: "center", paddingRight: "20px" }}>
-                <div style={{ borderBottom: "1px solid #000", marginTop: "50px", paddingTop: "5px" }}>
-                  <strong style={{ fontSize: "10px" }}>BENNYS CENTRO AUTOMOTIVO</strong>
+              <td
+                style={{
+                  border: "none",
+                  width: "50%",
+                  textAlign: "center",
+                  paddingRight: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    borderBottom: "1px solid #000",
+                    marginTop: "50px",
+                    paddingTop: "5px",
+                  }}
+                >
+                  <strong style={{ fontSize: "10px" }}>
+                    BENNYS CENTRO AUTOMOTIVO
+                  </strong>
                 </div>
               </td>
-              <td style={{ border: "none", width: "50%", textAlign: "center", paddingLeft: "20px" }}>
-                <div style={{ borderBottom: "1px solid #000", marginTop: "50px", paddingTop: "5px" }}>
-                  <strong style={{ fontSize: "10px" }}>{os.cliente_nome?.toUpperCase() || "CLIENTE"}</strong>
+              <td
+                style={{
+                  border: "none",
+                  width: "50%",
+                  textAlign: "center",
+                  paddingLeft: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    borderBottom: "1px solid #000",
+                    marginTop: "50px",
+                    paddingTop: "5px",
+                  }}
+                >
+                  <strong style={{ fontSize: "10px" }}>
+                    {os.cliente_nome?.toUpperCase() || "CLIENTE"}
+                  </strong>
                 </div>
               </td>
             </tr>

@@ -183,7 +183,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                   BENNYS CENTRO AUTOMOTIVO
                 </h1>
                 <p style={{ fontSize: "9px", margin: "2px 0" }}>
-                  <strong>CNPJ:</strong> 55.961.553
+                  <strong>CNPJ:</strong> 55.961.553/0001-00
                 </p>
                 <p style={{ fontSize: "9px", margin: "2px 0" }}>
                   <strong>Telefones:</strong> 91084254-47 | (41) 9 9236-2952
@@ -254,8 +254,9 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                 {orcamento.cliente_nome || "Não informado"}
               </td>
               <td style={{ padding: "5px", width: "50%" }}>
-                <strong>Veículo:</strong>{" "}
-                {orcamento.veiculo_modelo || "Não informado"}
+                <strong>Veículo:</strong> {orcamento.veiculo_marca}{" "}
+                {orcamento.veiculo_modelo} {orcamento.veiculo_cor}{" "}
+                {orcamento.veiculo_ano || "Não informado"}
               </td>
             </tr>
             <tr>
@@ -270,7 +271,8 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                 {orcamento.cliente_telefone || "Não informado"}
               </td>
               <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
-                <strong>Status:</strong> {orcamento.status || "Pendente"}
+                <strong>Placa:</strong>{" "}
+                {orcamento.veiculo_placa || "Não informada"}
               </td>
             </tr>
             <tr>
@@ -281,33 +283,19 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                   borderRight: "1px solid #000",
                 }}
               >
-                <strong>Placa:</strong>{" "}
-                {orcamento.veiculo_placa || "Não informada"}
+                <strong>Status:</strong> {orcamento.status || "Pendente"}
               </td>
               <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
                 <strong>Km:</strong>{" "}
                 {orcamento.km ? orcamento.km.toLocaleString() : "-"}
               </td>
-            </tr>
-            {(orcamento.chassi || orcamento.previsao_entrega) && (
-              <tr>
-                <td
-                  style={{
-                    padding: "5px",
-                    borderTop: "1px solid #000",
-                    borderRight: "1px solid #000",
-                  }}
-                >
-                  <strong>Chassi:</strong> {orcamento.chassi || "Não informado"}
-                </td>
+              {orcamento.previsao_entrega && (
                 <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
                   <strong>Previsão:</strong>{" "}
-                  {orcamento.previsao_entrega
-                    ? formatarData(orcamento.previsao_entrega)
-                    : "-"}
+                  {formatarData(orcamento.previsao_entrega)}
                 </td>
-              </tr>
-            )}
+              )}
+            </tr>
           </tbody>
         </table>
 

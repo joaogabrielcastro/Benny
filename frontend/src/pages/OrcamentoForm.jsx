@@ -7,7 +7,7 @@ import NovoVeiculoModal from "../components/NovoVeiculoModal";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import { showSuccess, showError, showPromise } from "../utils/toast.jsx";
-import { validarChassi, validarNumeroPositivo } from "../utils/validators";
+import { validarNumeroPositivo } from "../utils/validators";
 
 export default function OrcamentoForm() {
   const navigate = useNavigate();
@@ -21,7 +21,6 @@ export default function OrcamentoForm() {
     cliente_id: "",
     veiculo_id: "",
     km: "",
-    chassi: "",
     previsao_entrega: "",
     observacoes_veiculo: "",
     responsavel_tecnico: "",
@@ -61,11 +60,9 @@ export default function OrcamentoForm() {
   };
 
   const handleVeiculoChange = (veiculoId) => {
-    const veiculoSelecionado = veiculos.find((v) => v.id == veiculoId);
     setFormData({
       ...formData,
       veiculo_id: veiculoId,
-      chassi: veiculoSelecionado?.chassi || "",
     });
   };
 
@@ -253,7 +250,7 @@ export default function OrcamentoForm() {
                   <option value="">Selecione o veículo</option>
                   {veiculos.map((v) => (
                     <option key={v.id} value={v.id}>
-                      {v.modelo} - {v.placa}
+                      {v.marca} {v.modelo} {v.cor} {v.ano} - Placa: {v.placa}
                     </option>
                   ))}
                 </select>
@@ -284,23 +281,6 @@ export default function OrcamentoForm() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Chassi
-              </label>
-              <input
-                type="text"
-                value={formData.chassi}
-                onChange={(e) =>
-                  setFormData({ ...formData, chassi: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ex: 9BWZZZ377VT004251"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Previsão de Entrega

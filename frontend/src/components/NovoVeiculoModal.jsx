@@ -3,12 +3,8 @@ import Modal from "./Modal";
 import Input from "./Input";
 import Button from "./Button";
 import Select from "./Select";
-import {
-  validarPlaca,
-  validarChassi,
-  validarObrigatorio,
-} from "../utils/validators";
-import { mascaraPlaca, removerMascara } from "../utils/masks";
+import { validarPlaca, validarObrigatorio } from "../utils/validators";
+import { mascaraPlaca } from "../utils/masks";
 import { showSuccess, showError } from "../utils/toast.jsx";
 import api from "../services/api";
 
@@ -20,7 +16,6 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
     ano: "",
     placa: "",
     cor: "",
-    chassi: "",
   });
 
   const anoAtual = new Date().getFullYear();
@@ -34,11 +29,11 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
       return;
     }
 
-    // Remover máscaras antes de enviar
+    // Remover apenas o traço da placa antes de enviar, mantendo letras e números
     const dadosLimpos = {
       ...formData,
       cliente_id: clienteId,
-      placa: removerMascara(formData.placa),
+      placa: formData.placa.replace(/[^A-Z0-9]/g, ""), // Remove apenas caracteres especiais, mantém letras e números
     };
 
     setLoading(true);
@@ -62,7 +57,6 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
       ano: "",
       placa: "",
       cor: "",
-      chassi: "",
     });
     onClose();
   };
@@ -145,18 +139,6 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
             placeholder="Ex: Prata, Preto, Branco"
           />
         </div>
-
-        {/* Chassi */}
-        <Input
-          label="Chassi"
-          value={formData.chassi}
-          onChange={(e) =>
-            setFormData({ ...formData, chassi: e.target.value.toUpperCase() })
-          }
-          validator={validarChassi}
-          placeholder="9BWZZZ377VT004251 (17 caracteres)"
-          helperText="O chassi deve ter exatamente 17 caracteres"
-        />
       </form>
     </Modal>
   );

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
 import api from "../services/api";
 import OrcamentoImpressao from "../components/OrcamentoImpressao";
 
@@ -10,11 +9,6 @@ export default function OrcamentoDetalhes() {
   const [orcamento, setOrcamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const impressaoRef = useRef();
-
-  const handleImprimir = useReactToPrint({
-    content: () => impressaoRef.current,
-    documentTitle: `Orcamento-${orcamento?.numero}`,
-  });
 
   useEffect(() => {
     carregarOrcamento();
@@ -91,31 +85,10 @@ export default function OrcamentoDetalhes() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
           Orçamento {orcamento.numero}
         </h1>
         <div className="flex space-x-2">
-          <button
-            onClick={handleImprimir}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2"
-            title="Imprimir Orçamento"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-              />
-            </svg>
-            Imprimir
-          </button>
           {orcamento.status === "Pendente" && (
             <>
               <button
@@ -180,54 +153,66 @@ export default function OrcamentoDetalhes() {
       </div>
 
       {/* Informações do Orçamento */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <span className="text-sm text-gray-600">Status:</span>
-            <p className="text-lg font-semibold">{orcamento.status}</p>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Status:
+            </span>
+            <p className="text-lg font-semibold dark:text-white">
+              {orcamento.status}
+            </p>
           </div>
           <div>
-            <span className="text-sm text-gray-600">Data:</span>
-            <p className="text-lg font-semibold">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Data:
+            </span>
+            <p className="text-lg font-semibold dark:text-white">
               {new Date(orcamento.criado_em).toLocaleString("pt-BR")}
             </p>
           </div>
           <div>
-            <span className="text-sm text-gray-600">Valor Total:</span>
-            <p className="text-2xl font-bold text-blue-600">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Valor Total:
+            </span>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               R$ {Number(orcamento.valor_total).toFixed(2)}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t dark:border-gray-700 pt-4">
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Cliente</h3>
-            <p>
+            <h3 className="font-semibold text-gray-800 dark:text-white mb-2">
+              Cliente
+            </h3>
+            <p className="dark:text-gray-300">
               <strong>Nome:</strong> {orcamento.cliente_nome}
             </p>
-            <p>
+            <p className="dark:text-gray-300">
               <strong>Telefone:</strong> {orcamento.cliente_telefone}
             </p>
             {orcamento.cliente_cpf_cnpj && (
-              <p>
+              <p className="dark:text-gray-300">
                 <strong>CPF/CNPJ:</strong> {orcamento.cliente_cpf_cnpj}
               </p>
             )}
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Veículo</h3>
-            <p>
+            <h3 className="font-semibold text-gray-800 dark:text-white mb-2">
+              Veículo
+            </h3>
+            <p className="dark:text-gray-300">
               <strong>Modelo:</strong> {orcamento.veiculo_modelo}
             </p>
-            <p>
+            <p className="dark:text-gray-300">
               <strong>Placa:</strong> {orcamento.veiculo_placa}
             </p>
-            <p>
+            <p className="dark:text-gray-300">
               <strong>Cor:</strong> {orcamento.veiculo_cor}
             </p>
             {orcamento.km && (
-              <p>
+              <p className="dark:text-gray-300">
                 <strong>Km:</strong> {orcamento.km}
               </p>
             )}
@@ -235,63 +220,74 @@ export default function OrcamentoDetalhes() {
         </div>
 
         {orcamento.observacoes_veiculo && (
-          <div className="border-t pt-4 mt-4">
-            <h3 className="font-semibold text-gray-800 mb-2">
+          <div className="border-t dark:border-gray-700 pt-4 mt-4">
+            <h3 className="font-semibold text-gray-800 dark:text-white mb-2">
               Observações do Veículo
             </h3>
-            <p className="text-gray-700">{orcamento.observacoes_veiculo}</p>
+            <p className="text-gray-700 dark:text-gray-300">
+              {orcamento.observacoes_veiculo}
+            </p>
           </div>
         )}
       </div>
 
       {/* Produtos */}
       {orcamento.produtos && orcamento.produtos.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Produtos</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            Produtos
+          </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-100">
+              <thead className="bg-gray-100 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
                     Código
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
                     Descrição
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
                     Qtd
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
                     Valor Unit.
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
                     Total
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {orcamento.produtos.map((produto, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="px-4 py-2 text-sm">{produto.codigo}</td>
-                    <td className="px-4 py-2 text-sm">{produto.descricao}</td>
-                    <td className="px-4 py-2 text-sm text-right">
+                  <tr key={index} className="border-b dark:border-gray-700">
+                    <td className="px-4 py-2 text-sm dark:text-gray-300">
+                      {produto.codigo}
+                    </td>
+                    <td className="px-4 py-2 text-sm dark:text-gray-300">
+                      {produto.descricao}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-right dark:text-gray-300">
                       {produto.quantidade}
                     </td>
-                    <td className="px-4 py-2 text-sm text-right">
+                    <td className="px-4 py-2 text-sm text-right dark:text-gray-300">
                       R$ {Number(produto.valor_unitario).toFixed(2)}
                     </td>
-                    <td className="px-4 py-2 text-sm text-right font-semibold">
+                    <td className="px-4 py-2 text-sm text-right font-semibold dark:text-gray-200">
                       R$ {Number(produto.valor_total).toFixed(2)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-gray-50 font-semibold">
-                  <td colSpan="4" className="px-4 py-2 text-right">
+                <tr className="bg-gray-50 dark:bg-gray-700 font-semibold">
+                  <td
+                    colSpan="4"
+                    className="px-4 py-2 text-right dark:text-gray-300"
+                  >
                     Subtotal Produtos:
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right dark:text-gray-200">
                     R$ {Number(orcamento.valor_produtos).toFixed(2)}
                   </td>
                 </tr>
@@ -303,52 +299,61 @@ export default function OrcamentoDetalhes() {
 
       {/* Serviços */}
       {orcamento.servicos && orcamento.servicos.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Serviços</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            Serviços
+          </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-100">
+              <thead className="bg-gray-100 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
                     Código
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
                     Descrição
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
                     Qtd/Horas
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
                     Valor Unit.
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
                     Total
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {orcamento.servicos.map((servico, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="px-4 py-2 text-sm">{servico.codigo}</td>
-                    <td className="px-4 py-2 text-sm">{servico.descricao}</td>
-                    <td className="px-4 py-2 text-sm text-right">
+                  <tr key={index} className="border-b dark:border-gray-700">
+                    <td className="px-4 py-2 text-sm dark:text-gray-300">
+                      {servico.codigo}
+                    </td>
+                    <td className="px-4 py-2 text-sm dark:text-gray-300">
+                      {servico.descricao}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-right dark:text-gray-300">
                       {servico.quantidade}
                     </td>
-                    <td className="px-4 py-2 text-sm text-right">
+                    <td className="px-4 py-2 text-sm text-right dark:text-gray-300">
                       R$ {Number(servico.valor_unitario).toFixed(2)}
                     </td>
-                    <td className="px-4 py-2 text-sm text-right font-semibold">
+                    <td className="px-4 py-2 text-sm text-right font-semibold dark:text-gray-200">
                       R$ {Number(servico.valor_total).toFixed(2)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-gray-50 font-semibold">
-                  <td colSpan="4" className="px-4 py-2 text-right">
+                <tr className="bg-gray-50 dark:bg-gray-700 font-semibold">
+                  <td
+                    colSpan="4"
+                    className="px-4 py-2 text-right dark:text-gray-300"
+                  >
                     Subtotal Serviços:
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right dark:text-gray-200">
                     R$ {Number(orcamento.valor_servicos).toFixed(2)}
                   </td>
                 </tr>
@@ -360,11 +365,13 @@ export default function OrcamentoDetalhes() {
 
       {/* Observações Gerais */}
       {orcamento.observacoes_gerais && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
             Observações Gerais
           </h2>
-          <p className="text-gray-700">{orcamento.observacoes_gerais}</p>
+          <p className="text-gray-700 dark:text-gray-300">
+            {orcamento.observacoes_gerais}
+          </p>
         </div>
       )}
 

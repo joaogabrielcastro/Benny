@@ -8,7 +8,6 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import SortableHeader from "../components/SortableHeader";
-import { exportOSListToPDF } from "../utils/pdfExport";
 
 export default function OrdensServico() {
   const [ordens, setOrdens] = useState([]);
@@ -123,15 +122,6 @@ export default function OrdensServico() {
     toast.success("Filtros aplicados com sucesso");
   };
 
-  const handleExportPDF = () => {
-    if (ordensFiltered.length === 0) {
-      toast.error("Nenhuma ordem de serviço para exportar");
-      return;
-    }
-    exportOSListToPDF(ordensFiltered);
-    toast.success("PDF gerado com sucesso!");
-  };
-
   const handleSort = (field, direction) => {
     setSortConfig({ field, direction });
   };
@@ -169,12 +159,6 @@ export default function OrdensServico() {
           Ordens de Serviço
         </h1>
         <div className="flex gap-3">
-          <button
-            onClick={handleExportPDF}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-          >
-            📄 Exportar PDF
-          </button>
           <Link
             to="/ordens-servico/nova"
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"

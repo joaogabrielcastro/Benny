@@ -230,17 +230,34 @@ async function initDatabase() {
       ON orcamentos(status);
     `);
 
-    // Adicionar campos chassi e previsao_entrega se não existirem
+    // Remover colunas chassi das tabelas (não mais necessário)
+    await client.query(`
+      ALTER TABLE veiculos DROP COLUMN IF EXISTS chassi;
+    `);
+
     await client.query(`
       ALTER TABLE ordens_servico 
-      ADD COLUMN IF NOT EXISTS chassi VARCHAR(50),
+      DROP COLUMN IF EXISTS chassi,
       ADD COLUMN IF NOT EXISTS previsao_entrega DATE;
+    `);
+
+    await client.query(`
+      ALTER TABLE orcamentos 
+      DROP COLUMN IF EXISTS chassi,
+      ADD COLUMN IF NOT EXISTS previsao_entrega DATE,
+      ADD COLUMN IF NOT EXISTS responsavel_tecnico VARCHAR(255);
     `);
 
     // Adicionar coluna orcamento_id na tabela movimentacoes_estoque se não existir
     await client.query(`
       ALTER TABLE movimentacoes_estoque 
       ADD COLUMN IF NOT EXISTS orcamento_id INTEGER REFERENCES orcamentos(id);
+    `);
+
+    // Adicionar coluna marca na tabela veiculos se não existir
+    await client.query(`
+      ALTER TABLE veiculos 
+      ADD COLUMN IF NOT EXISTS marca VARCHAR(255);
     `);
 
     console.log("✓ Tabelas do banco de dados criadas/verificadas com sucesso!");
