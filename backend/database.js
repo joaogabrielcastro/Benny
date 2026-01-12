@@ -100,6 +100,7 @@ async function initDatabase() {
         cliente_id INTEGER NOT NULL,
         veiculo_id INTEGER NOT NULL,
         km INTEGER,
+        previsao_entrega DATE,
         observacoes_veiculo TEXT,
         observacoes_gerais TEXT,
         status VARCHAR(20) DEFAULT 'Aberta',
