@@ -12,6 +12,7 @@ import Home from "./pages/Home";
 import Logo from "./components/Logo";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ThemeToggle from "./components/ThemeToggle";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Lazy loading das páginas
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -26,56 +27,61 @@ const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: "#363636",
-              color: "#fff",
-            },
-            success: {
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Router>
+          <Toaster
+            position="top-right"
+            toastOptions={{
               duration: 3000,
-              iconTheme: {
-                primary: "#10B981",
-                secondary: "#fff",
+              style: {
+                background: "#363636",
+                color: "#fff",
               },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: "#EF4444",
-                secondary: "#fff",
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: "#10B981",
+                  secondary: "#fff",
+                },
               },
-            },
-          }}
-        />
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-          <ConditionalNavigation />
-          <main className="container mx-auto px-4 py-8">
-            <Suspense fallback={<LoadingSpinner size="xl" />}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/estoque" element={<Estoque />} />
-                <Route path="/orcamentos" element={<Orcamentos />} />
-                <Route path="/orcamentos/novo" element={<OrcamentoForm />} />
-                <Route path="/orcamentos/:id" element={<OrcamentoDetalhes />} />
-                <Route
-                  path="/orcamento-publico/:id"
-                  element={<OrcamentoPublico />}
-                />
-                <Route path="/ordens-servico" element={<OrdensServico />} />
-                <Route path="/ordens-servico/nova" element={<OSForm />} />
-                <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
-              </Routes>
-            </Suspense>
-          </main>
-        </div>
-      </Router>
-    </ThemeProvider>
+              error: {
+                duration: 4000,
+                iconTheme: {
+                  primary: "#EF4444",
+                  secondary: "#fff",
+                },
+              },
+            }}
+          />
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+            <ConditionalNavigation />
+            <main className="container mx-auto px-4 py-8">
+              <Suspense fallback={<LoadingSpinner size="xl" />}>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/estoque" element={<Estoque />} />
+                  <Route path="/orcamentos" element={<Orcamentos />} />
+                  <Route path="/orcamentos/novo" element={<OrcamentoForm />} />
+                  <Route
+                    path="/orcamentos/:id"
+                    element={<OrcamentoDetalhes />}
+                  />
+                  <Route
+                    path="/orcamento-publico/:id"
+                    element={<OrcamentoPublico />}
+                  />
+                  <Route path="/ordens-servico" element={<OrdensServico />} />
+                  <Route path="/ordens-servico/nova" element={<OSForm />} />
+                  <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
+                </Routes>
+              </Suspense>
+            </main>
+          </div>
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

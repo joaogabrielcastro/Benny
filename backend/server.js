@@ -334,7 +334,20 @@ app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
 
 app.get("/api/clientes", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM clientes ORDER BY nome");
+    const { busca } = req.query;
+
+    let query = "SELECT * FROM clientes";
+    const params = [];
+
+    if (busca) {
+      query +=
+        " WHERE LOWER(nome) LIKE LOWER($1) OR LOWER(telefone) LIKE LOWER($1) OR LOWER(cpf_cnpj) LIKE LOWER($1)";
+      params.push(`%${busca}%`);
+    }
+
+    query += " ORDER BY nome LIMIT 50";
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -679,6 +692,8 @@ app.post("/api/orcamentos", async (req, res) => {
       cliente_id,
       veiculo_id,
       km,
+      chassi,
+      previsao_entrega,
       observacoes_veiculo,
       observacoes_gerais,
       produtos,
@@ -696,13 +711,15 @@ app.post("/api/orcamentos", async (req, res) => {
 
     // Inserir orçamento
     const orcResult = await client.query(
-      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, chassi, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
       [
         numero,
         cliente_id,
         veiculo_id,
         km,
+        chassi || null,
+        previsao_entrega || null,
         observacoes_veiculo,
         observacoes_gerais,
         valor_produtos,
@@ -773,6 +790,8 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     const {
       status,
       km,
+      chassi,
+      previsao_entrega,
       observacoes_veiculo,
       observacoes_gerais,
       produtos,
@@ -795,12 +814,15 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     // Atualizar orçamento
     await client.query(
       `UPDATE orcamentos 
-       SET status = $1, km = $2, observacoes_veiculo = $3, observacoes_gerais = $4, 
-           valor_produtos = $5, valor_servicos = $6, valor_total = $7, atualizado_em = CURRENT_TIMESTAMP
-       WHERE id = $8`,
+       SET status = $1, km = $2, chassi = $3, previsao_entrega = $4, 
+           observacoes_veiculo = $5, observacoes_gerais = $6, 
+           valor_produtos = $7, valor_servicos = $8, valor_total = $9, atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $10`,
       [
         status,
         km,
+        chassi || null,
+        previsao_entrega || null,
         observacoes_veiculo,
         observacoes_gerais,
         valor_produtos,

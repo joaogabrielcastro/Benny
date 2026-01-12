@@ -1,12 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useReactToPrint } from "react-to-print";
 import api from "../services/api";
+import OrcamentoImpressao from "../components/OrcamentoImpressao";
 
 export default function OrcamentoDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [orcamento, setOrcamento] = useState(null);
   const [loading, setLoading] = useState(true);
+  const impressaoRef = useRef();
+
+  const handleImprimir = useReactToPrint({
+    content: () => impressaoRef.current,
+    documentTitle: `Orcamento-${orcamento?.numero}`,
+  });
 
   useEffect(() => {
     carregarOrcamento();
@@ -87,6 +95,27 @@ export default function OrcamentoDetalhes() {
           Orçamento {orcamento.numero}
         </h1>
         <div className="flex space-x-2">
+          <button
+            onClick={handleImprimir}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2"
+            title="Imprimir Orçamento"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+              />
+            </svg>
+            Imprimir
+          </button>
           {orcamento.status === "Pendente" && (
             <>
               <button
@@ -338,6 +367,9 @@ export default function OrcamentoDetalhes() {
           <p className="text-gray-700">{orcamento.observacoes_gerais}</p>
         </div>
       )}
+
+      {/* Componente de impressão (oculto) */}
+      <OrcamentoImpressao ref={impressaoRef} orcamento={orcamento} />
     </div>
   );
 }

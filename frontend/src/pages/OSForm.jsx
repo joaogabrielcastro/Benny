@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import ClienteAutocomplete from "../components/ClienteAutocomplete";
 
 export default function OSForm() {
   const navigate = useNavigate();
@@ -211,15 +212,15 @@ export default function OSForm() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
           Nova Ordem de Serviço
         </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Dados do Cliente e Veículo */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Cliente e Veículo
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,25 +229,26 @@ export default function OSForm() {
                 Cliente *
               </label>
               <div className="flex space-x-2">
-                <select
-                  value={formData.cliente_id}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      cliente_id: e.target.value,
-                      veiculo_id: "",
-                    })
-                  }
-                  required
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Selecione o cliente</option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome} - {c.telefone}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <ClienteAutocomplete
+                    value={formData.cliente_id}
+                    onChange={(clienteId) =>
+                      setFormData({
+                        ...formData,
+                        cliente_id: clienteId,
+                        veiculo_id: "",
+                      })
+                    }
+                    onClienteSelecionado={(cliente) => {
+                      if (cliente) {
+                        carregarVeiculos(cliente.id);
+                      } else {
+                        setVeiculos([]);
+                      }
+                    }}
+                    required
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setMostrarClienteForm(true)}
@@ -375,9 +377,11 @@ export default function OSForm() {
         </div>
 
         {/* Produtos */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Produtos</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Produtos
+            </h2>
             <button
               type="button"
               onClick={adicionarProduto}
@@ -514,9 +518,11 @@ export default function OSForm() {
         </div>
 
         {/* Serviços */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Serviços</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Serviços
+            </h2>
             <button
               type="button"
               onClick={adicionarServico}
@@ -622,9 +628,9 @@ export default function OSForm() {
         </div>
 
         {/* Observações e Total */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Observações Gerais
             </label>
             <textarea
@@ -633,15 +639,15 @@ export default function OSForm() {
                 setFormData({ ...formData, observacoes_gerais: e.target.value })
               }
               rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="flex justify-between items-center border-t pt-4">
-            <span className="text-2xl font-bold text-gray-800">
+          <div className="flex justify-between items-center border-t dark:border-gray-700 pt-4">
+            <span className="text-2xl font-bold text-gray-800 dark:text-white">
               Valor Total:
             </span>
-            <span className="text-3xl font-bold text-blue-600">
+            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
               R$ {calcularTotal().toFixed(2)}
             </span>
           </div>
@@ -652,7 +658,7 @@ export default function OSForm() {
           <button
             type="button"
             onClick={() => navigate("/ordens-servico")}
-            className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Cancelar
           </button>

@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import ClienteAutocomplete from "../components/ClienteAutocomplete";
+import NovoClienteModal from "../components/NovoClienteModal";
+import NovoVeiculoModal from "../components/NovoVeiculoModal";
+import Button from "../components/Button";
+import Input from "../components/Input";
+import { showSuccess, showError, showPromise } from "../utils/toast.jsx";
+import { validarChassi, validarNumeroPositivo } from "../utils/validators";
 
 export default function OrcamentoForm() {
   const navigate = useNavigate();
@@ -14,7 +21,10 @@ export default function OrcamentoForm() {
     cliente_id: "",
     veiculo_id: "",
     km: "",
+    chassi: "",
+    previsao_entrega: "",
     observacoes_veiculo: "",
+    responsavel_tecnico: "",
     observacoes_gerais: "",
   });
 
@@ -48,6 +58,15 @@ export default function OrcamentoForm() {
     } catch (error) {
       console.error("Erro ao carregar veículos:", error);
     }
+  };
+
+  const handleVeiculoChange = (veiculoId) => {
+    const veiculoSelecionado = veiculos.find((v) => v.id == veiculoId);
+    setFormData({
+      ...formData,
+      veiculo_id: veiculoId,
+      chassi: veiculoSelecionado?.chassi || "",
+    });
   };
 
   const carregarProdutos = async () => {
@@ -146,65 +165,69 @@ export default function OrcamentoForm() {
     e.preventDefault();
 
     if (!formData.cliente_id || !formData.veiculo_id) {
-      alert("Selecione o cliente e o veículo");
+      showError("Selecione o cliente e o veículo");
       return;
     }
 
-    try {
-      const dados = {
-        ...formData,
-        produtos: itensProdutos,
-        servicos: itensServicos,
-      };
+    const dados = {
+      ...formData,
+      produtos: itensProdutos,
+      servicos: itensServicos,
+    };
 
-      await api.post("/orcamentos", dados);
-      alert("Orçamento criado com sucesso!");
-      navigate("/orcamentos");
-    } catch (error) {
-      alert(
-        "Erro ao criar orçamento: " +
-          (error.response?.data?.error || error.message)
-      );
-    }
+    showPromise(api.post("/orcamentos", dados), {
+      loading: "Criando orçamento...",
+      success: "Orçamento criado com sucesso!",
+      error: (err) => err.response?.data?.error || "Erro ao criar orçamento",
+    })
+      .then(() => {
+        navigate("/orcamentos");
+      })
+      .catch((error) => {
+        console.error("Erro ao criar orçamento:", error);
+      });
   };
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Novo Orçamento</h1>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+          Novo Orçamento
+        </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Dados do Cliente e Veículo */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Cliente e Veículo
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cliente *
               </label>
               <div className="flex space-x-2">
-                <select
-                  value={formData.cliente_id}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      cliente_id: e.target.value,
-                      veiculo_id: "",
-                    })
-                  }
-                  required
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Selecione o cliente</option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome} - {c.telefone}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <ClienteAutocomplete
+                    value={formData.cliente_id}
+                    onChange={(clienteId) =>
+                      setFormData({
+                        ...formData,
+                        cliente_id: clienteId,
+                        veiculo_id: "",
+                      })
+                    }
+                    onClienteSelecionado={(cliente) => {
+                      if (cliente) {
+                        carregarVeiculos(cliente.id);
+                      } else {
+                        setVeiculos([]);
+                      }
+                    }}
+                    required
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setMostrarClienteForm(true)}
@@ -216,18 +239,16 @@ export default function OrcamentoForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Veículo *
               </label>
               <div className="flex space-x-2">
                 <select
                   value={formData.veiculo_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, veiculo_id: e.target.value })
-                  }
+                  onChange={(e) => handleVeiculoChange(e.target.value)}
                   required
                   disabled={!formData.cliente_id}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-800"
                 >
                   <option value="">Selecione o veículo</option>
                   {veiculos.map((v) => (
@@ -250,7 +271,7 @@ export default function OrcamentoForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Km
               </label>
               <input
@@ -259,33 +280,84 @@ export default function OrcamentoForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, km: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Observações do Veículo
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Chassi
               </label>
               <input
                 type="text"
-                value={formData.observacoes_veiculo}
+                value={formData.chassi}
+                onChange={(e) =>
+                  setFormData({ ...formData, chassi: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ex: 9BWZZZ377VT004251"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Previsão de Entrega
+              </label>
+              <input
+                type="date"
+                value={formData.previsao_entrega}
+                onChange={(e) =>
+                  setFormData({ ...formData, previsao_entrega: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Responsável Técnico
+              </label>
+              <input
+                type="text"
+                value={formData.responsavel_tecnico}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    observacoes_veiculo: e.target.value,
+                    responsavel_tecnico: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nome do técnico responsável"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Observações do Veículo
+            </label>
+            <input
+              type="text"
+              value={formData.observacoes_veiculo}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  observacoes_veiculo: e.target.value,
+                })
+              }
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
 
         {/* Produtos */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Produtos</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Produtos
+            </h2>
             <button
               type="button"
               onClick={adicionarProduto}
@@ -299,10 +371,10 @@ export default function OrcamentoForm() {
             {itensProdutos.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b pb-3"
+                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
               >
                 <div className="col-span-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Produto
                   </label>
                   <select
@@ -310,7 +382,7 @@ export default function OrcamentoForm() {
                     onChange={(e) =>
                       atualizarProduto(index, "produto_id", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Selecione...</option>
                     {produtos.map((p) => (
@@ -321,7 +393,7 @@ export default function OrcamentoForm() {
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Código
                   </label>
                   <input
@@ -330,11 +402,11 @@ export default function OrcamentoForm() {
                     onChange={(e) =>
                       atualizarProduto(index, "codigo", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
                   </label>
                   <input
@@ -343,11 +415,11 @@ export default function OrcamentoForm() {
                     onChange={(e) =>
                       atualizarProduto(index, "descricao", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Qtd
                   </label>
                   <input
@@ -362,11 +434,11 @@ export default function OrcamentoForm() {
                     }
                     min="0"
                     step="1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Valor Unit.
                   </label>
                   <input
@@ -381,18 +453,18 @@ export default function OrcamentoForm() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Total
                   </label>
                   <input
                     type="text"
                     value={`R$ ${item.valor_total.toFixed(2)}`}
                     readOnly
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-50"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 dark:text-gray-300"
                   />
                 </div>
                 <div className="col-span-1">
@@ -410,9 +482,11 @@ export default function OrcamentoForm() {
         </div>
 
         {/* Serviços */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Serviços</h2>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Serviços
+            </h2>
             <button
               type="button"
               onClick={adicionarServico}
@@ -426,10 +500,10 @@ export default function OrcamentoForm() {
             {itensServicos.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b pb-3"
+                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
               >
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Código
                   </label>
                   <input
@@ -438,11 +512,11 @@ export default function OrcamentoForm() {
                     onChange={(e) =>
                       atualizarServico(index, "codigo", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
                   </label>
                   <input
@@ -451,11 +525,11 @@ export default function OrcamentoForm() {
                     onChange={(e) =>
                       atualizarServico(index, "descricao", e.target.value)
                     }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Qtd/Horas
                   </label>
                   <input
@@ -470,11 +544,11 @@ export default function OrcamentoForm() {
                     }
                     min="0"
                     step="0.5"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Valor Unit.
                   </label>
                   <input
@@ -489,18 +563,18 @@ export default function OrcamentoForm() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Total
                   </label>
                   <input
                     type="text"
                     value={`R$ ${item.valor_total.toFixed(2)}`}
                     readOnly
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-50"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 dark:text-gray-300"
                   />
                 </div>
                 <div className="col-span-1">
@@ -518,9 +592,9 @@ export default function OrcamentoForm() {
         </div>
 
         {/* Observações e Total */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Observações Gerais
             </label>
             <textarea
@@ -529,15 +603,15 @@ export default function OrcamentoForm() {
                 setFormData({ ...formData, observacoes_gerais: e.target.value })
               }
               rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="flex justify-between items-center border-t pt-4">
-            <span className="text-2xl font-bold text-gray-800">
+          <div className="flex justify-between items-center border-t dark:border-gray-700 pt-4">
+            <span className="text-2xl font-bold text-gray-800 dark:text-white">
               Valor Total:
             </span>
-            <span className="text-3xl font-bold text-blue-600">
+            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
               R$ {calcularTotal().toFixed(2)}
             </span>
           </div>
@@ -548,7 +622,7 @@ export default function OrcamentoForm() {
           <button
             type="button"
             onClick={() => navigate("/orcamentos")}
-            className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Cancelar
           </button>
@@ -562,233 +636,24 @@ export default function OrcamentoForm() {
       </form>
 
       {/* Modais */}
-      {mostrarClienteForm && (
-        <ClienteFormModal
-          onClose={(clienteId) => {
-            setMostrarClienteForm(false);
-            if (clienteId) {
-              carregarClientes();
-              setFormData({ ...formData, cliente_id: clienteId });
-            }
-          }}
-        />
-      )}
+      <NovoClienteModal
+        isOpen={mostrarClienteForm}
+        onClose={() => setMostrarClienteForm(false)}
+        onClienteCriado={(cliente) => {
+          carregarClientes();
+          setFormData({ ...formData, cliente_id: cliente.id });
+        }}
+      />
 
-      {mostrarVeiculoForm && formData.cliente_id && (
-        <VeiculoFormModal
-          clienteId={formData.cliente_id}
-          onClose={(veiculoId) => {
-            setMostrarVeiculoForm(false);
-            if (veiculoId) {
-              carregarVeiculos(formData.cliente_id);
-              setFormData({ ...formData, veiculo_id: veiculoId });
-            }
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function ClienteFormModal({ onClose }) {
-  const [formData, setFormData] = useState({
-    nome: "",
-    telefone: "",
-    cpf_cnpj: "",
-    email: "",
-    endereco: "",
-  });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await api.post("/clientes", formData);
-      alert("Cliente criado com sucesso!");
-      onClose(response.data.id);
-    } catch (error) {
-      alert(
-        "Erro ao criar cliente: " +
-          (error.response?.data?.error || error.message)
-      );
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Novo Cliente
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome *
-              </label>
-              <input
-                type="text"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefone *
-              </label>
-              <input
-                type="text"
-                value={formData.telefone}
-                onChange={(e) =>
-                  setFormData({ ...formData, telefone: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                CPF/CNPJ
-              </label>
-              <input
-                type="text"
-                value={formData.cpf_cnpj}
-                onChange={(e) =>
-                  setFormData({ ...formData, cpf_cnpj: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => onClose(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Salvar
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VeiculoFormModal({ clienteId, onClose }) {
-  const [formData, setFormData] = useState({
-    cliente_id: clienteId,
-    modelo: "",
-    cor: "",
-    placa: "",
-    ano: "",
-  });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await api.post("/veiculos", formData);
-      alert("Veículo criado com sucesso!");
-      onClose(response.data.id);
-    } catch (error) {
-      alert(
-        "Erro ao criar veículo: " +
-          (error.response?.data?.error || error.message)
-      );
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Novo Veículo
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Modelo *
-              </label>
-              <input
-                type="text"
-                value={formData.modelo}
-                onChange={(e) =>
-                  setFormData({ ...formData, modelo: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cor
-                </label>
-                <input
-                  type="text"
-                  value={formData.cor}
-                  onChange={(e) =>
-                    setFormData({ ...formData, cor: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ano
-                </label>
-                <input
-                  type="text"
-                  value={formData.ano}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ano: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Placa *
-              </label>
-              <input
-                type="text"
-                value={formData.placa}
-                onChange={(e) =>
-                  setFormData({ ...formData, placa: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => onClose(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Salvar
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <NovoVeiculoModal
+        isOpen={mostrarVeiculoForm}
+        onClose={() => setMostrarVeiculoForm(false)}
+        clienteId={formData.cliente_id}
+        onVeiculoCriado={(veiculo) => {
+          carregarVeiculos(formData.cliente_id);
+          setFormData({ ...formData, veiculo_id: veiculo.id });
+        }}
+      />
     </div>
   );
 }
