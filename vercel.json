@@ -2,7 +2,6 @@
   "$schema": "https://openapis.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rootDirectory": "frontend",
   "framework": "vite",
   "rewrites": [
     {
