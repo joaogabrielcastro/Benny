@@ -291,15 +291,9 @@ app.get("/api/produtos/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log(`====== INICIANDO BUSCA PRODUTO ${id} ======`);
-    
-    // Validar se é um número
     if (isNaN(id)) {
-      console.log(`ERRO: ID inválido: ${id}`);
       return res.status(400).json({ error: "ID inválido" });
     }
-    
-    console.log(`Executando query para produto ${id}...`);
     
     const result = await client.query(
       `SELECT id, 
@@ -315,38 +309,20 @@ app.get("/api/produtos/:id", async (req, res) => {
       [id]
     );
     
-    console.log(`Query executada. Rows: ${result.rows.length}`);
-    
     if (result.rows.length === 0) {
-      console.log(`Produto ${id} não encontrado no banco`);
       return res.status(404).json({ error: "Produto não encontrado" });
     }
     
-    const produto = result.rows[0];
-    console.log(`Produto encontrado: ${JSON.stringify(produto)}`);
-    console.log(`====== FIM BUSCA PRODUTO ${id} - SUCESSO ======`);
-    
-    res.json(produto);
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error(`====== ERRO AO BUSCAR PRODUTO ${req.params.id} ======`);
-    console.error(`Mensagem: ${error.message}`);
-    console.error(`Code: ${error.code}`);
-    console.error(`Detail: ${error.detail}`);
-    console.error(`Stack: ${error.stack}`);
-    console.error(`====== FIM ERRO ======`);
-    
-    logger.error(`[PRODUTO] ERRO:`, {
-      id: req.params.id,
+    logger.error(`Erro ao buscar produto ${req.params.id}:`, {
       message: error.message,
-      code: error.code,
-      detail: error.detail
+      code: error.code
     });
     
     res.status(500).json({ 
       error: "Erro ao buscar produto",
-      message: error.message,
-      productId: req.params.id,
-      errorCode: error.code
+      message: error.message
     });
   } finally {
     client.release();
