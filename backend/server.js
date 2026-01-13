@@ -259,15 +259,33 @@ app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
 // Buscar produto por ID
 app.get("/api/produtos/:id", async (req, res) => {
   try {
+    const { id } = req.params;
+    
+    // Validar se é um número
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    
+    logger.info(`Buscando produto ID: ${id}`);
+    
     const result = await pool.query("SELECT * FROM produtos WHERE id = $1", [
-      req.params.id,
+      id,
     ]);
+    
     if (result.rows.length === 0) {
+      logger.warn(`Produto não encontrado: ${id}`);
       return res.status(404).json({ error: "Produto não encontrado" });
     }
+    
+    logger.info(`Produto encontrado: ${id}`);
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    logger.error(`Erro ao buscar produto ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: "Erro ao buscar produto",
+      message: error.message,
+      details: process.env.NODE_ENV !== "production" ? error.stack : undefined
+    });
   }
 });
 
