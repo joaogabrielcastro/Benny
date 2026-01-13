@@ -287,6 +287,7 @@ app.get("/api/produtos/diagnostico/verificar", async (req, res) => {
 
 // Buscar produto por ID
 app.get("/api/produtos/:id", async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     
@@ -296,38 +297,48 @@ app.get("/api/produtos/:id", async (req, res) => {
       return res.status(400).json({ error: "ID inválido" });
     }
     
-    logger.info(`Buscando produto ID: ${id}`);
+    logger.info(`[PRODUTO] Buscando ID: ${id}`);
     
-    const result = await pool.query(
+    const result = await client.query(
       `SELECT id, 
               COALESCE(codigo, '') as codigo, 
               COALESCE(nome, '') as nome, 
               COALESCE(descricao, '') as descricao, 
-              COALESCE(quantidade, 0) as quantidade, 
-              COALESCE(valor_custo, 0) as valor_custo, 
-              COALESCE(valor_venda, 0) as valor_venda, 
-              COALESCE(estoque_minimo, 0) as estoque_minimo, 
+              COALESCE(quantidade, 0)::numeric as quantidade, 
+              COALESCE(valor_custo, 0)::numeric as valor_custo, 
+              COALESCE(valor_venda, 0)::numeric as valor_venda, 
+              COALESCE(estoque_minimo, 0)::numeric as estoque_minimo, 
               criado_em, atualizado_em 
-       FROM produtos WHERE id = $1`,
+       FROM produtos WHERE id = $1::integer`,
       [id]
     );
     
     if (result.rows.length === 0) {
-      logger.warn(`Produto não encontrado: ${id}`);
+      logger.warn(`[PRODUTO] Não encontrado: ${id}`);
       return res.status(404).json({ error: "Produto não encontrado" });
     }
     
-    logger.info(`Produto encontrado: ${id} - ${result.rows[0].nome}`);
-    res.json(result.rows[0]);
+    const produto = result.rows[0];
+    logger.info(`[PRODUTO] Encontrado: ${id} - ${produto.nome}`);
+    
+    res.json(produto);
   } catch (error) {
-    logger.error(`Erro ao buscar produto ${req.params.id}:`, error);
-    console.error("Stack trace:", error.stack);
+    logger.error(`[PRODUTO] ERRO ao buscar ${req.params.id}:`, {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint,
+      stack: error.stack
+    });
+    
     res.status(500).json({ 
       error: "Erro ao buscar produto",
       message: error.message,
       code: error.code,
-      details: process.env.NODE_ENV !== "production" ? error.stack : undefined
+      hint: error.hint
     });
+  } finally {
+    client.release();
   }
 });
 
