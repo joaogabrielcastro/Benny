@@ -244,6 +244,18 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
   }
 });
 
+// Produtos com estoque baixo (DEVE VIR ANTES DE /:id)
+app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Buscar produto por ID
 app.get("/api/produtos/:id", async (req, res) => {
   try {
@@ -368,18 +380,6 @@ app.delete("/api/produtos/:id", async (req, res) => {
     res.json({ message: "Produto deletado com sucesso" });
   } catch (error) {
     logger.error("Erro ao deletar produto:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Produtos com estoque baixo
-app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade"
-    );
-    res.json(result.rows);
-  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
