@@ -256,6 +256,35 @@ app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
   }
 });
 
+// Rota de diagnóstico para verificar produtos problemáticos
+app.get("/api/produtos/diagnostico/verificar", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, codigo, nome, 
+              CASE WHEN descricao IS NULL THEN 'NULL' ELSE 'OK' END as descricao_status,
+              quantidade, valor_custo, valor_venda, estoque_minimo
+       FROM produtos 
+       ORDER BY id`
+    );
+    
+    const problemProducts = result.rows.filter(p => 
+      p.quantidade === null || 
+      p.valor_venda === null || 
+      p.codigo === null ||
+      p.nome === null
+    );
+    
+    res.json({
+      total: result.rows.length,
+      problemProducts: problemProducts,
+      allProducts: result.rows
+    });
+  } catch (error) {
+    logger.error("Erro no diagnóstico:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Buscar produto por ID
 app.get("/api/produtos/:id", async (req, res) => {
   try {
@@ -263,27 +292,40 @@ app.get("/api/produtos/:id", async (req, res) => {
     
     // Validar se é um número
     if (isNaN(id)) {
+      logger.warn(`ID inválido recebido: ${id}`);
       return res.status(400).json({ error: "ID inválido" });
     }
     
     logger.info(`Buscando produto ID: ${id}`);
     
-    const result = await pool.query("SELECT * FROM produtos WHERE id = $1", [
-      id,
-    ]);
+    const result = await pool.query(
+      `SELECT id, 
+              COALESCE(codigo, '') as codigo, 
+              COALESCE(nome, '') as nome, 
+              COALESCE(descricao, '') as descricao, 
+              COALESCE(quantidade, 0) as quantidade, 
+              COALESCE(valor_custo, 0) as valor_custo, 
+              COALESCE(valor_venda, 0) as valor_venda, 
+              COALESCE(estoque_minimo, 0) as estoque_minimo, 
+              criado_em, atualizado_em 
+       FROM produtos WHERE id = $1`,
+      [id]
+    );
     
     if (result.rows.length === 0) {
       logger.warn(`Produto não encontrado: ${id}`);
       return res.status(404).json({ error: "Produto não encontrado" });
     }
     
-    logger.info(`Produto encontrado: ${id}`);
+    logger.info(`Produto encontrado: ${id} - ${result.rows[0].nome}`);
     res.json(result.rows[0]);
   } catch (error) {
     logger.error(`Erro ao buscar produto ${req.params.id}:`, error);
+    console.error("Stack trace:", error.stack);
     res.status(500).json({ 
       error: "Erro ao buscar produto",
       message: error.message,
+      code: error.code,
       details: process.env.NODE_ENV !== "production" ? error.stack : undefined
     });
   }
