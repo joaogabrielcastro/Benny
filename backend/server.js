@@ -1419,7 +1419,16 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const { status, responsavel_tecnico } = req.body;
+    const {
+      status,
+      responsavel_tecnico,
+      km,
+      previsao_entrega,
+      observacoes_veiculo,
+      observacoes_gerais,
+      produtos,
+      servicos,
+    } = req.body;
 
     // Buscar dados anteriores para auditoria
     const dadosAnteriores = await client.query(
@@ -1432,14 +1441,94 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
       return res.status(404).json({ error: "OS não encontrada" });
     }
 
-    // Atualizar OS
-    await client.query(
-      `UPDATE ordens_servico 
-       SET status = $1::varchar, responsavel_tecnico = $2::varchar, atualizado_em = CURRENT_TIMESTAMP,
-           finalizado_em = CASE WHEN $1::varchar = 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END
-       WHERE id = $3`,
-      [status, responsavel_tecnico, req.params.id]
-    );
+    // Se for atualização completa (com produtos/servicos), atualizar tudo
+    if (produtos !== undefined || servicos !== undefined) {
+      // Atualizar OS com todos os campos, preservando o status
+      await client.query(
+        `UPDATE ordens_servico 
+         SET km = $1, previsao_entrega = $2, observacoes_veiculo = $3, 
+             observacoes_gerais = $4, responsavel_tecnico = $5,
+             status = COALESCE($6, status), atualizado_em = CURRENT_TIMESTAMP
+         WHERE id = $7`,
+        [
+          km || null,
+          previsao_entrega || null,
+          observacoes_veiculo,
+          observacoes_gerais,
+          responsavel_tecnico,
+          status || null,
+          req.params.id,
+        ]
+      );
+
+      // Deletar produtos e serviços anteriores
+      await client.query("DELETE FROM os_produtos WHERE os_id = $1", [
+        req.params.id,
+      ]);
+      await client.query("DELETE FROM os_servicos WHERE os_id = $1", [
+        req.params.id,
+      ]);
+
+      // Inserir novos produtos
+      if (produtos && produtos.length > 0) {
+        for (const produto of produtos) {
+          await client.query(
+            `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              req.params.id,
+              produto.produto_id || null,
+              produto.codigo,
+              produto.descricao,
+              produto.quantidade,
+              produto.valor_unitario,
+              produto.valor_total,
+            ]
+          );
+        }
+      }
+
+      // Inserir novos serviços
+      if (servicos && servicos.length > 0) {
+        for (const servico of servicos) {
+          await client.query(
+            `INSERT INTO os_servicos (os_id, codigo, descricao, quantidade, valor_unitario, valor_total)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              req.params.id,
+              servico.codigo,
+              servico.descricao,
+              servico.quantidade,
+              servico.valor_unitario,
+              servico.valor_total,
+            ]
+          );
+        }
+      }
+
+      // Recalcular totais
+      const valorProdutos =
+        produtos?.reduce((sum, p) => sum + Number(p.valor_total), 0) || 0;
+      const valorServicos =
+        servicos?.reduce((sum, s) => sum + Number(s.valor_total), 0) || 0;
+      const valorTotal = valorProdutos + valorServicos;
+
+      await client.query(
+        `UPDATE ordens_servico 
+         SET valor_produtos = $1, valor_servicos = $2, valor_total = $3
+         WHERE id = $4`,
+        [valorProdutos, valorServicos, valorTotal, req.params.id]
+      );
+    } else {
+      // Atualização simples de status apenas
+      await client.query(
+        `UPDATE ordens_servico 
+         SET status = $1::varchar, responsavel_tecnico = $2::varchar, atualizado_em = CURRENT_TIMESTAMP,
+             finalizado_em = CASE WHEN $1::varchar = 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END
+         WHERE id = $3`,
+        [status, responsavel_tecnico, req.params.id]
+      );
+    }
 
     // Buscar dados novos
     const dadosNovos = await client.query(

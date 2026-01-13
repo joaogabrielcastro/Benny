@@ -285,16 +285,22 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
               >
                 <strong>Status:</strong> {orcamento.status || "Pendente"}
               </td>
-              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+              <td
+                style={{
+                  padding: "5px",
+                  borderTop: "1px solid #000",
+                  borderRight: "1px solid #000",
+                }}
+              >
                 <strong>Km:</strong>{" "}
                 {orcamento.km ? orcamento.km.toLocaleString() : "-"}
               </td>
-              {orcamento.previsao_entrega && (
-                <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
-                  <strong>Previsão:</strong>{" "}
-                  {formatarData(orcamento.previsao_entrega)}
-                </td>
-              )}
+              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+                <strong>Previsão:</strong>{" "}
+                {orcamento.previsao_entrega
+                  ? formatarData(orcamento.previsao_entrega)
+                  : "-"}
+              </td>
             </tr>
           </tbody>
         </table>

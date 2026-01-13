@@ -77,6 +77,14 @@ export default function OSDetalhes() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            {(os.status === "Aberta" || os.status === "Em andamento") && (
+              <Link
+                to={`/ordens-servico/${id}/editar`}
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2"
+              >
+                ✏️ Editar
+              </Link>
+            )}
             {os.status === "Aberta" && (
               <button
                 onClick={() => handleAtualizarStatus("Em andamento")}
