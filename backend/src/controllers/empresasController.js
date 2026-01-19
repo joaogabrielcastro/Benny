@@ -22,7 +22,8 @@ class EmpresasController {
   async buscar(req, res) {
     try {
       const emp = await empresasService.buscarPorId(req.params.id);
-      if (!emp) return res.status(404).json({ error: "Empresa não encontrada" });
+      if (!emp)
+        return res.status(404).json({ error: "Empresa não encontrada" });
       res.json(emp);
     } catch (error) {
       res.status(500).json({ error: error.message });

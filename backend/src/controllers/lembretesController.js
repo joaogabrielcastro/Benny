@@ -26,7 +26,8 @@ class LembretesController {
   async marcarEnviado(req, res) {
     try {
       const lembrete = await lembretesService.marcarEnviado(req.params.id);
-      if (!lembrete) return res.status(404).json({ error: "Lembrete não encontrado" });
+      if (!lembrete)
+        return res.status(404).json({ error: "Lembrete não encontrado" });
       res.json({ message: "Lembrete marcado como enviado", lembrete });
     } catch (error) {
       logger.error("Erro ao marcar lembrete como enviado:", error);

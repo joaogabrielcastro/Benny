@@ -17,7 +17,8 @@ class AgendamentosController {
   async buscar(req, res) {
     try {
       const ag = await agendamentosService.buscarPorId(req.params.id);
-      if (!ag) return res.status(404).json({ error: "Agendamento não encontrado" });
+      if (!ag)
+        return res.status(404).json({ error: "Agendamento não encontrado" });
       res.json(ag);
     } catch (error) {
       logger.error("Erro ao buscar agendamento:", error);
@@ -46,7 +47,9 @@ class AgendamentosController {
       } catch (err) {
         logger.error("Falha ao criar lembrete automático:", err);
       }
-      res.status(201).json({ message: "Agendamento criado com sucesso", agendamento: novo });
+      res
+        .status(201)
+        .json({ message: "Agendamento criado com sucesso", agendamento: novo });
     } catch (error) {
       if (error.code === "CONFLITO_AGENDAMENTO") {
         return res.status(400).json({ error: error.message });
@@ -58,9 +61,16 @@ class AgendamentosController {
 
   async atualizar(req, res) {
     try {
-      const atualizado = await agendamentosService.atualizar(req.params.id, req.body);
-      if (!atualizado) return res.status(404).json({ error: "Agendamento não encontrado" });
-      res.json({ message: "Agendamento atualizado com sucesso", agendamento: atualizado });
+      const atualizado = await agendamentosService.atualizar(
+        req.params.id,
+        req.body,
+      );
+      if (!atualizado)
+        return res.status(404).json({ error: "Agendamento não encontrado" });
+      res.json({
+        message: "Agendamento atualizado com sucesso",
+        agendamento: atualizado,
+      });
     } catch (error) {
       logger.error("Erro ao atualizar agendamento:", error);
       res.status(500).json({ error: error.message });

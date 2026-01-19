@@ -16,7 +16,8 @@ class ContasPagarController {
   async buscar(req, res) {
     try {
       const conta = await contasPagarService.buscarPorId(req.params.id);
-      if (!conta) return res.status(404).json({ error: "Conta não encontrada" });
+      if (!conta)
+        return res.status(404).json({ error: "Conta não encontrada" });
       res.json(conta);
     } catch (error) {
       logger.error("Erro ao buscar conta:", error);
@@ -35,7 +36,9 @@ class ContasPagarController {
         dataLembrete.setHours(9, 0, 0, 0);
 
         // Importar lembretesService dinamicamente para evitar ciclo de importação
-        const lembretesService = (await import("../services/lembretesService.js")).default;
+        const lembretesService = (
+          await import("../services/lembretesService.js")
+        ).default;
         await lembretesService.criar({
           tipo: "conta_pagar",
           referencia_id: nova.id,
@@ -48,7 +51,9 @@ class ContasPagarController {
         logger.error("Falha ao criar lembrete automático para conta:", err);
       }
 
-      res.status(201).json({ message: "Conta criada com sucesso", conta: nova });
+      res
+        .status(201)
+        .json({ message: "Conta criada com sucesso", conta: nova });
     } catch (error) {
       logger.error("Erro ao criar conta:", error);
       res.status(500).json({ error: error.message });
@@ -57,8 +62,12 @@ class ContasPagarController {
 
   async atualizar(req, res) {
     try {
-      const updated = await contasPagarService.atualizar(req.params.id, req.body);
-      if (!updated) return res.status(404).json({ error: "Conta não encontrada" });
+      const updated = await contasPagarService.atualizar(
+        req.params.id,
+        req.body,
+      );
+      if (!updated)
+        return res.status(404).json({ error: "Conta não encontrada" });
       res.json({ message: "Conta atualizada com sucesso", conta: updated });
     } catch (error) {
       logger.error("Erro ao atualizar conta:", error);

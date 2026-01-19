@@ -16,7 +16,7 @@ const Button = forwardRef(
       className = "",
       ...props
     },
-    ref
+    ref,
   ) => {
     const baseClasses =
       "font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2";
@@ -147,7 +147,7 @@ const Button = forwardRef(
           <>
             {isIconOnly ? (
               <span aria-hidden className="text-sm">
-                {emoji || (leftIcon || icon)}
+                {emoji || leftIcon || icon}
               </span>
             ) : (
               (leftIcon || icon) && <span>{leftIcon || icon}</span>
@@ -158,7 +158,7 @@ const Button = forwardRef(
         )}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = "Button";

@@ -29,7 +29,7 @@ export default function OSDetalhes() {
       if (response.data.nf_id) {
         try {
           const nfResponse = await api.get(
-            `/notas-fiscais/${response.data.nf_id}`
+            `/notas-fiscais/${response.data.nf_id}`,
           );
           setNotaFiscal(nfResponse.data);
         } catch (error) {
@@ -78,7 +78,11 @@ export default function OSDetalhes() {
       toast.success(message || "Nota Fiscal gerada com sucesso!");
       carregarOS(); // Recarregar para atualizar o nf_id
     } catch (error) {
-      toast.error(error.response?.data?.erro || error.response?.data?.message || "Erro ao gerar Nota Fiscal");
+      toast.error(
+        error.response?.data?.erro ||
+          error.response?.data?.message ||
+          "Erro ao gerar Nota Fiscal",
+      );
     } finally {
       setGerandoNF(false);
     }
@@ -186,10 +190,10 @@ export default function OSDetalhes() {
             os.status === "Aberta"
               ? "bg-blue-100 text-blue-700"
               : os.status === "Em andamento"
-              ? "bg-yellow-100 text-yellow-700"
-              : os.status === "Finalizada"
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
+                ? "bg-yellow-100 text-yellow-700"
+                : os.status === "Finalizada"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
           }`}
         >
           {os.status}
@@ -492,7 +496,7 @@ export default function OSDetalhes() {
                 </span>
                 <p className="text-lg text-gray-800 dark:text-gray-200">
                   {new Date(notaFiscal.data_emissao).toLocaleDateString(
-                    "pt-BR"
+                    "pt-BR",
                   )}
                 </p>
               </div>

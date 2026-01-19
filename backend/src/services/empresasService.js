@@ -14,7 +14,7 @@ class EmpresasService {
         data.estado || null,
         data.telefone || null,
         data.email || null,
-      ]
+      ],
     );
     return result.rows[0];
   }
@@ -25,7 +25,9 @@ class EmpresasService {
   }
 
   async buscarPorId(id) {
-    const result = await pool.query("SELECT * FROM empresas WHERE id = $1", [id]);
+    const result = await pool.query("SELECT * FROM empresas WHERE id = $1", [
+      id,
+    ]);
     return result.rows[0];
   }
 }

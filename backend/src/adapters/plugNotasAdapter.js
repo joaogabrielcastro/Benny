@@ -36,14 +36,26 @@ async function emitirNota(nfData, empresaConfig) {
       // Provider may return base64 pdf/xml or URLs — try to normalize
       const pdfBase64 = body.pdfBase64 || body.pdf_base64 || null;
       const xmlBase64 = body.xmlBase64 || body.xml_base64 || null;
-      const numero = body.numero || body.id || String(Math.floor(Math.random() * 900000) + 100000);
+      const numero =
+        body.numero ||
+        body.id ||
+        String(Math.floor(Math.random() * 900000) + 100000);
 
       // Persist artifacts if provided
       try {
         const storageDir = path.resolve(process.cwd(), "backend", "storage");
-        if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-        if (pdfBase64) fs.writeFileSync(path.join(storageDir, `nf_${nfData.id}.pdf`), Buffer.from(pdfBase64, "base64"));
-        if (xmlBase64) fs.writeFileSync(path.join(storageDir, `nf_${nfData.id}.xml`), Buffer.from(xmlBase64, "base64"));
+        if (!fs.existsSync(storageDir))
+          fs.mkdirSync(storageDir, { recursive: true });
+        if (pdfBase64)
+          fs.writeFileSync(
+            path.join(storageDir, `nf_${nfData.id}.pdf`),
+            Buffer.from(pdfBase64, "base64"),
+          );
+        if (xmlBase64)
+          fs.writeFileSync(
+            path.join(storageDir, `nf_${nfData.id}.xml`),
+            Buffer.from(xmlBase64, "base64"),
+          );
       } catch (e) {
         // ignore storage errors
       }
@@ -71,9 +83,16 @@ async function emitirNota(nfData, empresaConfig) {
 
   try {
     const storageDir = path.resolve(process.cwd(), "backend", "storage");
-    if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-    fs.writeFileSync(path.join(storageDir, `nf_${numero}.pdf`), Buffer.from(pdfBase64, "base64"));
-    fs.writeFileSync(path.join(storageDir, `nf_${numero}.xml`), Buffer.from(xmlBase64, "base64"));
+    if (!fs.existsSync(storageDir))
+      fs.mkdirSync(storageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(storageDir, `nf_${numero}.pdf`),
+      Buffer.from(pdfBase64, "base64"),
+    );
+    fs.writeFileSync(
+      path.join(storageDir, `nf_${numero}.xml`),
+      Buffer.from(xmlBase64, "base64"),
+    );
   } catch (e) {
     // ignore
   }

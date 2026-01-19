@@ -38,12 +38,25 @@ const listar = async (filtros) => {
 };
 
 const buscarPorId = async (id) => {
-  const result = await pool.query("SELECT * FROM contas_pagar WHERE id = $1", [id]);
+  const result = await pool.query("SELECT * FROM contas_pagar WHERE id = $1", [
+    id,
+  ]);
   return result.rows[0];
 };
 
 const criar = async (dados) => {
-  const { descricao, categoria, valor, data_vencimento, fornecedor, observacoes, recorrente, frequencia, intervalo, data_termino } = dados;
+  const {
+    descricao,
+    categoria,
+    valor,
+    data_vencimento,
+    fornecedor,
+    observacoes,
+    recorrente,
+    frequencia,
+    intervalo,
+    data_termino,
+  } = dados;
 
   const result = await pool.query(
     `INSERT INTO contas_pagar 
@@ -57,18 +70,36 @@ const criar = async (dados) => {
       data_vencimento,
       fornecedor || null,
       observacoes || null,
-      typeof recorrente === 'boolean' ? recorrente : recorrente === 'true' ? true : false,
+      typeof recorrente === "boolean"
+        ? recorrente
+        : recorrente === "true"
+          ? true
+          : false,
       frequencia || null,
       intervalo || 1,
       data_termino || null,
-    ]
+    ],
   );
 
   return result.rows[0];
 };
 
 const atualizar = async (id, dados) => {
-  const { descricao, categoria, valor, data_vencimento, data_pagamento, status, fornecedor, forma_pagamento, observacoes, recorrente, frequencia, intervalo, data_termino } = dados;
+  const {
+    descricao,
+    categoria,
+    valor,
+    data_vencimento,
+    data_pagamento,
+    status,
+    fornecedor,
+    forma_pagamento,
+    observacoes,
+    recorrente,
+    frequencia,
+    intervalo,
+    data_termino,
+  } = dados;
 
   const result = await pool.query(
     `UPDATE contas_pagar 
@@ -88,7 +119,26 @@ const atualizar = async (id, dados) => {
          atualizado_em = CURRENT_TIMESTAMP
      WHERE id = $14
      RETURNING *`,
-    [descricao, categoria, valor, data_vencimento, data_pagamento, status, fornecedor, forma_pagamento, observacoes, typeof recorrente === 'boolean' ? recorrente : recorrente === 'true' ? true : null, frequencia || null, intervalo || null, data_termino || null, id]
+    [
+      descricao,
+      categoria,
+      valor,
+      data_vencimento,
+      data_pagamento,
+      status,
+      fornecedor,
+      forma_pagamento,
+      observacoes,
+      typeof recorrente === "boolean"
+        ? recorrente
+        : recorrente === "true"
+          ? true
+          : null,
+      frequencia || null,
+      intervalo || null,
+      data_termino || null,
+      id,
+    ],
   );
 
   return result.rows[0];
@@ -96,7 +146,10 @@ const atualizar = async (id, dados) => {
 
 const deletar = async (id) => {
   await pool.query("DELETE FROM contas_pagar WHERE id = $1", [id]);
-  await pool.query("DELETE FROM lembretes WHERE tipo = 'conta_pagar' AND referencia_id = $1", [id]);
+  await pool.query(
+    "DELETE FROM lembretes WHERE tipo = 'conta_pagar' AND referencia_id = $1",
+    [id],
+  );
   return true;
 };
 
@@ -106,18 +159,27 @@ const alertasResumo = async () => {
   const [vencidas, aVencer] = await Promise.all([
     pool.query(
       "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento < $1 ORDER BY data_vencimento",
-      [hoje]
+      [hoje],
     ),
     pool.query(
       "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento >= $1 AND data_vencimento <= $2 ORDER BY data_vencimento",
       [
         hoje,
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      ]
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+      ],
     ),
   ]);
 
   return { vencidas: vencidas.rows, aVencer: aVencer.rows };
 };
 
-export default { listar, buscarPorId, criar, atualizar, deletar, alertasResumo };
+export default {
+  listar,
+  buscarPorId,
+  criar,
+  atualizar,
+  deletar,
+  alertasResumo,
+};

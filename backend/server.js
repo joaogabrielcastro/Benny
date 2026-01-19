@@ -28,7 +28,7 @@ const logger = winston.createLogger({
   level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
     new winston.transports.File({ filename: "error.log", level: "error" }),
@@ -41,9 +41,9 @@ if (process.env.NODE_ENV !== "production") {
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.simple()
+        winston.format.simple(),
       ),
-    })
+    }),
   );
 }
 
@@ -78,11 +78,11 @@ app.use((req, res, next) => {
     res.header("Access-Control-Allow-Credentials", "true");
     res.header(
       "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS",
     );
     res.header(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With"
+      "Content-Type, Authorization, X-Requested-With",
     );
   }
 
@@ -98,7 +98,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Usar rotas MVC (novas funcionalidades)
 // Servir arquivos gerados (storage) para download/visualização (modo local)
-app.use('/api/storage', express.static(path.join(process.cwd(), 'backend', 'storage')));
+app.use(
+  "/api/storage",
+  express.static(path.join(process.cwd(), "backend", "storage")),
+);
 
 app.use("/api", apiRoutes);
 
@@ -108,7 +111,7 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     logger.info(
-      `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`
+      `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
     );
   });
   next();
@@ -227,7 +230,7 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
 
     const result = await pool.query(
       "SELECT * FROM produtos ORDER BY nome LIMIT $1 OFFSET $2",
-      [limit, offset]
+      [limit, offset],
     );
 
     const countResult = await pool.query("SELECT COUNT(*) FROM produtos");
@@ -293,7 +296,7 @@ app.post("/api/produtos", validateProduto, async (req, res) => {
         valor_custo || 0,
         valor_venda || 0,
         estoque_minimo || 5,
-      ]
+      ],
     );
 
     // Limpar cache de produtos
@@ -343,11 +346,11 @@ app.put("/api/produtos/:id", async (req, res) => {
         valor_venda,
         estoque_minimo,
         req.params.id,
-      ]
+      ],
     );
 
     logger.info(
-      `Produto ${req.params.id} atualizado - Nova quantidade: ${quantidade}`
+      `Produto ${req.params.id} atualizado - Nova quantidade: ${quantidade}`,
     );
 
     clearCacheByPattern("/api/produtos");
@@ -386,7 +389,7 @@ app.delete("/api/produtos/:id", async (req, res) => {
 app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade"
+      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade",
     );
     res.json(result.rows);
   } catch (error) {
@@ -450,7 +453,7 @@ app.post("/api/clientes", async (req, res) => {
     const result = await pool.query(
       `INSERT INTO clientes (nome, telefone, cpf_cnpj, email, endereco)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [nome, telefone, cpf_cnpj, email, endereco]
+      [nome, telefone, cpf_cnpj, email, endereco],
     );
 
     res
@@ -469,7 +472,7 @@ app.put("/api/clientes/:id", async (req, res) => {
       `UPDATE clientes 
        SET nome = $1, telefone = $2, cpf_cnpj = $3, email = $4, endereco = $5
        WHERE id = $6`,
-      [nome, telefone, cpf_cnpj, email, endereco, req.params.id]
+      [nome, telefone, cpf_cnpj, email, endereco, req.params.id],
     );
 
     res.json({ message: "Cliente atualizado com sucesso" });
@@ -500,7 +503,7 @@ app.get("/api/veiculos/cliente/:clienteId", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT * FROM veiculos WHERE cliente_id = $1",
-      [req.params.clienteId]
+      [req.params.clienteId],
     );
     res.json(result.rows);
   } catch (error) {
@@ -515,7 +518,7 @@ app.post("/api/veiculos", async (req, res) => {
     const result = await pool.query(
       `INSERT INTO veiculos (cliente_id, modelo, cor, placa, ano)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [cliente_id, modelo, cor, placa, ano]
+      [cliente_id, modelo, cor, placa, ano],
     );
 
     res
@@ -532,7 +535,7 @@ app.post("/api/veiculos", async (req, res) => {
 
 async function gerarNumeroOrcamento() {
   const result = await pool.query(
-    "SELECT numero FROM orcamentos ORDER BY id DESC LIMIT 1"
+    "SELECT numero FROM orcamentos ORDER BY id DESC LIMIT 1",
   );
   if (result.rows.length === 0) return "ORC-0001";
 
@@ -592,7 +595,7 @@ app.get("/api/orcamentos/:id", async (req, res) => {
       LEFT JOIN veiculos v ON o.veiculo_id = v.id
       WHERE o.id = $1
     `,
-      [req.params.id]
+      [req.params.id],
     );
 
     if (orcResult.rows.length === 0) {
@@ -601,11 +604,11 @@ app.get("/api/orcamentos/:id", async (req, res) => {
 
     const produtosResult = await pool.query(
       "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
     const servicosResult = await pool.query(
       "SELECT * FROM orcamento_servicos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     res.json({
@@ -631,7 +634,7 @@ app.get("/api/orcamentos/publico/:id", async (req, res) => {
       LEFT JOIN veiculos v ON o.veiculo_id = v.id
       WHERE o.id = $1
     `,
-      [req.params.id]
+      [req.params.id],
     );
 
     if (orcResult.rows.length === 0) {
@@ -640,11 +643,11 @@ app.get("/api/orcamentos/publico/:id", async (req, res) => {
 
     const produtosResult = await pool.query(
       "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
     const servicosResult = await pool.query(
       "SELECT * FROM orcamento_servicos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     res.json({
@@ -666,7 +669,7 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
     // Verificar status atual antes de aprovar
     const statusAtual = await client.query(
       "SELECT status FROM orcamentos WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     if (statusAtual.rows.length === 0) {
@@ -678,7 +681,7 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
 
     const result = await client.query(
       "UPDATE orcamentos SET status = 'Aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
-      [req.params.id]
+      [req.params.id],
     );
 
     // Só dar baixa no estoque se não estava aprovado antes
@@ -686,32 +689,32 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
       // Buscar produtos do orçamento e dar baixa no estoque
       const produtosResult = await client.query(
         "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-        [req.params.id]
+        [req.params.id],
       );
 
       if (produtosResult.rows.length > 0) {
         for (const produto of produtosResult.rows) {
           if (produto.produto_id) {
             logger.info(
-              `Aprovação de orçamento: Dando baixa - produto_id=${produto.produto_id}, qtd=${produto.quantidade}`
+              `Aprovação de orçamento: Dando baixa - produto_id=${produto.produto_id}, qtd=${produto.quantidade}`,
             );
 
             await client.query(
               "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-              [produto.quantidade, produto.produto_id]
+              [produto.quantidade, produto.produto_id],
             );
 
             await client.query(
               `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, orcamento_id)
                VALUES ($1, 'SAIDA', $2, 'Orçamento aprovado', $3)`,
-              [produto.produto_id, produto.quantidade, req.params.id]
+              [produto.produto_id, produto.quantidade, req.params.id],
             );
           }
         }
       }
     } else {
       logger.info(
-        `Orçamento ${req.params.id} já estava aprovado, baixa ignorada`
+        `Orçamento ${req.params.id} já estava aprovado, baixa ignorada`,
       );
     }
 
@@ -739,7 +742,7 @@ app.put("/api/orcamentos/publico/:id/reprovar", async (req, res) => {
   try {
     const result = await pool.query(
       "UPDATE orcamentos SET status = 'Reprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
-      [req.params.id]
+      [req.params.id],
     );
 
     if (result.rows.length === 0) {
@@ -800,7 +803,7 @@ app.post("/api/orcamentos", async (req, res) => {
         valor_produtos,
         valor_servicos,
         valor_total,
-      ]
+      ],
     );
 
     const orcamento_id = orcResult.rows[0].id;
@@ -819,7 +822,7 @@ app.post("/api/orcamentos", async (req, res) => {
             produto.quantidade,
             produto.valor_unitario,
             produto.valor_total,
-          ]
+          ],
         );
       }
     }
@@ -837,7 +840,7 @@ app.post("/api/orcamentos", async (req, res) => {
             servico.quantidade,
             servico.valor_unitario,
             servico.valor_total,
-          ]
+          ],
         );
       }
     }
@@ -877,7 +880,7 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     // Buscar dados anteriores para auditoria
     const dadosAnteriores = await client.query(
       "SELECT * FROM orcamentos WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     // Calcular totais
@@ -904,17 +907,17 @@ app.put("/api/orcamentos/:id", async (req, res) => {
         valor_servicos,
         valor_total,
         req.params.id,
-      ]
+      ],
     );
 
     // Deletar produtos e serviços antigos
     await client.query(
       "DELETE FROM orcamento_produtos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
     await client.query(
       "DELETE FROM orcamento_servicos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     // Inserir produtos novamente
@@ -931,7 +934,7 @@ app.put("/api/orcamentos/:id", async (req, res) => {
             produto.quantidade,
             produto.valor_unitario,
             produto.valor_total,
-          ]
+          ],
         );
       }
     }
@@ -949,7 +952,7 @@ app.put("/api/orcamentos/:id", async (req, res) => {
             servico.quantidade,
             servico.valor_unitario,
             servico.valor_total,
-          ]
+          ],
         );
       }
     }
@@ -957,7 +960,7 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     // Buscar dados novos para auditoria
     const dadosNovos = await client.query(
       "SELECT * FROM orcamentos WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     // Registrar auditoria
@@ -972,7 +975,7 @@ app.put("/api/orcamentos/:id", async (req, res) => {
           JSON.stringify(dadosAnteriores.rows[0]),
           JSON.stringify(dadosNovos.rows[0]),
           "sistema",
-        ]
+        ],
       );
     } catch (auditoriaError) {
       logger.error("Erro ao registrar auditoria:", auditoriaError);
@@ -981,26 +984,26 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     // Se o status mudou para "Aprovado", dar baixa no estoque
     const statusAnterior = dadosAnteriores.rows[0]?.status;
     logger.info(
-      `Orçamento ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`
+      `Orçamento ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`,
     );
 
     if (status === "Aprovado" && statusAnterior !== "Aprovado") {
       logger.info(
-        `Orçamento aprovado via edição: ID=${req.params.id}, dando baixa no estoque`
+        `Orçamento aprovado via edição: ID=${req.params.id}, dando baixa no estoque`,
       );
 
       try {
         // Verificar se já existe movimentação de estoque para este orçamento
         const movExistente = await client.query(
           "SELECT id FROM movimentacoes_estoque WHERE orcamento_id = $1 AND motivo = 'Orçamento aprovado' LIMIT 1",
-          [req.params.id]
+          [req.params.id],
         );
 
         if (movExistente.rows.length === 0) {
           // Buscar produtos do orçamento e dar baixa
           const produtosEstoque = await client.query(
             "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-            [req.params.id]
+            [req.params.id],
           );
 
           if (produtosEstoque.rows.length > 0) {
@@ -1008,49 +1011,49 @@ app.put("/api/orcamentos/:id", async (req, res) => {
               if (produto.produto_id) {
                 try {
                   console.log(
-                    `  Baixa no estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`
+                    `  Baixa no estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`,
                   );
 
                   // Verificar quantidade atual antes da baixa
                   const qtdAntes = await client.query(
                     "SELECT quantidade FROM produtos WHERE id = $1",
-                    [produto.produto_id]
+                    [produto.produto_id],
                   );
                   console.log(
                     `  Quantidade antes: ${
                       qtdAntes.rows[0]?.quantidade || "não encontrado"
-                    }`
+                    }`,
                   );
 
                   const updateResult = await client.query(
                     "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2 RETURNING quantidade",
-                    [produto.quantidade, produto.produto_id]
+                    [produto.quantidade, produto.produto_id],
                   );
 
                   console.log(
                     `  Quantidade depois: ${
                       updateResult.rows[0]?.quantidade || "não atualizado"
-                    }`
+                    }`,
                   );
                   console.log(`  Linhas afetadas: ${updateResult.rowCount}`);
 
                   await client.query(
                     `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, orcamento_id)
                      VALUES ($1, 'SAIDA', $2, 'Orçamento aprovado', $3)`,
-                    [produto.produto_id, produto.quantidade, req.params.id]
+                    [produto.produto_id, produto.quantidade, req.params.id],
                   );
 
                   console.log(`  ✓ Baixa registrada com sucesso`);
                 } catch (prodError) {
                   console.error(
                     `  ✗ Erro ao processar produto ${produto.produto_id}:`,
-                    prodError.message
+                    prodError.message,
                   );
                   throw prodError;
                 }
               } else {
                 console.log(
-                  `  Produto sem produto_id (item manual): ${produto.descricao}`
+                  `  Produto sem produto_id (item manual): ${produto.descricao}`,
                 );
               }
             }
@@ -1074,7 +1077,7 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     // Se orçamento foi aprovado, limpar cache de produtos (estoque foi alterado)
     if (status === "Aprovado" && statusAnterior !== "Aprovado") {
       console.log(
-        `[CACHE] Limpando cache de produtos após aprovar orçamento ${req.params.id}`
+        `[CACHE] Limpando cache de produtos após aprovar orçamento ${req.params.id}`,
       );
       clearCacheByPattern("/api/produtos");
       broadcastUpdate("estoque_atualizado", {
@@ -1101,7 +1104,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
 
     const orcResult = await client.query(
       "SELECT * FROM orcamentos WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     if (orcResult.rows.length === 0) {
@@ -1135,7 +1138,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
         orcamento.valor_servicos,
         orcamento.valor_total,
         orcamento.id,
-      ]
+      ],
     );
 
     const os_id = osResult.rows[0].id;
@@ -1143,7 +1146,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
     // Copiar produtos (estoque já foi reduzido na aprovação)
     const produtosResult = await client.query(
       "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
     if (produtosResult.rows.length > 0) {
       for (const produto of produtosResult.rows) {
@@ -1158,7 +1161,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
             produto.quantidade,
             produto.valor_unitario,
             produto.valor_total,
-          ]
+          ],
         );
 
         // Nota: Não dar baixa novamente, pois já foi feita na aprovação
@@ -1168,7 +1171,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
     // Copiar serviços
     const servicosResult = await client.query(
       "SELECT * FROM orcamento_servicos WHERE orcamento_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
     if (servicosResult.rows.length > 0) {
       for (const servico of servicosResult.rows) {
@@ -1182,7 +1185,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
             servico.quantidade,
             servico.valor_unitario,
             servico.valor_total,
-          ]
+          ],
         );
       }
     }
@@ -1207,7 +1210,7 @@ app.post("/api/orcamentos/:id/converter-os", async (req, res) => {
 
 async function gerarNumeroOS() {
   const result = await pool.query(
-    "SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1"
+    "SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1",
   );
   if (result.rows.length === 0) return "OS-0001";
 
@@ -1273,7 +1276,7 @@ app.get("/api/ordens-servico/:id", async (req, res) => {
       LEFT JOIN veiculos v ON os.veiculo_id = v.id
       WHERE os.id = $1
     `,
-      [req.params.id]
+      [req.params.id],
     );
 
     if (osResult.rows.length === 0) {
@@ -1282,11 +1285,11 @@ app.get("/api/ordens-servico/:id", async (req, res) => {
 
     const produtosResult = await pool.query(
       "SELECT * FROM os_produtos WHERE os_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
     const servicosResult = await pool.query(
       "SELECT * FROM os_servicos WHERE os_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     res.json({
@@ -1297,7 +1300,7 @@ app.get("/api/ordens-servico/:id", async (req, res) => {
   } catch (error) {
     console.error(
       "[ERROR] Erro em GET /api/ordens-servico/:id:",
-      error.message
+      error.message,
     );
     console.error("[ERROR] Stack:", error.stack);
     res.status(500).json({ error: error.message });
@@ -1353,7 +1356,7 @@ app.post("/api/ordens-servico", async (req, res) => {
         valor_servicos,
         valor_total,
         responsavel_tecnico,
-      ]
+      ],
     );
 
     const os_id = osResult.rows[0].id;
@@ -1372,23 +1375,23 @@ app.post("/api/ordens-servico", async (req, res) => {
             produto.quantidade,
             produto.valor_unitario,
             produto.valor_total,
-          ]
+          ],
         );
 
         if (produto.produto_id) {
           logger.info(
-            `Baixa estoque OS: produto=${produto.produto_id}, qtd=${produto.quantidade}`
+            `Baixa estoque OS: produto=${produto.produto_id}, qtd=${produto.quantidade}`,
           );
 
           await client.query(
             "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-            [produto.quantidade, produto.produto_id]
+            [produto.quantidade, produto.produto_id],
           );
 
           await client.query(
             `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
              VALUES ($1, 'SAIDA', $2, 'Utilizado na OS', $3)`,
-            [produto.produto_id, produto.quantidade, os_id]
+            [produto.produto_id, produto.quantidade, os_id],
           );
         }
       }
@@ -1407,7 +1410,7 @@ app.post("/api/ordens-servico", async (req, res) => {
             servico.quantidade,
             servico.valor_unitario,
             servico.valor_total,
-          ]
+          ],
         );
       }
     }
@@ -1434,7 +1437,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
     // Buscar dados anteriores para auditoria
     const dadosAnteriores = await client.query(
       "SELECT * FROM ordens_servico WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     if (dadosAnteriores.rows.length === 0) {
@@ -1448,13 +1451,13 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
        SET status = $1::varchar, responsavel_tecnico = $2::varchar, atualizado_em = CURRENT_TIMESTAMP,
            finalizado_em = CASE WHEN $1::varchar = 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END
        WHERE id = $3`,
-      [status, responsavel_tecnico, req.params.id]
+      [status, responsavel_tecnico, req.params.id],
     );
 
     // Buscar dados novos
     const dadosNovos = await client.query(
       "SELECT * FROM ordens_servico WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     // Registrar auditoria
@@ -1469,7 +1472,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
           JSON.stringify(dadosAnteriores.rows[0]),
           JSON.stringify(dadosNovos.rows[0]),
           "sistema",
-        ]
+        ],
       );
     } catch (auditoriaError) {
       logger.error("Erro ao registrar auditoria:", auditoriaError);
@@ -1479,7 +1482,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
     // Gerenciar estoque baseado no status
     const statusAnterior = dadosAnteriores.rows[0]?.status;
     console.log(
-      `OS ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`
+      `OS ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`,
     );
 
     // Se a OS foi FINALIZADA, dar baixa no estoque
@@ -1490,7 +1493,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
         // Verificar se já existe baixa para esta OS
         const baixaExistente = await client.query(
           "SELECT id FROM movimentacoes_estoque WHERE os_id = $1 AND motivo = 'OS finalizada - baixa' LIMIT 1",
-          [req.params.id]
+          [req.params.id],
         );
 
         console.log(`  Baixas existentes: ${baixaExistente.rows.length}`);
@@ -1499,7 +1502,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
           // Buscar produtos da OS e dar baixa no estoque
           const produtosOS = await client.query(
             "SELECT * FROM os_produtos WHERE os_id = $1",
-            [req.params.id]
+            [req.params.id],
           );
 
           console.log(`  Produtos encontrados: ${produtosOS.rows.length}`);
@@ -1509,18 +1512,18 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
               if (produto.produto_id) {
                 try {
                   console.log(
-                    `  Baixa no estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`
+                    `  Baixa no estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`,
                   );
 
                   // Verificar quantidade atual antes da baixa
                   const qtdAntes = await client.query(
                     "SELECT quantidade FROM produtos WHERE id = $1",
-                    [produto.produto_id]
+                    [produto.produto_id],
                   );
                   console.log(
                     `  Quantidade antes: ${
                       qtdAntes.rows[0]?.quantidade || "não encontrado"
-                    }`
+                    }`,
                   );
 
                   // Verificar se tem estoque suficiente
@@ -1529,39 +1532,39 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
                     qtdAntes.rows[0].quantidade < produto.quantidade
                   ) {
                     console.warn(
-                      `  ⚠️ Estoque insuficiente: disponível=${qtdAntes.rows[0].quantidade}, necessário=${produto.quantidade}`
+                      `  ⚠️ Estoque insuficiente: disponível=${qtdAntes.rows[0].quantidade}, necessário=${produto.quantidade}`,
                     );
                   }
 
                   const updateResult = await client.query(
                     "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2 RETURNING quantidade",
-                    [produto.quantidade, produto.produto_id]
+                    [produto.quantidade, produto.produto_id],
                   );
 
                   console.log(
                     `  Quantidade depois: ${
                       updateResult.rows[0]?.quantidade || "não atualizado"
-                    }`
+                    }`,
                   );
                   console.log(`  Linhas afetadas: ${updateResult.rowCount}`);
 
                   await client.query(
                     `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
                      VALUES ($1, 'SAIDA', $2, 'OS finalizada - baixa', $3)`,
-                    [produto.produto_id, produto.quantidade, req.params.id]
+                    [produto.produto_id, produto.quantidade, req.params.id],
                   );
 
                   console.log(`  ✓ Baixa registrada com sucesso`);
                 } catch (prodError) {
                   console.error(
                     `  ✗ Erro ao processar produto ${produto.produto_id}:`,
-                    prodError.message
+                    prodError.message,
                   );
                   throw prodError;
                 }
               } else {
                 console.log(
-                  `  Produto sem produto_id (item manual): ${produto.descricao}`
+                  `  Produto sem produto_id (item manual): ${produto.descricao}`,
                 );
               }
             }
@@ -1579,25 +1582,25 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
     // Se a OS foi cancelada, devolver itens ao estoque
     if (status === "Cancelada" && statusAnterior !== "Cancelada") {
       console.log(
-        `OS cancelada: ID=${req.params.id}, devolvendo itens ao estoque`
+        `OS cancelada: ID=${req.params.id}, devolvendo itens ao estoque`,
       );
 
       try {
         // Verificar se já existe devolução para esta OS
         const devolucaoExistente = await client.query(
           "SELECT id FROM movimentacoes_estoque WHERE os_id = $1 AND motivo = 'OS cancelada - devolução' LIMIT 1",
-          [req.params.id]
+          [req.params.id],
         );
 
         console.log(
-          `  Devoluções existentes: ${devolucaoExistente.rows.length}`
+          `  Devoluções existentes: ${devolucaoExistente.rows.length}`,
         );
 
         if (devolucaoExistente.rows.length === 0) {
           // Buscar produtos da OS e devolver ao estoque
           const produtosOS = await client.query(
             "SELECT * FROM os_produtos WHERE os_id = $1",
-            [req.params.id]
+            [req.params.id],
           );
 
           console.log(`  Produtos encontrados: ${produtosOS.rows.length}`);
@@ -1607,49 +1610,49 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
               if (produto.produto_id) {
                 try {
                   console.log(
-                    `  Devolução ao estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`
+                    `  Devolução ao estoque: produto_id=${produto.produto_id}, quantidade=${produto.quantidade}`,
                   );
 
                   // Verificar quantidade atual antes da devolução
                   const qtdAntes = await client.query(
                     "SELECT quantidade FROM produtos WHERE id = $1",
-                    [produto.produto_id]
+                    [produto.produto_id],
                   );
                   console.log(
                     `  Quantidade antes: ${
                       qtdAntes.rows[0]?.quantidade || "não encontrado"
-                    }`
+                    }`,
                   );
 
                   const updateResult = await client.query(
                     "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2 RETURNING quantidade",
-                    [produto.quantidade, produto.produto_id]
+                    [produto.quantidade, produto.produto_id],
                   );
 
                   console.log(
                     `  Quantidade depois: ${
                       updateResult.rows[0]?.quantidade || "não atualizado"
-                    }`
+                    }`,
                   );
                   console.log(`  Linhas afetadas: ${updateResult.rowCount}`);
 
                   await client.query(
                     `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
                      VALUES ($1, 'ENTRADA', $2, 'OS cancelada - devolução', $3)`,
-                    [produto.produto_id, produto.quantidade, req.params.id]
+                    [produto.produto_id, produto.quantidade, req.params.id],
                   );
 
                   console.log(`  ✓ Devolução registrada com sucesso`);
                 } catch (prodError) {
                   console.error(
                     `  ✗ Erro ao processar produto ${produto.produto_id}:`,
-                    prodError.message
+                    prodError.message,
                   );
                   throw prodError;
                 }
               } else {
                 console.log(
-                  `  Produto sem produto_id (item manual): ${produto.descricao}`
+                  `  Produto sem produto_id (item manual): ${produto.descricao}`,
                 );
               }
             }
@@ -1673,7 +1676,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
     // Se o estoque foi alterado, notificar também e limpar cache de produtos
     if (status === "Finalizada" || status === "Cancelada") {
       console.log(
-        `[BROADCAST] Enviando estoque_atualizado: os_id=${req.params.id}, status=${status}`
+        `[BROADCAST] Enviando estoque_atualizado: os_id=${req.params.id}, status=${status}`,
       );
       clearCacheByPattern("/api/produtos");
       broadcastUpdate("estoque_atualizado", { os_id: req.params.id, status });
@@ -1741,7 +1744,7 @@ app.get("/api/relatorios/dashboard", async (req, res) => {
 
     res.json({
       faturamentoMes: parseFloat(
-        faturamentoMesResult.rows[0]?.faturamento || 0
+        faturamentoMesResult.rows[0]?.faturamento || 0,
       ),
       ticketMedio: parseFloat(ticketMedioResult.rows[0]?.ticket_medio || 0),
       faturamentoMensal: faturamentoMensalResult.rows.map((row) => ({
@@ -1792,7 +1795,7 @@ app.get("/api/relatorios/vendas", async (req, res) => {
 
     const total = result.rows.reduce(
       (sum, os) => sum + parseFloat(os.valor_total),
-      0
+      0,
     );
 
     res.json({
@@ -1816,7 +1819,7 @@ async function registrarAuditoria(
   acao,
   dadosAnteriores,
   dadosNovos,
-  usuario = "sistema"
+  usuario = "sistema",
 ) {
   try {
     await pool.query(
@@ -1829,7 +1832,7 @@ async function registrarAuditoria(
         JSON.stringify(dadosAnteriores),
         JSON.stringify(dadosNovos),
         usuario,
-      ]
+      ],
     );
   } catch (error) {
     console.error("Erro ao registrar auditoria:", error);
@@ -1843,7 +1846,7 @@ app.get("/api/auditoria/ordens-servico/:id", async (req, res) => {
       `SELECT * FROM auditoria 
        WHERE tabela = 'ordens_servico' AND registro_id = $1 
        ORDER BY criado_em DESC`,
-      [req.params.id]
+      [req.params.id],
     );
     res.json(result.rows);
   } catch (error) {
@@ -1858,7 +1861,7 @@ app.get("/api/auditoria/orcamentos/:id", async (req, res) => {
       `SELECT * FROM auditoria 
        WHERE tabela = 'orcamentos' AND registro_id = $1 
        ORDER BY criado_em DESC`,
-      [req.params.id]
+      [req.params.id],
     );
     res.json(result.rows);
   } catch (error) {
@@ -1932,7 +1935,7 @@ app.get("/api/agendamentos/:id", async (req, res) => {
        LEFT JOIN clientes c ON a.cliente_id = c.id
        LEFT JOIN veiculos v ON a.veiculo_id = v.id
        WHERE a.id = $1`,
-      [req.params.id]
+      [req.params.id],
     );
 
     if (result.rows.length === 0) {
@@ -1970,7 +1973,7 @@ app.post("/api/agendamentos", async (req, res) => {
          (hora_inicio <= $3 AND hora_fim >= $3) OR
          (hora_inicio >= $2 AND hora_fim <= $3)
        )`,
-      [data_agendamento, hora_inicio, hora_fim || hora_inicio]
+      [data_agendamento, hora_inicio, hora_fim || hora_inicio],
     );
 
     if (conflito.rows.length > 0) {
@@ -1995,7 +1998,7 @@ app.post("/api/agendamentos", async (req, res) => {
         observacoes || null,
         valor_estimado || null,
         mecanico_responsavel || null,
-      ]
+      ],
     );
 
     // Criar lembrete automático (1 dia antes)
@@ -2013,7 +2016,7 @@ app.post("/api/agendamentos", async (req, res) => {
         `Agendamento amanhã às ${hora_inicio} - ${tipo_servico}`,
         dataLembrete,
         "alta",
-      ]
+      ],
     );
 
     broadcastUpdate("agendamento_criado", result.rows[0]);
@@ -2066,7 +2069,7 @@ app.put("/api/agendamentos/:id", async (req, res) => {
         valor_estimado,
         mecanico_responsavel,
         req.params.id,
-      ]
+      ],
     );
 
     if (result.rows.length === 0) {
@@ -2091,7 +2094,7 @@ app.delete("/api/agendamentos/:id", async (req, res) => {
     await pool.query("DELETE FROM agendamentos WHERE id = $1", [req.params.id]);
     await pool.query(
       "DELETE FROM lembretes WHERE tipo = 'agendamento' AND referencia_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     res.json({ message: "Agendamento deletado com sucesso" });
@@ -2115,7 +2118,7 @@ app.get("/api/agendamentos/hoje/lista", async (req, res) => {
        LEFT JOIN veiculos v ON a.veiculo_id = v.id
        WHERE a.data_agendamento = $1
        ORDER BY a.hora_inicio ASC`,
-      [hoje]
+      [hoje],
     );
 
     res.json(result.rows);
@@ -2176,7 +2179,7 @@ app.get("/api/contas-pagar/:id", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT * FROM contas_pagar WHERE id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     if (result.rows.length === 0) {
@@ -2217,11 +2220,11 @@ app.post("/api/contas-pagar", async (req, res) => {
         data_vencimento,
         fornecedor || null,
         observacoes || null,
-        recorrente === true || recorrente === 'true' ? true : false,
+        recorrente === true || recorrente === "true" ? true : false,
         frequencia || null,
         intervalo || 1,
         data_termino || null,
-      ]
+      ],
     );
 
     // Criar lembrete automático (3 dias antes do vencimento)
@@ -2239,7 +2242,7 @@ app.post("/api/contas-pagar", async (req, res) => {
         `Conta a vencer em 3 dias: ${descricao} - ${valor}`,
         dataLembrete,
         "alta",
-      ]
+      ],
     );
 
     broadcastUpdate("conta_criada", result.rows[0]);
@@ -2302,12 +2305,16 @@ app.put("/api/contas-pagar/:id", async (req, res) => {
         fornecedor,
         forma_pagamento,
         observacoes,
-        typeof recorrente === 'boolean' ? recorrente : recorrente === 'true' ? true : null,
+        typeof recorrente === "boolean"
+          ? recorrente
+          : recorrente === "true"
+            ? true
+            : null,
         frequencia || null,
         intervalo || null,
         data_termino || null,
         req.params.id,
-      ]
+      ],
     );
 
     if (result.rows.length === 0) {
@@ -2332,7 +2339,7 @@ app.delete("/api/contas-pagar/:id", async (req, res) => {
     await pool.query("DELETE FROM contas_pagar WHERE id = $1", [req.params.id]);
     await pool.query(
       "DELETE FROM lembretes WHERE tipo = 'conta_pagar' AND referencia_id = $1",
-      [req.params.id]
+      [req.params.id],
     );
 
     res.json({ message: "Conta deletada com sucesso" });
@@ -2350,7 +2357,7 @@ app.get("/api/contas-pagar/alertas/resumo", async (req, res) => {
     const [vencidas, aVencer] = await Promise.all([
       pool.query(
         "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento < $1 ORDER BY data_vencimento",
-        [hoje]
+        [hoje],
       ),
       pool.query(
         "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento >= $1 AND data_vencimento <= $2 ORDER BY data_vencimento",
@@ -2359,7 +2366,7 @@ app.get("/api/contas-pagar/alertas/resumo", async (req, res) => {
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
             .toISOString()
             .split("T")[0],
-        ]
+        ],
       ),
     ]);
 
@@ -2426,7 +2433,7 @@ app.get("/api/lembretes/hoje", async (req, res) => {
        LEFT JOIN contas_pagar c ON l.tipo = 'conta_pagar' AND l.referencia_id = c.id
        WHERE l.data_lembrete >= $1 AND l.data_lembrete < $2 AND l.enviado = false
        ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
-      [hoje, amanha]
+      [hoje, amanha],
     );
 
     res.json(result.rows);
@@ -2443,7 +2450,7 @@ app.put("/api/lembretes/:id/marcar-enviado", async (req, res) => {
        SET enviado = true, data_envio = CURRENT_TIMESTAMP 
        WHERE id = $1 
        RETURNING *`,
-      [req.params.id]
+      [req.params.id],
     );
 
     if (result.rows.length === 0) {
@@ -2660,12 +2667,12 @@ async function processarLembretesPendentes() {
        WHERE l.data_lembrete <= $1 
        AND l.enviado = false
        ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
-      [hoje]
+      [hoje],
     );
 
     if (lembretes.rows.length > 0) {
       console.log(
-        `📬 ${lembretes.rows.length} lembrete(s) pendente(s) encontrado(s)`
+        `📬 ${lembretes.rows.length} lembrete(s) pendente(s) encontrado(s)`,
       );
 
       for (const lembrete of lembretes.rows) {
@@ -2686,7 +2693,7 @@ async function processarLembretesPendentes() {
             `UPDATE lembretes 
              SET enviado = true, data_envio = CURRENT_TIMESTAMP 
              WHERE id = $1`,
-            [lembrete.id]
+            [lembrete.id],
           );
 
           // Broadcast via WebSocket para clientes conectados
@@ -2702,7 +2709,7 @@ async function processarLembretesPendentes() {
         } catch (error) {
           console.error(
             `   ✗ Erro ao processar lembrete ${lembrete.id}:`,
-            error.message
+            error.message,
           );
         }
       }
@@ -2718,7 +2725,7 @@ async function processarLembretesPendentes() {
 schedule.scheduleJob("*/30 * * * *", processarLembretesPendentes);
 
 console.log(
-  "🔔 Verificação de lembretes agendada para rodar a cada 30 minutos"
+  "🔔 Verificação de lembretes agendada para rodar a cada 30 minutos",
 );
 
 // Executar verificação inicial ao iniciar o servidor
@@ -2735,7 +2742,7 @@ async function gerarContasRecorrentes() {
     const hoje = new Date();
     const resTemplates = await pool.query(
       `SELECT * FROM contas_pagar WHERE recorrente = true AND data_vencimento <= $1`,
-      [hoje]
+      [hoje],
     );
 
     if (resTemplates.rows.length === 0) {
@@ -2749,23 +2756,23 @@ async function gerarContasRecorrentes() {
         const addInterval = (dateStr, freq, intv) => {
           const d = new Date(dateStr);
           const n = parseInt(intv, 10) || 1;
-          switch ((freq || '').toLowerCase()) {
-            case 'diario':
-            case 'diária':
-            case 'diaria':
+          switch ((freq || "").toLowerCase()) {
+            case "diario":
+            case "diária":
+            case "diaria":
               d.setDate(d.getDate() + n);
               break;
-            case 'semanal':
-            case 'semanalmente':
+            case "semanal":
+            case "semanalmente":
               d.setDate(d.getDate() + 7 * n);
               break;
-            case 'anual':
-            case 'anualmente':
-            case 'anualmente':
+            case "anual":
+            case "anualmente":
+            case "anualmente":
               d.setFullYear(d.getFullYear() + n);
               break;
-            case 'mensal':
-            case 'mensalmente':
+            case "mensal":
+            case "mensalmente":
             default:
               d.setMonth(d.getMonth() + n);
               break;
@@ -2789,7 +2796,7 @@ async function gerarContasRecorrentes() {
               tpl.forma_pagamento || null,
               tpl.observacoes || null,
               tpl.id,
-            ]
+            ],
           );
 
           // Criar lembrete para a nova ocorrência (3 dias antes)
@@ -2801,13 +2808,13 @@ async function gerarContasRecorrentes() {
             `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
              VALUES ($1,$2,$3,$4,$5,$6)`,
             [
-              'conta_pagar',
+              "conta_pagar",
               insertRes.rows[0].id,
-              'Lembrete de Pagamento',
+              "Lembrete de Pagamento",
               `Conta a vencer em 3 dias: ${tpl.descricao} - ${tpl.valor}`,
               dataLembrete,
-              'alta',
-            ]
+              "alta",
+            ],
           );
 
           // Avançar para próxima data
@@ -2817,7 +2824,7 @@ async function gerarContasRecorrentes() {
           if (tpl.data_termino && next > new Date(tpl.data_termino)) {
             await pool.query(
               `UPDATE contas_pagar SET recorrente = false WHERE id = $1`,
-              [tpl.id]
+              [tpl.id],
             );
             break;
           }
@@ -2825,18 +2832,24 @@ async function gerarContasRecorrentes() {
           // Atualizar data_vencimento do template para a próxima ocorrência
           await pool.query(
             `UPDATE contas_pagar SET data_vencimento = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2`,
-            [next, tpl.id]
+            [next, tpl.id],
           );
 
           // Preparar loop: se ainda no passado, continuar (caso tenha muitas datas perdidas)
           currentDue = new Date(next);
         }
       } catch (err) {
-        console.error(`Erro ao processar recorrência template ${tpl.id}:`, err.message);
+        console.error(
+          `Erro ao processar recorrência template ${tpl.id}:`,
+          err.message,
+        );
       }
     }
   } catch (error) {
-    console.error('❌ Erro ao gerar contas recorrentes:', error.message || error);
+    console.error(
+      "❌ Erro ao gerar contas recorrentes:",
+      error.message || error,
+    );
   }
 }
 

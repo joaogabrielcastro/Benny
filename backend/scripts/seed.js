@@ -9,7 +9,14 @@ async function seed() {
     const clienteRes = await client.query(
       `INSERT INTO clientes (nome, telefone, email, endereco, cidade, estado)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      ["Cliente Teste", "(11) 99999-9999", "teste@example.com", "Rua Exemplo, 123", "São Paulo", "SP"]
+      [
+        "Cliente Teste",
+        "(11) 99999-9999",
+        "teste@example.com",
+        "Rua Exemplo, 123",
+        "São Paulo",
+        "SP",
+      ],
     );
 
     const cliente = clienteRes.rows[0];
@@ -18,7 +25,7 @@ async function seed() {
     const veiculoRes = await client.query(
       `INSERT INTO veiculos (cliente_id, modelo, placa, ano)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [cliente.id, "Fiat Uno", "ABC1D23", "2015"]
+      [cliente.id, "Fiat Uno", "ABC1D23", "2015"],
     );
 
     const veiculo = veiculoRes.rows[0];
@@ -28,7 +35,7 @@ async function seed() {
     const osRes = await client.query(
       `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, status)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [numero, cliente.id, veiculo.id, "Aberta"]
+      [numero, cliente.id, veiculo.id, "Aberta"],
     );
 
     const os = osRes.rows[0];

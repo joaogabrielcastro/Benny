@@ -54,7 +54,7 @@ const buscarPorId = async (id) => {
      LEFT JOIN clientes c ON a.cliente_id = c.id
      LEFT JOIN veiculos v ON a.veiculo_id = v.id
      WHERE a.id = $1`,
-    [id]
+    [id],
   );
 
   return result.rows[0];
@@ -82,7 +82,7 @@ const criar = async (dados) => {
        (hora_inicio <= $3 AND hora_fim >= $3) OR
        (hora_inicio >= $2 AND hora_fim <= $3)
      )`,
-    [data_agendamento, hora_inicio, hora_fim || hora_inicio]
+    [data_agendamento, hora_inicio, hora_fim || hora_inicio],
   );
 
   if (conflito.rows.length > 0) {
@@ -107,7 +107,7 @@ const criar = async (dados) => {
       observacoes || null,
       valor_estimado || null,
       mecanico_responsavel || null,
-    ]
+    ],
   );
 
   return result.rows[0];
@@ -148,7 +148,7 @@ const atualizar = async (id, dados) => {
       valor_estimado,
       mecanico_responsavel,
       id,
-    ]
+    ],
   );
 
   return result.rows[0];
@@ -158,7 +158,7 @@ const deletar = async (id) => {
   await pool.query("DELETE FROM agendamentos WHERE id = $1", [id]);
   await pool.query(
     "DELETE FROM lembretes WHERE tipo = 'agendamento' AND referencia_id = $1",
-    [id]
+    [id],
   );
   return true;
 };
@@ -175,7 +175,7 @@ const hojeLista = async () => {
      LEFT JOIN veiculos v ON a.veiculo_id = v.id
      WHERE a.data_agendamento = $1
      ORDER BY a.hora_inicio ASC`,
-    [hoje]
+    [hoje],
   );
 
   return result.rows;

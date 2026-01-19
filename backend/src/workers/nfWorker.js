@@ -16,7 +16,7 @@ async function processJob(job) {
     // marcar job como processing
     await client.query(
       "UPDATE nf_jobs SET status = 'processing', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1",
-      [job.id]
+      [job.id],
     );
 
     const payload = job.payload;
@@ -24,19 +24,28 @@ async function processJob(job) {
     // Chamar provider
     let providerResult = null;
     try {
-      providerResult = await nfGatewayAdapter.emitirNota(payload, payload.empresaConfig);
+      providerResult = await nfGatewayAdapter.emitirNota(
+        payload,
+        payload.empresaConfig,
+      );
 
       // Salvar arquivos se retornados usando módulo de storage (local ou S3)
       let pdfPath = null;
       let xmlPath = null;
 
       if (providerResult?.pdfBase64) {
-        const r = await storage.saveFile(providerResult.pdfBase64, `nf_${payload.id}.pdf`);
+        const r = await storage.saveFile(
+          providerResult.pdfBase64,
+          `nf_${payload.id}.pdf`,
+        );
         pdfPath = r.path;
       }
 
       if (providerResult?.xmlBase64) {
-        const r = await storage.saveFile(providerResult.xmlBase64, `nf_${payload.id}.xml`);
+        const r = await storage.saveFile(
+          providerResult.xmlBase64,
+          `nf_${payload.id}.xml`,
+        );
         xmlPath = r.path;
       }
 
@@ -44,19 +53,23 @@ async function processJob(job) {
       const providerNumero = providerResult?.numero || payload.numero_interno;
       await client.query(
         `UPDATE notas_fiscais SET numero = $1, pdf_path = $2, xml_path = $3 WHERE id = $4`,
-        [providerNumero, pdfPath, xmlPath, payload.id]
+        [providerNumero, pdfPath, xmlPath, payload.id],
       );
 
       // Inserir histórico
       await client.query(
         `INSERT INTO notas_fiscais_historico (nota_fiscal_id, status, mensagem) VALUES ($1, $2, $3)`,
-        [payload.id, providerResult.status || "emitida", JSON.stringify(providerResult.providerResponse || {})]
+        [
+          payload.id,
+          providerResult.status || "emitida",
+          JSON.stringify(providerResult.providerResponse || {}),
+        ],
       );
 
       // Marcar job como done
       await client.query(
         "UPDATE nf_jobs SET status = 'done', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1",
-        [job.id]
+        [job.id],
       );
 
       await client.query("COMMIT");
@@ -71,28 +84,33 @@ async function processJob(job) {
         // mover para DLQ
         await client.query(
           `INSERT INTO nf_jobs_dlq (original_job_id, nota_fiscal_id, payload, attempts, last_error) VALUES ($1,$2,$3,$4,$5)`,
-          [job.id, payload.id, payload, attempts, String(err.message || err)]
+          [job.id, payload.id, payload, attempts, String(err.message || err)],
         );
 
-        await client.query(
-          "DELETE FROM nf_jobs WHERE id = $1",
-          [job.id]
-        );
+        await client.query("DELETE FROM nf_jobs WHERE id = $1", [job.id]);
 
         await client.query(
           `INSERT INTO notas_fiscais_historico (nota_fiscal_id, status, mensagem) VALUES ($1, $2, $3)`,
-          [payload.id, 'failed', `Moved to DLQ after ${attempts} attempts: ${String(err.message || err)}`]
+          [
+            payload.id,
+            "failed",
+            `Moved to DLQ after ${attempts} attempts: ${String(err.message || err)}`,
+          ],
         );
       } else {
         const nextRunAt = new Date(Date.now() + backoffSeconds * 1000);
         await client.query(
           `UPDATE nf_jobs SET attempts = $1, last_error = $2, next_run_at = $3, status = 'pending', atualizado_em = CURRENT_TIMESTAMP WHERE id = $4`,
-          [attempts, String(err.message || err), nextRunAt, job.id]
+          [attempts, String(err.message || err), nextRunAt, job.id],
         );
 
         await client.query(
           `INSERT INTO notas_fiscais_historico (nota_fiscal_id, status, mensagem) VALUES ($1, $2, $3)`,
-          [payload.id, 'retry_scheduled', `Attempt ${attempts}: ${String(err.message || err)}`]
+          [
+            payload.id,
+            "retry_scheduled",
+            `Attempt ${attempts}: ${String(err.message || err)}`,
+          ],
         );
       }
 
@@ -102,7 +120,9 @@ async function processJob(job) {
     }
   } catch (outerErr) {
     logger.error("Erro no worker ao processar job:", outerErr);
-    try { await client.query("ROLLBACK"); } catch (e) {}
+    try {
+      await client.query("ROLLBACK");
+    } catch (e) {}
   } finally {
     client.release();
   }
@@ -112,7 +132,7 @@ async function pollLoop() {
   while (true) {
     try {
       const res = await pool.query(
-        `SELECT * FROM nf_jobs WHERE status = 'pending' AND (next_run_at IS NULL OR next_run_at <= NOW()) ORDER BY criado_em ASC LIMIT 1 FOR UPDATE SKIP LOCKED`
+        `SELECT * FROM nf_jobs WHERE status = 'pending' AND (next_run_at IS NULL OR next_run_at <= NOW()) ORDER BY criado_em ASC LIMIT 1 FOR UPDATE SKIP LOCKED`,
       );
 
       if (res.rows.length === 0) {

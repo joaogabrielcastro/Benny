@@ -45,11 +45,21 @@ async function initDatabase() {
     `);
 
     // Garantir colunas de recorrência em bancos existentes
-    await client.query(`ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`);
-    await client.query(`ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS frequencia VARCHAR(20)`);
-    await client.query(`ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS intervalo INTEGER DEFAULT 1`);
-    await client.query(`ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS data_termino DATE`);
-    await client.query(`ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrencia_origem_id INTEGER`);
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS frequencia VARCHAR(20)`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS intervalo INTEGER DEFAULT 1`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS data_termino DATE`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrencia_origem_id INTEGER`,
+    );
 
     // Tabela de Clientes
     await client.query(`

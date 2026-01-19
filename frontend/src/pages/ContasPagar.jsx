@@ -586,7 +586,10 @@ function ContaModal({ conta, onClose, onSalvar }) {
 
               <div>
                 <div className="font-medium">Tornar esta conta recorrente</div>
-                <div className="text-xs text-gray-400">Gere cópias automáticas desta conta conforme frequência escolhida.</div>
+                <div className="text-xs text-gray-400">
+                  Gere cópias automáticas desta conta conforme frequência
+                  escolhida.
+                </div>
               </div>
             </label>
 
@@ -611,7 +614,10 @@ function ContaModal({ conta, onClose, onSalvar }) {
                   min="1"
                   value={formData.intervalo}
                   onChange={(e) =>
-                    setFormData({ ...formData, intervalo: Number(e.target.value) })
+                    setFormData({
+                      ...formData,
+                      intervalo: Number(e.target.value),
+                    })
                   }
                 />
 
@@ -628,7 +634,9 @@ function ContaModal({ conta, onClose, onSalvar }) {
 
             {formData.recorrente && (
               <div className="mt-2 text-xs text-gray-400">
-                Exemplo: "Mensal, Intervalo = 1" = todo mês; "Mensal, Intervalo = 2" = a cada 2 meses. Para semanal, intervalo = 2 = a cada 2 semanas.
+                Exemplo: "Mensal, Intervalo = 1" = todo mês; "Mensal, Intervalo
+                = 2" = a cada 2 meses. Para semanal, intervalo = 2 = a cada 2
+                semanas.
               </div>
             )}
           </div>

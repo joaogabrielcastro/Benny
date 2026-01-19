@@ -42,7 +42,7 @@ const hoje = async () => {
      LEFT JOIN contas_pagar c ON l.tipo = 'conta_pagar' AND l.referencia_id = c.id
      WHERE l.data_lembrete >= $1 AND l.data_lembrete < $2 AND l.enviado = false
      ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
-    [hojeDate, amanha]
+    [hojeDate, amanha],
   );
 
   return result.rows;
@@ -54,18 +54,26 @@ const marcarEnviado = async (id) => {
      SET enviado = true, data_envio = CURRENT_TIMESTAMP 
      WHERE id = $1 
      RETURNING *`,
-    [id]
+    [id],
   );
 
   return result.rows[0];
 };
 
 const criar = async (dados) => {
-  const { tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade } = dados;
+  const { tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade } =
+    dados;
   const result = await pool.query(
     `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade || 'media']
+    [
+      tipo,
+      referencia_id,
+      titulo,
+      mensagem,
+      data_lembrete,
+      prioridade || "media",
+    ],
   );
 
   return result.rows[0];

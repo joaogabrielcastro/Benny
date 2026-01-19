@@ -1,12 +1,14 @@
-import pool from '../src/config/database.js';
+import pool from "../src/config/database.js";
 
 async function run() {
   const client = await pool.connect();
   try {
-    console.log('Applying schema fixes for nf_jobs...');
+    console.log("Applying schema fixes for nf_jobs...");
     await client.query("BEGIN");
 
-    await client.query(`ALTER TABLE nf_jobs ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMP;`);
+    await client.query(
+      `ALTER TABLE nf_jobs ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMP;`,
+    );
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS nf_jobs_dlq (
@@ -21,11 +23,13 @@ async function run() {
     `);
 
     await client.query("COMMIT");
-    console.log('Schema fixes applied successfully');
+    console.log("Schema fixes applied successfully");
     process.exit(0);
   } catch (err) {
-    console.error('Error applying schema fixes:', err);
-    try { await client.query('ROLLBACK'); } catch (e) {}
+    console.error("Error applying schema fixes:", err);
+    try {
+      await client.query("ROLLBACK");
+    } catch (e) {}
     process.exit(1);
   } finally {
     client.release();

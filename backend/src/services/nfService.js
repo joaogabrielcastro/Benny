@@ -27,7 +27,7 @@ class NFService {
          LEFT JOIN clientes c ON os.cliente_id = c.id
          LEFT JOIN veiculos v ON os.veiculo_id = v.id
          WHERE os.id = $1`,
-        [osId]
+        [osId],
       );
 
       if (osResult.rows.length === 0) {
@@ -44,7 +44,7 @@ class NFService {
       // Verificar se já existe NF para esta OS
       const nfExistente = await client.query(
         "SELECT id FROM notas_fiscais WHERE os_id = $1",
-        [osId]
+        [osId],
       );
 
       if (nfExistente.rows.length > 0) {
@@ -57,18 +57,18 @@ class NFService {
          FROM os_produtos p
          LEFT JOIN produtos pr ON p.produto_id = pr.id
          WHERE p.os_id = $1`,
-        [osId]
+        [osId],
       );
 
       // Buscar serviços da OS
       const servicosResult = await client.query(
         "SELECT * FROM os_servicos WHERE os_id = $1",
-        [osId]
+        [osId],
       );
 
       // Gerar número da NF (sequencial)
       const ultimaNF = await client.query(
-        "SELECT numero FROM notas_fiscais ORDER BY id DESC LIMIT 1"
+        "SELECT numero FROM notas_fiscais ORDER BY id DESC LIMIT 1",
       );
 
       let numeroNF;
@@ -104,11 +104,16 @@ class NFService {
       }
 
       // Determinar a base (produtos + serviços). Se soma for 0, usar os.valor_total quando disponível.
-      const somaProdutosServicos = (parseFloat(valor_produtos) || 0) + (parseFloat(valor_servicos) || 0);
+      const somaProdutosServicos =
+        (parseFloat(valor_produtos) || 0) + (parseFloat(valor_servicos) || 0);
       let valorBase = 0;
       if (somaProdutosServicos > 0) {
         valorBase = somaProdutosServicos;
-      } else if (os.valor_total !== undefined && os.valor_total !== null && !isNaN(parseFloat(os.valor_total))) {
+      } else if (
+        os.valor_total !== undefined &&
+        os.valor_total !== null &&
+        !isNaN(parseFloat(os.valor_total))
+      ) {
         valorBase = parseFloat(os.valor_total);
       } else {
         valorBase = 0;
@@ -151,7 +156,7 @@ class NFService {
           `NF gerada automaticamente para OS ${os.numero}`,
           null,
           null,
-        ]
+        ],
       );
 
       const nf = nfResult.rows[0];
@@ -159,12 +164,12 @@ class NFService {
       // Atualizar OS com ID da NF
       await client.query(
         "UPDATE ordens_servico SET nf_id = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-        [nf.id, osId]
+        [nf.id, osId],
       );
 
       // Selecionar configuração do gateway para a emissão
       const gwRes = await client.query(
-        "SELECT gc.* FROM gateway_configs gc WHERE gc.ativo = true LIMIT 1"
+        "SELECT gc.* FROM gateway_configs gc WHERE gc.ativo = true LIMIT 1",
       );
       const empresaConfig = gwRes.rows[0] || null;
 
@@ -215,7 +220,7 @@ class NFService {
               p.quantidade || 0
             }</td><td>${(p.valor_unitario || 0).toFixed(2)}</td><td>${(
               p.valor_total || 0
-            ).toFixed(2)}</td></tr>`
+            ).toFixed(2)}</td></tr>`,
         )
         .join("")}
     </tbody>
@@ -229,7 +234,7 @@ class NFService {
           (s) =>
             `<tr><td>${s.descricao || "-"}</td><td>1</td><td>${(
               s.valor_total || 0
-            ).toFixed(2)}</td><td>${(s.valor_total || 0).toFixed(2)}</td></tr>`
+            ).toFixed(2)}</td><td>${(s.valor_total || 0).toFixed(2)}</td></tr>`,
         )
         .join("")}
     </tbody>
@@ -240,7 +245,7 @@ class NFService {
   <p><strong>Serviços:</strong> R$ ${valor_servicos.toFixed(2)}</p>
   <p><strong>Base:</strong> R$ ${valorBase.toFixed(2)}</p>
   <p><strong>Impostos (ex.):</strong> ICMS R$ ${impostos.icms.toFixed(
-    2
+    2,
   )}, ISS R$ ${impostos.iss.toFixed(2)}</p>
   <p><strong>Total Impostos:</strong> R$ ${totalImpostos.toFixed(2)}</p>
   <p><strong>Valor Total:</strong> R$ ${valorFinal.toFixed(2)}</p>
@@ -253,19 +258,19 @@ class NFService {
         // salvar como arquivo HTML (o frontend pode abrir para impressão)
         const saved = await storage.saveFile(
           Buffer.from(html, "utf-8"),
-          `nf_${nf.id}.html`
+          `nf_${nf.id}.html`,
         );
         const pdfPath = saved.path;
 
         await client.query(
           `UPDATE notas_fiscais SET pdf_path = $1 WHERE id = $2`,
-          [pdfPath, nf.id]
+          [pdfPath, nf.id],
         );
 
         await client.query("COMMIT");
 
         logger.info(
-          `NF ${numeroNF} gerada em modo manual (OS ${os.numero}) -> ${pdfPath}`
+          `NF ${numeroNF} gerada em modo manual (OS ${os.numero}) -> ${pdfPath}`,
         );
 
         const nfAtual = await this.buscarNFPorId(nf.id);
@@ -300,7 +305,7 @@ class NFService {
          LEFT JOIN clientes c ON nf.cliente_id = c.id
          LEFT JOIN ordens_servico os ON nf.os_id = os.id
          WHERE nf.id = $1`,
-        [nfId]
+        [nfId],
       );
 
       if (result.rows.length === 0) {
@@ -310,7 +315,9 @@ class NFService {
       const row = result.rows[0];
       // Provide aliases expected by frontend
       // valor_base = soma de produtos + serviços
-      row.valor_base = parseFloat(row.valor_produtos || 0) + parseFloat(row.valor_servicos || 0);
+      row.valor_base =
+        parseFloat(row.valor_produtos || 0) +
+        parseFloat(row.valor_servicos || 0);
       // valor_total já contém impostos (valorBase + totalImpostos)
       row.valor_icms = row.icms;
       row.valor_iss = row.iss;
@@ -383,7 +390,7 @@ class NFService {
       // Verificar se NF existe
       const nfResult = await client.query(
         "SELECT * FROM notas_fiscais WHERE id = $1",
-        [nfId]
+        [nfId],
       );
 
       if (nfResult.rows.length === 0) {
@@ -403,13 +410,13 @@ class NFService {
              data_cancelamento = CURRENT_TIMESTAMP,
              motivo_cancelamento = $1
          WHERE id = $2`,
-        [motivo, nfId]
+        [motivo, nfId],
       );
 
       // Remover referência da OS
       await client.query(
         "UPDATE ordens_servico SET nf_id = NULL WHERE id = $1",
-        [nf.os_id]
+        [nf.os_id],
       );
 
       await client.query("COMMIT");
