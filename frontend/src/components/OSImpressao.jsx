@@ -551,16 +551,19 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                   paddingRight: "20px",
                 }}
               >
-                <div
-                  style={{
-                    borderBottom: "1px solid #000",
-                    marginTop: "50px",
-                    paddingTop: "5px",
-                  }}
-                >
-                  <strong style={{ fontSize: "10px" }}>
-                    BENNYS CENTRO AUTOMOTIVO
-                  </strong>
+                <div style={{ marginTop: "40px" }}>
+                  <div
+                    style={{
+                      borderTop: "1px solid #000",
+                      width: "70%",
+                      margin: "0 auto 8px auto",
+                    }}
+                  />
+                  <div>
+                    <strong style={{ fontSize: "10px" }}>
+                      BENNYS CENTRO AUTOMOTIVO
+                    </strong>
+                  </div>
                 </div>
               </td>
               <td
@@ -571,16 +574,19 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                   paddingLeft: "20px",
                 }}
               >
-                <div
-                  style={{
-                    borderBottom: "1px solid #000",
-                    marginTop: "50px",
-                    paddingTop: "5px",
-                  }}
-                >
-                  <strong style={{ fontSize: "10px" }}>
-                    {os.cliente_nome?.toUpperCase() || "CLIENTE"}
-                  </strong>
+                <div style={{ marginTop: "40px" }}>
+                  <div
+                    style={{
+                      borderTop: "1px solid #000",
+                      width: "70%",
+                      margin: "0 auto 8px auto",
+                    }}
+                  />
+                  <div>
+                    <strong style={{ fontSize: "10px" }}>
+                      {os.cliente_nome?.toUpperCase() || "CLIENTE"}
+                    </strong>
+                  </div>
                 </div>
               </td>
             </tr>

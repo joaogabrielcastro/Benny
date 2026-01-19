@@ -9,7 +9,11 @@ import { body, validationResult } from "express-validator";
 import winston from "winston";
 import { WebSocketServer } from "ws";
 import { createServer } from "http";
+import path from "path";
 import pool from "./database.js";
+
+// Importar novas rotas MVC
+import apiRoutes from "./src/routes/index.js";
 
 dotenv.config();
 
@@ -91,6 +95,12 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Usar rotas MVC (novas funcionalidades)
+// Servir arquivos gerados (storage) para download/visualização (modo local)
+app.use('/api/storage', express.static(path.join(process.cwd(), 'backend', 'storage')));
+
+app.use("/api", apiRoutes);
 
 // Middleware de logging de requisições
 app.use((req, res, next) => {
@@ -1330,7 +1340,7 @@ app.post("/api/ordens-servico", async (req, res) => {
     const osResult = await client.query(
       `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, 
                                      valor_produtos, valor_servicos, valor_total, responsavel_tecnico, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Aberta') RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'Aberta') RETURNING id`,
       [
         numero,
         cliente_id,
@@ -1857,6 +1867,599 @@ app.get("/api/auditoria/orcamentos/:id", async (req, res) => {
 });
 
 // ============================================
+// ROTAS - AGENDAMENTOS
+// ============================================
+
+// Listar agendamentos com filtros
+app.get("/api/agendamentos", async (req, res) => {
+  try {
+    const { data_inicio, data_fim, status, cliente_id } = req.query;
+
+    let query = `
+      SELECT a.*, 
+             c.nome as cliente_nome, c.telefone as cliente_telefone,
+             v.modelo as veiculo_modelo, v.placa as veiculo_placa
+      FROM agendamentos a
+      LEFT JOIN clientes c ON a.cliente_id = c.id
+      LEFT JOIN veiculos v ON a.veiculo_id = v.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (data_inicio) {
+      query += ` AND a.data_agendamento >= $${paramIndex}`;
+      params.push(data_inicio);
+      paramIndex++;
+    }
+
+    if (data_fim) {
+      query += ` AND a.data_agendamento <= $${paramIndex}`;
+      params.push(data_fim);
+      paramIndex++;
+    }
+
+    if (status) {
+      query += ` AND a.status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (cliente_id) {
+      query += ` AND a.cliente_id = $${paramIndex}`;
+      params.push(cliente_id);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY a.data_agendamento DESC, a.hora_inicio ASC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    logger.error("Erro ao listar agendamentos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar agendamento por ID
+app.get("/api/agendamentos/:id", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.*, 
+              c.nome as cliente_nome, c.telefone as cliente_telefone,
+              v.modelo as veiculo_modelo, v.placa as veiculo_placa
+       FROM agendamentos a
+       LEFT JOIN clientes c ON a.cliente_id = c.id
+       LEFT JOIN veiculos v ON a.veiculo_id = v.id
+       WHERE a.id = $1`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Agendamento não encontrado" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar agendamento
+app.post("/api/agendamentos", async (req, res) => {
+  try {
+    const {
+      cliente_id,
+      veiculo_id,
+      data_agendamento,
+      hora_inicio,
+      hora_fim,
+      tipo_servico,
+      observacoes,
+      valor_estimado,
+      mecanico_responsavel,
+    } = req.body;
+
+    // Verificar conflito de horário
+    const conflito = await pool.query(
+      `SELECT id FROM agendamentos 
+       WHERE data_agendamento = $1 
+       AND status NOT IN ('Cancelado', 'Concluído')
+       AND (
+         (hora_inicio <= $2 AND hora_fim >= $2) OR
+         (hora_inicio <= $3 AND hora_fim >= $3) OR
+         (hora_inicio >= $2 AND hora_fim <= $3)
+       )`,
+      [data_agendamento, hora_inicio, hora_fim || hora_inicio]
+    );
+
+    if (conflito.rows.length > 0) {
+      return res.status(400).json({
+        error: "Já existe um agendamento neste horário",
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO agendamentos 
+       (cliente_id, veiculo_id, data_agendamento, hora_inicio, hora_fim, 
+        tipo_servico, observacoes, valor_estimado, mecanico_responsavel)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+       RETURNING *`,
+      [
+        cliente_id,
+        veiculo_id || null,
+        data_agendamento,
+        hora_inicio,
+        hora_fim || null,
+        tipo_servico,
+        observacoes || null,
+        valor_estimado || null,
+        mecanico_responsavel || null,
+      ]
+    );
+
+    // Criar lembrete automático (1 dia antes)
+    const dataLembrete = new Date(data_agendamento);
+    dataLembrete.setDate(dataLembrete.getDate() - 1);
+    dataLembrete.setHours(9, 0, 0, 0);
+
+    await pool.query(
+      `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        "agendamento",
+        result.rows[0].id,
+        "Lembrete de Agendamento",
+        `Agendamento amanhã às ${hora_inicio} - ${tipo_servico}`,
+        dataLembrete,
+        "alta",
+      ]
+    );
+
+    broadcastUpdate("agendamento_criado", result.rows[0]);
+    logger.info(`Agendamento criado: ${result.rows[0].id}`);
+
+    res.status(201).json({
+      message: "Agendamento criado com sucesso",
+      agendamento: result.rows[0],
+    });
+  } catch (error) {
+    logger.error("Erro ao criar agendamento:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar agendamento
+app.put("/api/agendamentos/:id", async (req, res) => {
+  try {
+    const {
+      status,
+      data_agendamento,
+      hora_inicio,
+      hora_fim,
+      tipo_servico,
+      observacoes,
+      valor_estimado,
+      mecanico_responsavel,
+    } = req.body;
+
+    const result = await pool.query(
+      `UPDATE agendamentos 
+       SET status = COALESCE($1, status),
+           data_agendamento = COALESCE($2, data_agendamento),
+           hora_inicio = COALESCE($3, hora_inicio),
+           hora_fim = COALESCE($4, hora_fim),
+           tipo_servico = COALESCE($5, tipo_servico),
+           observacoes = COALESCE($6, observacoes),
+           valor_estimado = COALESCE($7, valor_estimado),
+           mecanico_responsavel = COALESCE($8, mecanico_responsavel),
+           atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $9
+       RETURNING *`,
+      [
+        status,
+        data_agendamento,
+        hora_inicio,
+        hora_fim,
+        tipo_servico,
+        observacoes,
+        valor_estimado,
+        mecanico_responsavel,
+        req.params.id,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Agendamento não encontrado" });
+    }
+
+    broadcastUpdate("agendamento_atualizado", result.rows[0]);
+
+    res.json({
+      message: "Agendamento atualizado com sucesso",
+      agendamento: result.rows[0],
+    });
+  } catch (error) {
+    logger.error("Erro ao atualizar agendamento:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deletar agendamento
+app.delete("/api/agendamentos/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM agendamentos WHERE id = $1", [req.params.id]);
+    await pool.query(
+      "DELETE FROM lembretes WHERE tipo = 'agendamento' AND referencia_id = $1",
+      [req.params.id]
+    );
+
+    res.json({ message: "Agendamento deletado com sucesso" });
+  } catch (error) {
+    logger.error("Erro ao deletar agendamento:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Agendamentos do dia
+app.get("/api/agendamentos/hoje/lista", async (req, res) => {
+  try {
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const result = await pool.query(
+      `SELECT a.*, 
+              c.nome as cliente_nome, c.telefone as cliente_telefone,
+              v.modelo as veiculo_modelo, v.placa as veiculo_placa
+       FROM agendamentos a
+       LEFT JOIN clientes c ON a.cliente_id = c.id
+       LEFT JOIN veiculos v ON a.veiculo_id = v.id
+       WHERE a.data_agendamento = $1
+       ORDER BY a.hora_inicio ASC`,
+      [hoje]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ROTAS - CONTAS A PAGAR
+// ============================================
+
+// Listar contas a pagar com filtros
+app.get("/api/contas-pagar", async (req, res) => {
+  try {
+    const { status, data_inicio, data_fim, categoria } = req.query;
+
+    let query = "SELECT * FROM contas_pagar WHERE 1=1";
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+      query += ` AND status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (data_inicio) {
+      query += ` AND data_vencimento >= $${paramIndex}`;
+      params.push(data_inicio);
+      paramIndex++;
+    }
+
+    if (data_fim) {
+      query += ` AND data_vencimento <= $${paramIndex}`;
+      params.push(data_fim);
+      paramIndex++;
+    }
+
+    if (categoria) {
+      query += ` AND categoria = $${paramIndex}`;
+      params.push(categoria);
+      paramIndex++;
+    }
+
+    query += " ORDER BY data_vencimento DESC";
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    logger.error("Erro ao listar contas a pagar:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar conta por ID
+app.get("/api/contas-pagar/:id", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM contas_pagar WHERE id = $1",
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Conta não encontrada" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar conta a pagar
+app.post("/api/contas-pagar", async (req, res) => {
+  try {
+    const {
+      descricao,
+      categoria,
+      valor,
+      data_vencimento,
+      fornecedor,
+      observacoes,
+      recorrente,
+      frequencia,
+      intervalo,
+      data_termino,
+    } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO contas_pagar 
+       (descricao, categoria, valor, data_vencimento, fornecedor, observacoes, recorrente, frequencia, intervalo, data_termino)
+       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, false), $8, COALESCE($9, 1), $10) 
+       RETURNING *`,
+      [
+        descricao,
+        categoria,
+        valor,
+        data_vencimento,
+        fornecedor || null,
+        observacoes || null,
+        recorrente === true || recorrente === 'true' ? true : false,
+        frequencia || null,
+        intervalo || 1,
+        data_termino || null,
+      ]
+    );
+
+    // Criar lembrete automático (3 dias antes do vencimento)
+    const dataLembrete = new Date(data_vencimento);
+    dataLembrete.setDate(dataLembrete.getDate() - 3);
+    dataLembrete.setHours(9, 0, 0, 0);
+
+    await pool.query(
+      `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        "conta_pagar",
+        result.rows[0].id,
+        "Lembrete de Pagamento",
+        `Conta a vencer em 3 dias: ${descricao} - ${valor}`,
+        dataLembrete,
+        "alta",
+      ]
+    );
+
+    broadcastUpdate("conta_criada", result.rows[0]);
+    logger.info(`Conta a pagar criada: ${result.rows[0].id}`);
+
+    res.status(201).json({
+      message: "Conta criada com sucesso",
+      conta: result.rows[0],
+    });
+  } catch (error) {
+    logger.error("Erro ao criar conta:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar conta a pagar
+app.put("/api/contas-pagar/:id", async (req, res) => {
+  try {
+    const {
+      descricao,
+      categoria,
+      valor,
+      data_vencimento,
+      data_pagamento,
+      status,
+      fornecedor,
+      forma_pagamento,
+      observacoes,
+      recorrente,
+      frequencia,
+      intervalo,
+      data_termino,
+    } = req.body;
+
+    const result = await pool.query(
+      `UPDATE contas_pagar 
+       SET descricao = COALESCE($1, descricao),
+           categoria = COALESCE($2, categoria),
+           valor = COALESCE($3, valor),
+           data_vencimento = COALESCE($4, data_vencimento),
+           data_pagamento = COALESCE($5, data_pagamento),
+           status = COALESCE($6, status),
+           fornecedor = COALESCE($7, fornecedor),
+           forma_pagamento = COALESCE($8, forma_pagamento),
+           observacoes = COALESCE($9, observacoes),
+           recorrente = COALESCE($10, recorrente),
+           frequencia = COALESCE($11, frequencia),
+           intervalo = COALESCE($12, intervalo),
+           data_termino = COALESCE($13, data_termino),
+           atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $10
+       RETURNING *`,
+      [
+        descricao,
+        categoria,
+        valor,
+        data_vencimento,
+        data_pagamento,
+        status,
+        fornecedor,
+        forma_pagamento,
+        observacoes,
+        typeof recorrente === 'boolean' ? recorrente : recorrente === 'true' ? true : null,
+        frequencia || null,
+        intervalo || null,
+        data_termino || null,
+        req.params.id,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Conta não encontrada" });
+    }
+
+    broadcastUpdate("conta_atualizada", result.rows[0]);
+
+    res.json({
+      message: "Conta atualizada com sucesso",
+      conta: result.rows[0],
+    });
+  } catch (error) {
+    logger.error("Erro ao atualizar conta:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deletar conta a pagar
+app.delete("/api/contas-pagar/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM contas_pagar WHERE id = $1", [req.params.id]);
+    await pool.query(
+      "DELETE FROM lembretes WHERE tipo = 'conta_pagar' AND referencia_id = $1",
+      [req.params.id]
+    );
+
+    res.json({ message: "Conta deletada com sucesso" });
+  } catch (error) {
+    logger.error("Erro ao deletar conta:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Contas vencidas e a vencer
+app.get("/api/contas-pagar/alertas/resumo", async (req, res) => {
+  try {
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const [vencidas, aVencer] = await Promise.all([
+      pool.query(
+        "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento < $1 ORDER BY data_vencimento",
+        [hoje]
+      ),
+      pool.query(
+        "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento >= $1 AND data_vencimento <= $2 ORDER BY data_vencimento",
+        [
+          hoje,
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+        ]
+      ),
+    ]);
+
+    res.json({
+      vencidas: vencidas.rows,
+      aVencer: aVencer.rows,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ROTAS - LEMBRETES
+// ============================================
+
+// Listar lembretes pendentes
+app.get("/api/lembretes", async (req, res) => {
+  try {
+    const { tipo, enviado } = req.query;
+
+    let query = "SELECT * FROM lembretes WHERE 1=1";
+    const params = [];
+    let paramIndex = 1;
+
+    if (tipo) {
+      query += ` AND tipo = $${paramIndex}`;
+      params.push(tipo);
+      paramIndex++;
+    }
+
+    if (enviado !== undefined) {
+      query += ` AND enviado = $${paramIndex}`;
+      params.push(enviado === "true");
+      paramIndex++;
+    }
+
+    query += " ORDER BY data_lembrete DESC";
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    logger.error("Erro ao listar lembretes:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Lembretes pendentes de hoje
+app.get("/api/lembretes/hoje", async (req, res) => {
+  try {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const amanha = new Date(hoje);
+    amanha.setDate(amanha.getDate() + 1);
+
+    const result = await pool.query(
+      `SELECT l.*, 
+              CASE 
+                WHEN l.tipo = 'agendamento' THEN a.tipo_servico
+                WHEN l.tipo = 'conta_pagar' THEN c.descricao
+              END as descricao_referencia
+       FROM lembretes l
+       LEFT JOIN agendamentos a ON l.tipo = 'agendamento' AND l.referencia_id = a.id
+       LEFT JOIN contas_pagar c ON l.tipo = 'conta_pagar' AND l.referencia_id = c.id
+       WHERE l.data_lembrete >= $1 AND l.data_lembrete < $2 AND l.enviado = false
+       ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
+      [hoje, amanha]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Marcar lembrete como enviado
+app.put("/api/lembretes/:id/marcar-enviado", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE lembretes 
+       SET enviado = true, data_envio = CURRENT_TIMESTAMP 
+       WHERE id = $1 
+       RETURNING *`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Lembrete não encontrado" });
+    }
+
+    res.json({
+      message: "Lembrete marcado como enviado",
+      lembrete: result.rows[0],
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // ROTAS - BACKUP
 // ============================================
 
@@ -2023,6 +2626,226 @@ async function realizarBackupAutomatico() {
 schedule.scheduleJob("0 2 * * *", realizarBackupAutomatico);
 
 console.log("📅 Backup automático agendado para executar diariamente às 2h");
+
+// ============================================
+// PROCESSAMENTO AUTOMÁTICO DE LEMBRETES
+// ============================================
+
+// Função para verificar e processar lembretes pendentes
+async function processarLembretesPendentes() {
+  try {
+    console.log("🔔 Verificando lembretes pendentes...");
+
+    const hoje = new Date();
+    const lembretes = await pool.query(
+      `SELECT l.*, 
+              CASE 
+                WHEN l.tipo = 'agendamento' THEN 
+                  json_build_object(
+                    'cliente_nome', (SELECT c.nome FROM agendamentos a 
+                                     JOIN clientes c ON a.cliente_id = c.id 
+                                     WHERE a.id = l.referencia_id),
+                    'tipo_servico', (SELECT tipo_servico FROM agendamentos WHERE id = l.referencia_id),
+                    'data_agendamento', (SELECT data_agendamento FROM agendamentos WHERE id = l.referencia_id),
+                    'hora_inicio', (SELECT hora_inicio FROM agendamentos WHERE id = l.referencia_id)
+                  )
+                WHEN l.tipo = 'conta_pagar' THEN 
+                  json_build_object(
+                    'descricao', (SELECT descricao FROM contas_pagar WHERE id = l.referencia_id),
+                    'valor', (SELECT valor FROM contas_pagar WHERE id = l.referencia_id),
+                    'data_vencimento', (SELECT data_vencimento FROM contas_pagar WHERE id = l.referencia_id)
+                  )
+              END as dados_referencia
+       FROM lembretes l
+       WHERE l.data_lembrete <= $1 
+       AND l.enviado = false
+       ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
+      [hoje]
+    );
+
+    if (lembretes.rows.length > 0) {
+      console.log(
+        `📬 ${lembretes.rows.length} lembrete(s) pendente(s) encontrado(s)`
+      );
+
+      for (const lembrete of lembretes.rows) {
+        try {
+          // Aqui você pode integrar com serviços de notificação
+          // Por enquanto, apenas logamos e marcamos como enviado
+
+          console.log(`📨 Lembrete: ${lembrete.titulo}`);
+          console.log(`   Tipo: ${lembrete.tipo}`);
+          console.log(`   Mensagem: ${lembrete.mensagem}`);
+
+          if (lembrete.dados_referencia) {
+            console.log(`   Dados:`, JSON.parse(lembrete.dados_referencia));
+          }
+
+          // Marcar como enviado
+          await pool.query(
+            `UPDATE lembretes 
+             SET enviado = true, data_envio = CURRENT_TIMESTAMP 
+             WHERE id = $1`,
+            [lembrete.id]
+          );
+
+          // Broadcast via WebSocket para clientes conectados
+          broadcastUpdate("lembrete_novo", {
+            id: lembrete.id,
+            titulo: lembrete.titulo,
+            mensagem: lembrete.mensagem,
+            tipo: lembrete.tipo,
+            prioridade: lembrete.prioridade,
+          });
+
+          console.log(`   ✓ Lembrete processado com sucesso`);
+        } catch (error) {
+          console.error(
+            `   ✗ Erro ao processar lembrete ${lembrete.id}:`,
+            error.message
+          );
+        }
+      }
+    } else {
+      console.log("✓ Nenhum lembrete pendente no momento");
+    }
+  } catch (error) {
+    console.error("❌ Erro ao processar lembretes:", error);
+  }
+}
+
+// Verificar lembretes a cada 30 minutos
+schedule.scheduleJob("*/30 * * * *", processarLembretesPendentes);
+
+console.log(
+  "🔔 Verificação de lembretes agendada para rodar a cada 30 minutos"
+);
+
+// Executar verificação inicial ao iniciar o servidor
+setTimeout(processarLembretesPendentes, 5000); // Aguardar 5s após inicialização
+
+// ============================================
+// GERAÇÃO DE CONTAS RECORRENTES
+// ============================================
+
+async function gerarContasRecorrentes() {
+  try {
+    console.log("🔁 Verificando contas recorrentes...");
+
+    const hoje = new Date();
+    const resTemplates = await pool.query(
+      `SELECT * FROM contas_pagar WHERE recorrente = true AND data_vencimento <= $1`,
+      [hoje]
+    );
+
+    if (resTemplates.rows.length === 0) {
+      console.log("✓ Nenhuma conta recorrente a processar");
+      return;
+    }
+
+    for (const tpl of resTemplates.rows) {
+      try {
+        // Função para adicionar intervalo a uma data
+        const addInterval = (dateStr, freq, intv) => {
+          const d = new Date(dateStr);
+          const n = parseInt(intv, 10) || 1;
+          switch ((freq || '').toLowerCase()) {
+            case 'diario':
+            case 'diária':
+            case 'diaria':
+              d.setDate(d.getDate() + n);
+              break;
+            case 'semanal':
+            case 'semanalmente':
+              d.setDate(d.getDate() + 7 * n);
+              break;
+            case 'anual':
+            case 'anualmente':
+            case 'anualmente':
+              d.setFullYear(d.getFullYear() + n);
+              break;
+            case 'mensal':
+            case 'mensalmente':
+            default:
+              d.setMonth(d.getMonth() + n);
+              break;
+          }
+          return d;
+        };
+
+        // Gerar ocorrências enquanto a data do template estiver no passado/hoje
+        let currentDue = new Date(tpl.data_vencimento);
+        while (currentDue <= hoje) {
+          // Inserir ocorrência (cópia da template)
+          const insertRes = await pool.query(
+            `INSERT INTO contas_pagar (descricao, categoria, valor, data_vencimento, fornecedor, forma_pagamento, observacoes, recorrente, recorrencia_origem_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,false,$8) RETURNING *`,
+            [
+              tpl.descricao,
+              tpl.categoria,
+              tpl.valor,
+              currentDue,
+              tpl.fornecedor || null,
+              tpl.forma_pagamento || null,
+              tpl.observacoes || null,
+              tpl.id,
+            ]
+          );
+
+          // Criar lembrete para a nova ocorrência (3 dias antes)
+          const dataLembrete = new Date(currentDue);
+          dataLembrete.setDate(dataLembrete.getDate() - 3);
+          dataLembrete.setHours(9, 0, 0, 0);
+
+          await pool.query(
+            `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [
+              'conta_pagar',
+              insertRes.rows[0].id,
+              'Lembrete de Pagamento',
+              `Conta a vencer em 3 dias: ${tpl.descricao} - ${tpl.valor}`,
+              dataLembrete,
+              'alta',
+            ]
+          );
+
+          // Avançar para próxima data
+          const next = addInterval(currentDue, tpl.frequencia, tpl.intervalo);
+
+          // Se houver data_termino e próxima data for depois dela, desative a recorrência
+          if (tpl.data_termino && next > new Date(tpl.data_termino)) {
+            await pool.query(
+              `UPDATE contas_pagar SET recorrente = false WHERE id = $1`,
+              [tpl.id]
+            );
+            break;
+          }
+
+          // Atualizar data_vencimento do template para a próxima ocorrência
+          await pool.query(
+            `UPDATE contas_pagar SET data_vencimento = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2`,
+            [next, tpl.id]
+          );
+
+          // Preparar loop: se ainda no passado, continuar (caso tenha muitas datas perdidas)
+          currentDue = new Date(next);
+        }
+      } catch (err) {
+        console.error(`Erro ao processar recorrência template ${tpl.id}:`, err.message);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao gerar contas recorrentes:', error.message || error);
+  }
+}
+
+// Agendar execução diária à meia-noite
+schedule.scheduleJob("0 0 * * *", gerarContasRecorrentes);
+console.log("🔁 Geração de contas recorrentes agendada diariamente à 00:00");
+
+// Executar ao iniciar (após 8s)
+setTimeout(gerarContasRecorrentes, 8000);
 
 // ============================================
 // WEBSOCKET PARA ATUALIZAÇÕES EM TEMPO REAL

@@ -8,6 +8,7 @@ Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreS
 
 - Criar, editar e visualizar OS com workflow completo
 - Impressão profissional de OS com logo e detalhes
+- **Geração de Nota Fiscal (NF) para OS finalizadas** 🆕
 - Controle de status (Aberta, Em Andamento, Finalizada, Cancelada)
 - Histórico completo de alterações (auditoria)
 - Busca avançada por número, cliente, placa ou data
@@ -35,6 +36,7 @@ Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreS
 ### 👥 Clientes e Veículos
 
 - Cadastro integrado de clientes
+- **Busca automática de endereço por CEP (ViaCEP)** 🆕
 - Múltiplos veículos por cliente
 - Histórico completo de serviços
 
@@ -47,6 +49,45 @@ Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreS
 - Gráfico de faturamento mensal (6 meses)
 - Top 10 produtos mais vendidos
 - **Exportação de relatórios em PDF**
+
+### 📅 Agendamentos 🆕
+
+- Calendário completo de agendamentos
+- Detecção de conflitos de horários
+- Status (Agendado, Confirmado, Em Andamento, Concluído, Cancelado)
+- Lembretes automáticos
+- Busca por cliente, veículo ou serviço
+- Integração com sistema de notificações
+
+### 💳 Contas a Pagar 🆕
+
+- Gestão completa de contas
+- Dashboard com totais (Pagas, Pendentes, Vencidas)
+- Alertas de vencimento
+- 8 categorias pré-definidas
+- Filtros por status, categoria e período
+- Integração com sistema de lembretes
+
+### 🔔 Sistema de Lembretes e Notificações 🆕
+
+- Widget flutuante de notificações
+- Processamento automático a cada 30 minutos
+- Lembretes de agendamentos próximos
+- Alertas de contas a vencer
+- Notificações em tempo real via WebSocket
+- Marcar como lido/não lido
+
+### 📄 Notas Fiscais 🆕
+
+- Geração automática de NF para OS finalizadas
+- Numeração sequencial (000001, 000002...)
+- Cálculo automático de tributos:
+  - ICMS (18%)
+  - ISS (5%)
+  - PIS (1.65%)
+  - COFINS (7.6%)
+- Modal detalhado com todos os dados da NF
+- Vinculação NF ↔ OS
 
 ### 🎨 Interface Moderna
 
@@ -141,11 +182,29 @@ O frontend estará em `http://localhost:5173`
 ```
 Benny/
 ├── backend/
-│   ├── server.js           # API REST completa
+│   ├── server.js           # API REST principal (monolito em migração)
 │   ├── database.js         # Pool PostgreSQL e migrations
 │   ├── test-api.js         # Testes automatizados
 │   ├── package.json
-│   └── .env               # Variáveis de ambiente
+│   ├── .env               # Variáveis de ambiente
+│   │
+│   └── src/               # 🆕 Arquitetura MVC
+│       ├── config/
+│       │   ├── database.js
+│       │   └── logger.js
+│       ├── services/
+│       │   ├── cepService.js
+│       │   └── nfService.js
+│       ├── controllers/
+│       │   ├── cepController.js
+│       │   └── nfController.js
+│       ├── routes/
+│       │   ├── index.js
+│       │   ├── cepRoutes.js
+│       │   └── nfRoutes.js
+│       ├── models/         # (preparado)
+│       ├── middlewares/    # (preparado)
+│       └── utils/          # (preparado)
 │
 ├── frontend/
 │   ├── src/
@@ -158,14 +217,19 @@ Benny/
 │   │   │   ├── OrcamentoPublico.jsx
 │   │   │   ├── OrdensServico.jsx
 │   │   │   ├── OSForm.jsx
-│   │   │   └── OSDetalhes.jsx
+│   │   │   ├── OSDetalhes.jsx       # 🆕 Com geração de NF
+│   │   │   ├── Agendamentos.jsx     # 🆕
+│   │   │   └── ContasPagar.jsx      # 🆕
 │   │   │
 │   │   ├── components/    # Componentes reutilizáveis
 │   │   │   ├── AdvancedFilters.jsx
 │   │   │   ├── AuditHistory.jsx
+│   │   │   ├── BuscaCEP.jsx         # 🆕
 │   │   │   ├── ConfirmDialog.jsx
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── Logo.jsx
+│   │   │   ├── NovoClienteModal.jsx # 🔄 Atualizado com CEP
+│   │   │   ├── NotificacoesWidget.jsx # 🆕
 │   │   │   ├── OSImpressao.jsx
 │   │   │   ├── Pagination.jsx
 │   │   │   ├── SearchBar.jsx
@@ -230,10 +294,48 @@ Benny/
 
 ### Ordens de Serviço
 
+### Ordens de Serviço
+
 - `GET /api/ordens-servico` - Listar (com filtros)
 - `GET /api/ordens-servico/:id` - Buscar por ID
 - `POST /api/ordens-servico` - Criar
 - `PUT /api/ordens-servico/:id` - Atualizar status
+
+### 📄 Notas Fiscais 🆕
+
+- `POST /api/notas-fiscais/gerar/:osId` - Gerar NF para OS
+- `GET /api/notas-fiscais` - Listar todas
+- `GET /api/notas-fiscais/:id` - Buscar por ID
+- `PUT /api/notas-fiscais/:id/cancelar` - Cancelar NF
+
+### 📅 Agendamentos 🆕
+
+- `GET /api/agendamentos` - Listar (com filtros)
+- `GET /api/agendamentos/:id` - Buscar por ID
+- `POST /api/agendamentos` - Criar
+- `PUT /api/agendamentos/:id` - Atualizar
+- `DELETE /api/agendamentos/:id` - Deletar
+- `GET /api/agendamentos/conflitos` - Verificar conflitos
+- `POST /api/agendamentos/:id/reagendar` - Reagendar
+
+### 💳 Contas a Pagar 🆕
+
+- `GET /api/contas-pagar` - Listar (com filtros)
+- `GET /api/contas-pagar/:id` - Buscar por ID
+- `POST /api/contas-pagar` - Criar
+- `PUT /api/contas-pagar/:id` - Atualizar
+- `DELETE /api/contas-pagar/:id` - Deletar
+- `POST /api/contas-pagar/:id/pagar` - Marcar como paga
+
+### 🔔 Lembretes 🆕
+
+- `GET /api/lembretes` - Listar (com filtros)
+- `GET /api/lembretes/nao-lidos` - Não lidos
+- `PUT /api/lembretes/:id/lido` - Marcar como lido
+
+### 🏠 CEP 🆕
+
+- `GET /api/cep/:cep` - Buscar endereço por CEP
 
 ### Relatórios
 
@@ -251,6 +353,35 @@ Benny/
 - `GET /api/auditoria/ordens-servico/:id` - Histórico de OS
 - `GET /api/auditoria/orcamentos/:id` - Histórico de orçamento
 
+## 🛠️ Tecnologias Utilizadas
+
+### Backend
+
+- **Node.js** 18+ com Express.js
+- **PostgreSQL** (Neon) com pool de conexões
+- **Winston** para logging estruturado
+- **node-schedule** para tarefas agendadas (backups, lembretes)
+- **node-cache** para cache em memória
+- **WebSocket (ws)** para notificações em tempo real
+- **axios** para integração com APIs externas (ViaCEP)
+- **express-validator** para validação de dados
+- **compression** para otimização
+
+### Frontend
+
+- **React 18** com Vite
+- **React Router v6** para navegação
+- **TailwindCSS** para estilização
+- **date-fns** para manipulação de datas
+- **react-hot-toast** para notificações
+- **react-to-print** para impressão
+- **recharts** para gráficos
+- **jsPDF** para exportação de PDFs
+
+### APIs Externas
+
+- **ViaCEP** - Busca de endereços brasileiros
+
 ## 🔒 Segurança
 
 - Variáveis de ambiente para credenciais
@@ -259,6 +390,7 @@ Benny/
 - Sanitização de inputs
 - CORS configurado
 - Logs de auditoria
+- WebSocket com validação
 
 ## 🧪 Testes
 
@@ -269,8 +401,6 @@ cd backend
 npm test
 ```
 
-Taxa de sucesso: **97.1% (33/34 testes)**
-
 ## 🎯 Próximas Melhorias
 
 - [ ] Autenticação de usuários (JWT)
@@ -279,8 +409,19 @@ Taxa de sucesso: **97.1% (33/34 testes)**
 - [ ] Integração com pagamento online
 - [ ] App mobile (React Native)
 - [ ] Impressão de múltiplas OS
-- [ ] Relatórios avançados
+- [ ] Relatórios avançados em PDF
 - [ ] Backup em nuvem (S3)
+- [ ] ✅ Sistema de agendamentos (Concluído)
+- [ ] ✅ Contas a pagar (Concluído)
+- [ ] ✅ Busca de CEP (Concluído)
+- [ ] ✅ Geração de NF (Concluído)
+- [ ] 🚧 Migração completa para MVC (Em andamento)
+
+## 📚 Documentação Adicional
+
+- [📄 NOVAS_FUNCIONALIDADES.md](NOVAS_FUNCIONALIDADES.md) - Documentação detalhada das novas features
+- [📖 GUIA_MIGRACAO_MVC.md](GUIA_MIGRACAO_MVC.md) - Guia completo de migração para MVC
+- [📋 FUNCIONALIDADES_AGENDAMENTOS.md](FUNCIONALIDADES_AGENDAMENTOS.md) - Sistema de agendamentos e contas
 
 ## 📄 Licença
 

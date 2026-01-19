@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
+import toast from "react-hot-toast";
 import api from "../services/api";
 import OSImpressao from "../components/OSImpressao";
+import Modal from "../components/Modal";
 
 export default function OSDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [os, setOS] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notaFiscal, setNotaFiscal] = useState(null);
+  const [showNFModal, setShowNFModal] = useState(false);
+  const [gerandoNF, setGerandoNF] = useState(false);
   const componentRef = useRef();
 
   useEffect(() => {
@@ -19,9 +24,22 @@ export default function OSDetalhes() {
     try {
       const response = await api.get(`/ordens-servico/${id}`);
       setOS(response.data);
+
+      // Verificar se já existe NF para esta OS
+      if (response.data.nf_id) {
+        try {
+          const nfResponse = await api.get(
+            `/notas-fiscais/${response.data.nf_id}`
+          );
+          setNotaFiscal(nfResponse.data);
+        } catch (error) {
+          console.error("Erro ao carregar nota fiscal:", error);
+        }
+      }
+
       setLoading(false);
     } catch (error) {
-      alert("Erro ao carregar OS");
+      toast.error("Erro ao carregar OS");
       navigate("/ordens-servico");
     }
   };
@@ -32,10 +50,37 @@ export default function OSDetalhes() {
         status: novoStatus,
         responsavel_tecnico: os.responsavel_tecnico,
       });
-      alert("Status atualizado com sucesso!");
+      toast.success("Status atualizado com sucesso!");
       carregarOS();
     } catch (error) {
-      alert("Erro ao atualizar status");
+      toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const handleGerarNF = async () => {
+    if (os.status !== "Finalizada") {
+      toast.error("A OS precisa estar finalizada para gerar a Nota Fiscal");
+      return;
+    }
+
+    if (notaFiscal) {
+      toast.info("Esta OS já possui uma Nota Fiscal emitida");
+      setShowNFModal(true);
+      return;
+    }
+
+    try {
+      setGerandoNF(true);
+      const response = await api.post(`/notas-fiscais/gerar/${id}`);
+      const { message, nf } = response.data;
+      setNotaFiscal(nf);
+      setShowNFModal(true);
+      toast.success(message || "Nota Fiscal gerada com sucesso!");
+      carregarOS(); // Recarregar para atualizar o nf_id
+    } catch (error) {
+      toast.error(error.response?.data?.erro || error.response?.data?.message || "Erro ao gerar Nota Fiscal");
+    } finally {
+      setGerandoNF(false);
     }
   };
 
@@ -77,6 +122,23 @@ export default function OSDetalhes() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            {os.status === "Finalizada" && !notaFiscal && (
+              <button
+                onClick={handleGerarNF}
+                disabled={gerandoNF}
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                {gerandoNF ? "⏳ Gerando..." : "📄 Gerar NF"}
+              </button>
+            )}
+            {notaFiscal && (
+              <button
+                onClick={() => setShowNFModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2"
+              >
+                📄 Ver NF #{notaFiscal.numero}
+              </button>
+            )}
             {os.status === "Aberta" && (
               <button
                 onClick={() => handleAtualizarStatus("Em andamento")}
@@ -404,6 +466,165 @@ export default function OSDetalhes() {
 
       {/* Componente de Impressão (oculto) */}
       <OSImpressao ref={componentRef} os={os} />
+
+      {/* Modal de Nota Fiscal */}
+      {notaFiscal && (
+        <Modal
+          isOpen={showNFModal}
+          onClose={() => setShowNFModal(false)}
+          title={`Nota Fiscal Nº ${notaFiscal.numero}`}
+          size="lg"
+        >
+          <div className="space-y-6">
+            {/* Informações da NF */}
+            <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  Número NF:
+                </span>
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  {notaFiscal.numero}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  Data de Emissão:
+                </span>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {new Date(notaFiscal.data_emissao).toLocaleDateString(
+                    "pt-BR"
+                  )}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  OS:
+                </span>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {os.numero}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  Cliente:
+                </span>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {os.cliente_nome}
+                </p>
+              </div>
+            </div>
+
+            {/* Valores */}
+            <div className="space-y-3">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                Valores e Tributos
+              </h3>
+
+              <div className="space-y-2">
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Valor Base:
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    {formatarMoeda(notaFiscal.valor_base)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    ICMS (18%):
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {formatarMoeda(notaFiscal.valor_icms)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    ISS (5%):
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {formatarMoeda(notaFiscal.valor_iss)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    PIS (1.65%):
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {formatarMoeda(notaFiscal.valor_pis)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    COFINS (7.6%):
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {formatarMoeda(notaFiscal.valor_cofins)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg px-3 mt-3">
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    Valor Total da NF:
+                  </span>
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatarMoeda(notaFiscal.valor_total)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Observações da NF */}
+            {notaFiscal.observacoes && (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <h4 className="font-semibold text-gray-800 dark:text-white mb-2">
+                  Observações:
+                </h4>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  {notaFiscal.observacoes}
+                </p>
+              </div>
+            )}
+
+            {/* Status da NF */}
+            <div className="flex items-center justify-center gap-2 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <span className="text-2xl">✓</span>
+              <span className="font-bold text-green-700 dark:text-green-400">
+                Nota Fiscal Emitida com Sucesso
+              </span>
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="flex gap-3 pt-4">
+              {notaFiscal.pdf_path && (
+                <a
+                  href={`/api/storage/${notaFiscal.pdf_path.replace("storage/", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl hover:shadow-lg transition-all font-semibold text-center"
+                >
+                  🔗 Abrir Resumo (Manual)
+                </a>
+              )}
+              <button
+                onClick={() => window.print()}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+              >
+                🖨️ Imprimir NF
+              </button>
+              <button
+                onClick={() => setShowNFModal(false)}
+                className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-semibold"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

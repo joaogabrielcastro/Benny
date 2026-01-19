@@ -55,11 +55,14 @@ const Select = forwardRef(
           {...props}
         >
           <option value="">{placeholder}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
+          {/* Support both: options prop (array) or explicit children <option> elements */}
+          {props.children
+            ? props.children
+            : options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
         </select>
         {hasError && helperText && (
           <p className="mt-1 text-sm text-red-600 dark:text-red-400">

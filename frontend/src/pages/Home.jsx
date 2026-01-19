@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../services/api";
+import { FiBell, FiCalendar, FiDollarSign } from "react-icons/fi";
+import { formatarData, formatarMoeda } from "../utils/formatters";
 
 export default function Home() {
   const [stats, setStats] = useState({
@@ -8,26 +10,39 @@ export default function Home() {
     orcamentosPendentes: 0,
     estoqueBaixo: 0,
   });
+  const [lembretes, setLembretes] = useState([]);
+  const [agendamentosHoje, setAgendamentosHoje] = useState([]);
+  const [alertasContas, setAlertasContas] = useState({
+    vencidas: [],
+    aVencer: [],
+  });
 
   useEffect(() => {
-    carregarEstatisticas();
+    carregarDados();
   }, []);
 
-  const carregarEstatisticas = async () => {
+  const carregarDados = async () => {
     try {
-      const [osRes, orcRes, estRes] = await Promise.all([
-        api.get("/ordens-servico?status=Aberta"),
-        api.get("/orcamentos?status=Pendente"),
-        api.get("/produtos/alertas/estoque-baixo"),
-      ]);
+      const [osRes, orcRes, estRes, lembretesRes, agendHojeRes, contasRes] =
+        await Promise.all([
+          api.get("/ordens-servico?status=Aberta"),
+          api.get("/orcamentos?status=Pendente"),
+          api.get("/produtos/alertas/estoque-baixo"),
+          api.get("/lembretes/hoje"),
+          api.get("/agendamentos/hoje/lista"),
+          api.get("/contas-pagar/alertas/resumo"),
+        ]);
 
       setStats({
         osAbertas: osRes.data.length,
         orcamentosPendentes: orcRes.data.length,
         estoqueBaixo: estRes.data.length,
       });
+      setLembretes(lembretesRes.data);
+      setAgendamentosHoje(agendHojeRes.data);
+      setAlertasContas(contasRes.data);
     } catch (error) {
-      console.error("Erro ao carregar estatísticas:", error);
+      console.error("Erro ao carregar dados:", error);
     }
   };
 
@@ -91,6 +106,110 @@ export default function Home() {
           link="/estoque"
           color="purple"
         />
+      </div>
+
+      {/* Alertas e Lembretes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Agendamentos de Hoje */}
+        {agendamentosHoje.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FiCalendar className="text-blue-600 dark:text-blue-400 text-xl" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Agendamentos de Hoje
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {agendamentosHoje.slice(0, 3).map((agend) => (
+                <div
+                  key={agend.id}
+                  className="flex justify-between items-start p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {agend.cliente_nome}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {agend.tipo_servico}
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                    {agend.hora_inicio}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {agendamentosHoje.length > 3 && (
+              <Link
+                to="/agendamentos"
+                className="block mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline text-center"
+              >
+                Ver todos os agendamentos →
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Contas a Pagar */}
+        {(alertasContas.vencidas.length > 0 ||
+          alertasContas.aVencer.length > 0) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FiDollarSign className="text-red-600 dark:text-red-400 text-xl" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Contas para Pagar
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {alertasContas.vencidas.slice(0, 2).map((conta) => (
+                <div
+                  key={conta.id}
+                  className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {conta.descricao}
+                      </p>
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        Vencida em {formatarData(conta.data_vencimento)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                      {formatarMoeda(conta.valor)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {alertasContas.aVencer.slice(0, 2).map((conta) => (
+                <div
+                  key={conta.id}
+                  className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
+                        {conta.descricao}
+                      </p>
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                        Vence em {formatarData(conta.data_vencimento)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
+                      {formatarMoeda(conta.valor)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Link
+              to="/contas-pagar"
+              className="block mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline text-center"
+            >
+              Ver todas as contas →
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

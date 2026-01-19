@@ -2,6 +2,7 @@ import { useState } from "react";
 import Modal from "./Modal";
 import Input from "./Input";
 import Button from "./Button";
+import BuscaCEP from "./BuscaCEP";
 import {
   validarCPFouCNPJ,
   validarTelefone,
@@ -27,10 +28,25 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
     email: "",
     telefone: "",
     endereco: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
     cidade: "",
     estado: "",
     cep: "",
   });
+
+  const handleEnderecoEncontrado = (endereco) => {
+    setFormData({
+      ...formData,
+      cep: endereco.cep,
+      endereco: endereco.logradouro,
+      bairro: endereco.bairro,
+      cidade: endereco.cidade,
+      estado: endereco.estado,
+      complemento: endereco.complemento || "",
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,6 +81,9 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
       email: "",
       telefone: "",
       endereco: "",
+      numero: "",
+      complemento: "",
+      bairro: "",
       cidade: "",
       estado: "",
       cep: "",
@@ -187,16 +206,53 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
           />
         </div>
 
+        {/* Busca de CEP */}
+        <BuscaCEP onEnderecoEncontrado={handleEnderecoEncontrado} />
+
         {/* Endereço */}
         <Input
-          label="Endereço"
+          label="Endereço (Rua/Avenida)"
           value={formData.endereco}
           onChange={(e) =>
             setFormData({ ...formData, endereco: e.target.value })
           }
+          placeholder="Será preenchido automaticamente pelo CEP"
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Número */}
+          <Input
+            label="Número"
+            value={formData.numero}
+            onChange={(e) =>
+              setFormData({ ...formData, numero: e.target.value })
+            }
+            placeholder="123"
+          />
+
+          {/* Complemento */}
+          <Input
+            label="Complemento"
+            value={formData.complemento}
+            onChange={(e) =>
+              setFormData({ ...formData, complemento: e.target.value })
+            }
+            placeholder="Apto 45, Bloco B"
+            className="md:col-span-2"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Bairro */}
+          <Input
+            label="Bairro"
+            value={formData.bairro}
+            onChange={(e) =>
+              setFormData({ ...formData, bairro: e.target.value })
+            }
+            placeholder="Será preenchido automaticamente pelo CEP"
+          />
+
           {/* Cidade */}
           <Input
             label="Cidade"
@@ -204,7 +260,7 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
             onChange={(e) =>
               setFormData({ ...formData, cidade: e.target.value })
             }
-            className="md:col-span-2"
+            placeholder="Será preenchido automaticamente pelo CEP"
           />
 
           {/* Estado */}
@@ -218,14 +274,6 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
             placeholder="SP"
           />
         </div>
-
-        {/* CEP */}
-        <Input
-          label="CEP"
-          value={formData.cep}
-          onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
-          mask={mascaraCEP}
-        />
       </form>
     </Modal>
   );

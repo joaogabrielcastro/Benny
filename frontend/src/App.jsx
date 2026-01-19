@@ -13,6 +13,7 @@ import Logo from "./components/Logo";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ThemeToggle from "./components/ThemeToggle";
 import ErrorBoundary from "./components/ErrorBoundary";
+import NotificacoesWidget from "./components/NotificacoesWidget";
 
 // Lazy loading das páginas
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -24,6 +25,9 @@ const OrcamentoPublico = lazy(() => import("./pages/OrcamentoPublico"));
 const OrdensServico = lazy(() => import("./pages/OrdensServico"));
 const OSForm = lazy(() => import("./pages/OSForm"));
 const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
+const Agendamentos = lazy(() => import("./pages/Agendamentos"));
+const ContasPagar = lazy(() => import("./pages/ContasPagar"));
+const GatewayConfigs = lazy(() => import("./pages/GatewayConfigs"));
 
 function App() {
   return (
@@ -75,9 +79,13 @@ function App() {
                   <Route path="/ordens-servico" element={<OrdensServico />} />
                   <Route path="/ordens-servico/nova" element={<OSForm />} />
                   <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
+                  <Route path="/agendamentos" element={<Agendamentos />} />
+                  <Route path="/contas-pagar" element={<ContasPagar />} />
+                  {/* <Route path="/gateway-configs" element={<GatewayConfigs />} /> */}
                 </Routes>
               </Suspense>
             </main>
+            <ConditionalNotifications />
           </div>
         </Router>
       </ThemeProvider>
@@ -94,6 +102,17 @@ function ConditionalNavigation() {
   }
 
   return <Navigation />;
+}
+
+function ConditionalNotifications() {
+  const location = useLocation();
+
+  // Não mostrar notificações na página pública
+  if (location.pathname.startsWith("/orcamento-publico")) {
+    return null;
+  }
+
+  return <NotificacoesWidget />;
 }
 
 function Navigation() {
@@ -129,11 +148,20 @@ function Navigation() {
               Dashboard
             </NavLink>
             <NavLink to="/ordens-servico" active={isActive("/ordens-servico")}>
-              Ordens de Serviço
+              OS
             </NavLink>
             <NavLink to="/orcamentos" active={isActive("/orcamentos")}>
               Orçamentos
             </NavLink>
+            <NavLink to="/agendamentos" active={isActive("/agendamentos")}>
+              Agenda
+            </NavLink>
+            <NavLink to="/contas-pagar" active={isActive("/contas-pagar")}>
+              Contas
+            </NavLink>
+            {/* <NavLink to="/gateway-configs" active={isActive("/gateway-configs")}> 
+              Gateways
+            </NavLink> */}
             <NavLink to="/estoque" active={isActive("/estoque")}>
               Estoque
             </NavLink>

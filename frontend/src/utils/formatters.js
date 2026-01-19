@@ -12,3 +12,12 @@ export const formatarData = (data) => {
 export const formatarDataHora = (data) => {
   return new Date(data).toLocaleString("pt-BR");
 };
+
+export const formatarHora = (data) => {
+  if (!data) return "";
+  const dateObj = new Date(data);
+  return dateObj.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};

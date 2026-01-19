@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import React, { forwardRef } from "react";
 
 const Button = forwardRef(
   (
@@ -33,9 +33,9 @@ const Button = forwardRef(
       warning:
         "bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500 dark:bg-yellow-500 dark:hover:bg-yellow-600",
       outline:
-        "border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-gray-500",
+        "border-2 border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500 dark:border-gray-500 dark:text-white dark:hover:bg-gray-800",
       ghost:
-        "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:ring-gray-500",
+        "text-gray-700 hover:bg-gray-100 focus:ring-gray-500 dark:text-gray-200 dark:hover:bg-gray-800",
     };
 
     const sizes = {
@@ -46,14 +46,78 @@ const Button = forwardRef(
 
     const widthClass = fullWidth ? "w-full" : "";
 
+    // Não repassar a prop 'icon' para o DOM
+    const { icon, ...restProps } = props;
+
+    const isIconOnly =
+      React.Children.count(children) === 0 && (leftIcon || rightIcon || icon);
+    const iconOnlyBase =
+      "inline-flex items-center justify-center rounded-full h-8 w-8 p-1 shadow-sm";
+
+    const iconVariantStyles = {
+      primary:
+        "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600",
+      secondary:
+        "bg-gray-700 text-white hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500",
+      success: "bg-green-500 text-white hover:bg-green-600",
+      danger: "bg-red-500 text-white hover:bg-red-600",
+      warning: "bg-yellow-500 text-white hover:bg-yellow-600",
+      outline:
+        "bg-transparent border-2 border-gray-600 text-gray-200 hover:bg-gray-700 dark:border-gray-500",
+      ghost: "bg-gray-800 text-gray-200 hover:bg-gray-700",
+    };
+
+    // Emoji/fallback text para botões somente-ícone — melhora contraste e legibilidade
+    const getIconName = (ic) => {
+      if (!ic) return "";
+      return ic.displayName || ic.name || "";
+    };
+
+    const iconCandidate = leftIcon || icon || null;
+    const iconName = getIconName(iconCandidate).toLowerCase();
+
+    const emojiMap = {
+      trash: "🗑️",
+      delete: "🗑️",
+      check: "✔️",
+      plus: "➕",
+      add: "➕",
+      edit: "✏️",
+      pencil: "✏️",
+      search: "🔍",
+      calendar: "📅",
+      clock: "🕒",
+      dollar: "💲",
+    };
+
+    let emoji = "";
+    for (const key in emojiMap) {
+      if (iconName.includes(key)) {
+        emoji = emojiMap[key];
+        break;
+      }
+    }
+    if (!emoji) {
+      if (variant === "success") emoji = "✅";
+      else if (variant === "danger") emoji = "❌";
+      else if (variant === "warning") emoji = "⚠️";
+      else emoji = "";
+    }
+
     return (
       <button
         ref={ref}
         type={type}
         disabled={disabled || loading}
         onClick={onClick}
-        className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${widthClass} ${className}`}
-        {...props}
+        className={`${baseClasses} ${
+          isIconOnly
+            ? `${iconOnlyBase} ${
+                iconVariantStyles[variant] || variants[variant]
+              }`
+            : `${variants[variant]} ${sizes[size]}`
+        } ${widthClass} ${className}`}
+        {...restProps}
       >
         {loading ? (
           <>
@@ -81,7 +145,13 @@ const Button = forwardRef(
           </>
         ) : (
           <>
-            {leftIcon && <span>{leftIcon}</span>}
+            {isIconOnly ? (
+              <span aria-hidden className="text-sm">
+                {emoji || (leftIcon || icon)}
+              </span>
+            ) : (
+              (leftIcon || icon) && <span>{leftIcon || icon}</span>
+            )}
             {children}
             {rightIcon && <span>{rightIcon}</span>}
           </>
