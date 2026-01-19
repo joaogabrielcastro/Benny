@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 
 export default function OrcamentoPublico() {
   const { id } = useParams();
@@ -14,10 +14,11 @@ export default function OrcamentoPublico() {
 
   const carregarOrcamento = async () => {
     try {
-      const response = await axios.get(`/api/orcamentos/publico/${id}`);
+      const response = await api.get(`/orcamentos/publico/${id}`);
       setOrcamento(response.data);
       setLoading(false);
     } catch (error) {
+      console.error("Erro ao carregar orçamento:", error);
       alert("Erro ao carregar orçamento");
       setLoading(false);
     }
@@ -28,7 +29,7 @@ export default function OrcamentoPublico() {
 
     setEnviando(true);
     try {
-      await axios.put(`/api/orcamentos/publico/${id}/aprovar`);
+      await api.put(`/orcamentos/publico/${id}/aprovar`);
       alert("Orçamento aprovado com sucesso! Em breve entraremos em contato.");
       carregarOrcamento();
     } catch (error) {
@@ -43,7 +44,7 @@ export default function OrcamentoPublico() {
 
     setEnviando(true);
     try {
-      await axios.put(`/api/orcamentos/publico/${id}/reprovar`);
+      await api.put(`/orcamentos/publico/${id}/reprovar`);
       alert(
         "Orçamento reprovado. Entraremos em contato para mais informações."
       );

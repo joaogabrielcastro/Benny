@@ -78,6 +78,7 @@ function App() {
                   />
                   <Route path="/ordens-servico" element={<OrdensServico />} />
                   <Route path="/ordens-servico/nova" element={<OSForm />} />
+                  <Route path="/ordens-servico/:id/editar" element={<OSForm />} />
                   <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
                   <Route path="/agendamentos" element={<Agendamentos />} />
                   <Route path="/contas-pagar" element={<ContasPagar />} />

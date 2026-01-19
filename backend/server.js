@@ -257,18 +257,88 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
   }
 });
 
+// Produtos com estoque baixo (DEVE VIR ANTES DE /:id)
+app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Rota de diagnóstico para verificar produtos problemáticos
+app.get("/api/produtos/diagnostico/verificar", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, codigo, nome, 
+              CASE WHEN descricao IS NULL THEN 'NULL' ELSE 'OK' END as descricao_status,
+              quantidade, valor_custo, valor_venda, estoque_minimo
+       FROM produtos 
+       ORDER BY id`
+    );
+    
+    const problemProducts = result.rows.filter(p => 
+      p.quantidade === null || 
+      p.valor_venda === null || 
+      p.codigo === null ||
+      p.nome === null
+    );
+    
+    res.json({
+      total: result.rows.length,
+      problemProducts: problemProducts,
+      allProducts: result.rows
+    });
+  } catch (error) {
+    logger.error("Erro no diagnóstico:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Buscar produto por ID
 app.get("/api/produtos/:id", async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query("SELECT * FROM produtos WHERE id = $1", [
-      req.params.id,
-    ]);
+    const { id } = req.params;
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    
+    const result = await client.query(
+      `SELECT id, 
+              COALESCE(codigo, '') as codigo, 
+              COALESCE(nome, '') as nome, 
+              COALESCE(descricao, '') as descricao, 
+              COALESCE(quantidade, 0)::numeric as quantidade, 
+              COALESCE(valor_custo, 0)::numeric as valor_custo, 
+              COALESCE(valor_venda, 0)::numeric as valor_venda, 
+              COALESCE(estoque_minimo, 0)::numeric as estoque_minimo, 
+              criado_em, atualizado_em 
+       FROM produtos WHERE id = $1::integer`,
+      [id]
+    );
+    
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Produto não encontrado" });
     }
+    
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    logger.error(`Erro ao buscar produto ${req.params.id}:`, {
+      message: error.message,
+      code: error.code
+    });
+    
+    res.status(500).json({ 
+      error: "Erro ao buscar produto",
+      message: error.message
+    });
+  } finally {
+    client.release();
   }
 });
 
@@ -1432,7 +1502,16 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const { status, responsavel_tecnico } = req.body;
+    const {
+      status,
+      responsavel_tecnico,
+      km,
+      previsao_entrega,
+      observacoes_veiculo,
+      observacoes_gerais,
+      produtos,
+      servicos,
+    } = req.body;
 
     // Buscar dados anteriores para auditoria
     const dadosAnteriores = await client.query(

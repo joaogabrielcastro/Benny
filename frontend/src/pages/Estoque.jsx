@@ -24,40 +24,51 @@ export default function Estoque() {
 
     // Conectar WebSocket
     const conectarWebSocket = () => {
-      // Detecta automaticamente: localhost em dev, wss em produção
-      const wsUrl =
-        window.location.hostname === "localhost"
-          ? "ws://localhost:3001"
-          : "wss://benny-oh3g.onrender.com";
+      try {
+        // Detecta automaticamente: localhost em dev, wss em produção
+        const wsUrl =
+          window.location.hostname === "localhost"
+            ? "ws://localhost:3001"
+            : "wss://benny-oh3g.onrender.com";
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        console.log("[ESTOQUE] WebSocket conectado");
-      };
+        ws.onopen = () => {
+          console.log("[ESTOQUE] WebSocket conectado");
+        };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log("[ESTOQUE] Mensagem recebida:", data);
-          if (data.type === "estoque_atualizado") {
-            console.log("[ESTOQUE] Recarregando produtos instantaneamente...");
-            carregarProdutos();
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log("[ESTOQUE] Mensagem recebida:", data);
+            if (data.type === "estoque_atualizado") {
+              console.log("[ESTOQUE] Recarregando produtos instantaneamente...");
+              carregarProdutos();
+            }
+          } catch (error) {
+            console.error("[ESTOQUE] Erro ao processar mensagem:", error);
           }
-        } catch (error) {
-          console.error("[ESTOQUE] Erro ao processar mensagem:", error);
-        }
-      };
+        };
 
-      ws.onerror = (error) => {
-        console.error("[ESTOQUE] Erro WebSocket:", error);
-      };
+        ws.onerror = (error) => {
+          console.warn("[ESTOQUE] WebSocket não disponível, usando polling:", error);
+          // Não reconectar se der erro
+          if (wsRef.current) {
+            wsRef.current = null;
+          }
+        };
 
-      ws.onclose = () => {
-        console.log("[ESTOQUE] WebSocket desconectado, reconectando em 3s...");
-        setTimeout(conectarWebSocket, 3000);
-      };
+        ws.onclose = () => {
+          console.log("[ESTOQUE] WebSocket desconectado");
+          // Só reconectar se não foi por erro
+          if (wsRef.current) {
+            setTimeout(conectarWebSocket, 5000);
+          }
+        };
+      } catch (error) {
+        console.warn("[ESTOQUE] WebSocket não suportado, continuando sem updates em tempo real");
+      }
     };
 
     conectarWebSocket();

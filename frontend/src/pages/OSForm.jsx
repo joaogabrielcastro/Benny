@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 
 export default function OSForm() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const modoEdicao = !!id;
   const [clientes, setClientes] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [mostrarClienteForm, setMostrarClienteForm] = useState(false);
   const [mostrarVeiculoForm, setMostrarVeiculoForm] = useState(false);
+  const [carregando, setCarregando] = useState(modoEdicao);
 
   const [formData, setFormData] = useState({
     cliente_id: "",
@@ -19,6 +22,7 @@ export default function OSForm() {
     observacoes_veiculo: "",
     observacoes_gerais: "",
     responsavel_tecnico: "",
+    status: "Aberta",
   });
 
   const [itensProdutos, setItensProdutos] = useState([]);
@@ -27,6 +31,9 @@ export default function OSForm() {
   useEffect(() => {
     carregarClientes();
     carregarProdutos();
+    if (modoEdicao) {
+      carregarOS();
+    }
   }, []);
 
   useEffect(() => {
@@ -62,6 +69,56 @@ export default function OSForm() {
       );
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
+    }
+  };
+
+  const carregarOS = async () => {
+    try {
+      setCarregando(true);
+      const response = await api.get(`/ordens-servico/${id}`);
+      const os = response.data;
+      
+      setFormData({
+        cliente_id: os.cliente_id,
+        veiculo_id: os.veiculo_id,
+        km: os.km || "",
+        previsao_entrega: os.previsao_entrega ? os.previsao_entrega.split('T')[0] : "",
+        observacoes_veiculo: os.observacoes_veiculo || "",
+        observacoes_gerais: os.observacoes_gerais || "",
+        responsavel_tecnico: os.responsavel_tecnico || "",
+        status: os.status || "Aberta",
+      });
+
+      if (os.cliente_id) {
+        await carregarVeiculos(os.cliente_id);
+      }
+
+      if (os.produtos && os.produtos.length > 0) {
+        setItensProdutos(os.produtos.map(p => ({
+          produto_id: p.produto_id || "",
+          codigo: p.codigo,
+          descricao: p.descricao,
+          quantidade: p.quantidade,
+          valor_unitario: p.valor_unitario,
+          valor_total: p.valor_total,
+        })));
+      }
+
+      if (os.servicos && os.servicos.length > 0) {
+        setItensServicos(os.servicos.map(s => ({
+          codigo: s.codigo,
+          descricao: s.descricao,
+          quantidade: s.quantidade,
+          valor_unitario: s.valor_unitario,
+          valor_total: s.valor_total,
+        })));
+      }
+
+      setCarregando(false);
+    } catch (error) {
+      console.error("Erro ao carregar OS:", error);
+      alert("Erro ao carregar OS");
+      navigate("/ordens-servico");
     }
   };
 
@@ -198,12 +255,18 @@ export default function OSForm() {
         servicos: itensServicos,
       };
 
-      const response = await api.post("/ordens-servico", dados);
-      alert("OS criada com sucesso!");
-      navigate(`/ordens-servico/${response.data.id}`);
+      if (modoEdicao) {
+        await api.put(`/ordens-servico/${id}`, dados);
+        alert("OS atualizada com sucesso!");
+        navigate(`/ordens-servico/${id}`);
+      } else {
+        const response = await api.post("/ordens-servico", dados);
+        alert("OS criada com sucesso!");
+        navigate(`/ordens-servico/${response.data.id}`);
+      }
     } catch (error) {
       alert(
-        "Erro ao criar OS: " + (error.response?.data?.error || error.message)
+        `Erro ao ${modoEdicao ? 'atualizar' : 'criar'} OS: ` + (error.response?.data?.error || error.message)
       );
     }
   };
@@ -212,11 +275,16 @@ export default function OSForm() {
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Nova Ordem de Serviço
+          {modoEdicao ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {carregando ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
         {/* Dados do Cliente e Veículo */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
@@ -651,10 +719,11 @@ export default function OSForm() {
             type="submit"
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
-            Salvar OS
+            {modoEdicao ? "Atualizar OS" : "Salvar OS"}
           </button>
         </div>
       </form>
+      )}
 
       {/* Modais */}
       {mostrarClienteForm && (
