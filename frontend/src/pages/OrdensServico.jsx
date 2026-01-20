@@ -160,7 +160,7 @@ export default function OrdensServico() {
         </h1>
         <div className="flex gap-3">
           <Link
-            to="/ordens-servico/nova"
+            to="/orcamentos/novo"
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             + Nova OS
