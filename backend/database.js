@@ -44,6 +44,19 @@ async function initDatabase() {
       )
     `);
 
+    // Tabela de Serviços (catálogo)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS servicos (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(50) NOT NULL UNIQUE,
+        nome VARCHAR(255) NOT NULL,
+        descricao TEXT,
+        valor_unitario DECIMAL(10,2) DEFAULT 0,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Garantir colunas de recorrência em bancos existentes
     await client.query(
       `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`,

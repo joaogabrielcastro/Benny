@@ -261,7 +261,7 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
 app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade"
+      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade",
     );
     res.json(result.rows);
   } catch (error) {
@@ -277,20 +277,21 @@ app.get("/api/produtos/diagnostico/verificar", async (req, res) => {
               CASE WHEN descricao IS NULL THEN 'NULL' ELSE 'OK' END as descricao_status,
               quantidade, valor_custo, valor_venda, estoque_minimo
        FROM produtos 
-       ORDER BY id`
+       ORDER BY id`,
     );
-    
-    const problemProducts = result.rows.filter(p => 
-      p.quantidade === null || 
-      p.valor_venda === null || 
-      p.codigo === null ||
-      p.nome === null
+
+    const problemProducts = result.rows.filter(
+      (p) =>
+        p.quantidade === null ||
+        p.valor_venda === null ||
+        p.codigo === null ||
+        p.nome === null,
     );
-    
+
     res.json({
       total: result.rows.length,
       problemProducts: problemProducts,
-      allProducts: result.rows
+      allProducts: result.rows,
     });
   } catch (error) {
     logger.error("Erro no diagnóstico:", error);
@@ -303,11 +304,11 @@ app.get("/api/produtos/:id", async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    
+
     if (isNaN(id)) {
       return res.status(400).json({ error: "ID inválido" });
     }
-    
+
     const result = await client.query(
       `SELECT id, 
               COALESCE(codigo, '') as codigo, 
@@ -319,23 +320,23 @@ app.get("/api/produtos/:id", async (req, res) => {
               COALESCE(estoque_minimo, 0)::numeric as estoque_minimo, 
               criado_em, atualizado_em 
        FROM produtos WHERE id = $1::integer`,
-      [id]
+      [id],
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Produto não encontrado" });
     }
-    
+
     res.json(result.rows[0]);
   } catch (error) {
     logger.error(`Erro ao buscar produto ${req.params.id}:`, {
       message: error.message,
-      code: error.code
+      code: error.code,
     });
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: "Erro ao buscar produto",
-      message: error.message
+      message: error.message,
     });
   } finally {
     client.release();
@@ -451,6 +452,80 @@ app.delete("/api/produtos/:id", async (req, res) => {
     res.json({ message: "Produto deletado com sucesso" });
   } catch (error) {
     logger.error("Erro ao deletar produto:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ROTAS - SERVIÇOS
+// ============================================
+
+// Listar serviços
+app.get("/api/servicos", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM servicos ORDER BY nome");
+    res.json(result.rows);
+  } catch (error) {
+    logger.error("Erro ao listar serviços:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Buscar serviço por ID
+app.get("/api/servicos/:id", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM servicos WHERE id = $1", [
+      req.params.id,
+    ]);
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Serviço não encontrado" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    logger.error(`Erro ao buscar serviço ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar serviço
+app.post("/api/servicos", async (req, res) => {
+  try {
+    const { codigo, nome, descricao, valor_unitario } = req.body;
+    const result = await pool.query(
+      `INSERT INTO servicos (codigo, nome, descricao, valor_unitario) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [codigo, nome, descricao, valor_unitario || 0],
+    );
+    logger.info(`Serviço criado: ${result.rows[0].id}`);
+    res
+      .status(201)
+      .json({ servico: result.rows[0], message: "Serviço criado" });
+  } catch (error) {
+    logger.error("Erro ao criar serviço:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar serviço
+app.put("/api/servicos/:id", async (req, res) => {
+  try {
+    const { codigo, nome, descricao, valor_unitario } = req.body;
+    const result = await pool.query(
+      `UPDATE servicos SET codigo=$1, nome=$2, descricao=$3, valor_unitario=$4, atualizado_em=CURRENT_TIMESTAMP WHERE id=$5 RETURNING *`,
+      [codigo, nome, descricao, valor_unitario || 0, req.params.id],
+    );
+    res.json({ servico: result.rows[0], message: "Serviço atualizado" });
+  } catch (error) {
+    logger.error(`Erro ao atualizar serviço ${req.params.id}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deletar serviço
+app.delete("/api/servicos/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM servicos WHERE id = $1", [req.params.id]);
+    res.json({ message: "Serviço deletado com sucesso" });
+  } catch (error) {
+    logger.error(`Erro ao deletar serviço ${req.params.id}:`, error);
     res.status(500).json({ error: error.message });
   }
 });

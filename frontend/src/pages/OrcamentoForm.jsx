@@ -8,6 +8,8 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import { showSuccess, showError, showPromise } from "../utils/toast.jsx";
 import { validarNumeroPositivo } from "../utils/validators";
+import ProdutoFormModal from "../components/ProdutoFormModal";
+import ServicoFormModal from "../components/ServicoFormModal";
 
 export default function OrcamentoForm() {
   const navigate = useNavigate();
@@ -29,10 +31,16 @@ export default function OrcamentoForm() {
 
   const [itensProdutos, setItensProdutos] = useState([]);
   const [itensServicos, setItensServicos] = useState([]);
+  const [mostrarProdutoModal, setMostrarProdutoModal] = useState(false);
+  const [produtoModalIndex, setProdutoModalIndex] = useState(null);
+  const [mostrarServicoModal, setMostrarServicoModal] = useState(false);
+  const [servicoModalIndex, setServicoModalIndex] = useState(null);
+  const [servicos, setServicos] = useState([]);
 
   useEffect(() => {
     carregarClientes();
     carregarProdutos();
+    carregarServicos();
   }, []);
 
   useEffect(() => {
@@ -71,10 +79,19 @@ export default function OrcamentoForm() {
       const response = await api.get("/produtos");
       // A API agora retorna { data: [...], pagination: {...} }
       setProdutos(
-        Array.isArray(response.data) ? response.data : response.data.data || []
+        Array.isArray(response.data) ? response.data : response.data.data || [],
       );
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
+    }
+  };
+
+  const carregarServicos = async () => {
+    try {
+      const res = await api.get("/servicos");
+      setServicos(Array.isArray(res.data) ? res.data : res.data.data || []);
+    } catch (error) {
+      console.error("Erro ao carregar serviços:", error);
     }
   };
 
@@ -115,14 +132,20 @@ export default function OrcamentoForm() {
 
   const atualizarProduto = (index, campo, valor) => {
     const novosProdutos = [...itensProdutos];
+
     novosProdutos[index][campo] = valor;
 
-    if (campo === "produto_id" && valor) {
-      const produto = produtos.find((p) => p.id == valor);
-      if (produto) {
-        novosProdutos[index].codigo = produto.codigo;
-        novosProdutos[index].descricao = produto.nome;
-        novosProdutos[index].valor_unitario = produto.valor_venda;
+    if (campo === "produto_id") {
+      if (valor === "__add_new__") {
+        setProdutoModalIndex(index);
+        setMostrarProdutoModal(true);
+      } else if (valor) {
+        const produto = produtos.find((p) => p.id == valor);
+        if (produto) {
+          novosProdutos[index].codigo = produto.codigo;
+          novosProdutos[index].descricao = produto.nome;
+          novosProdutos[index].valor_unitario = produto.valor_venda;
+        }
       }
     }
 
@@ -132,6 +155,22 @@ export default function OrcamentoForm() {
     }
 
     setItensProdutos(novosProdutos);
+  };
+
+  const handleProdutoCriado = (novoProduto) => {
+    carregarProdutos();
+    if (produtoModalIndex !== null) {
+      const idx = produtoModalIndex;
+      const novos = [...itensProdutos];
+      novos[idx].produto_id = novoProduto.id;
+      novos[idx].codigo = novoProduto.codigo || "";
+      novos[idx].descricao = novoProduto.nome || "";
+      novos[idx].valor_unitario = novoProduto.valor_venda || 0;
+      novos[idx].valor_total =
+        novos[idx].quantidade * novos[idx].valor_unitario;
+      setItensProdutos(novos);
+      setProdutoModalIndex(null);
+    }
   };
 
   const atualizarServico = (index, campo, valor) => {
@@ -146,14 +185,49 @@ export default function OrcamentoForm() {
     setItensServicos(novosServicos);
   };
 
+  const handleServicoSelect = (index, valor) => {
+    const novos = [...itensServicos];
+    if (valor === "__add_new__") {
+      setServicoModalIndex(index);
+      setMostrarServicoModal(true);
+      return;
+    }
+    const servico = servicos.find((s) => s.id == valor);
+    if (servico) {
+      novos[index].codigo = servico.codigo;
+      novos[index].descricao = servico.nome;
+      novos[index].valor_unitario = servico.valor_unitario || 0;
+      novos[index].servico_id = servico.id;
+      novos[index].valor_total =
+        novos[index].quantidade * novos[index].valor_unitario;
+      setItensServicos(novos);
+    }
+  };
+
+  const handleServicoCriado = (novoServico) => {
+    carregarServicos();
+    if (servicoModalIndex !== null) {
+      const idx = servicoModalIndex;
+      const novos = [...itensServicos];
+      novos[idx].codigo = novoServico.codigo || "";
+      novos[idx].descricao = novoServico.nome || "";
+      novos[idx].valor_unitario = novoServico.valor_unitario || 0;
+      novos[idx].servico_id = novoServico.id;
+      novos[idx].valor_total =
+        novos[idx].quantidade * novos[idx].valor_unitario;
+      setItensServicos(novos);
+      setServicoModalIndex(null);
+    }
+  };
+
   const calcularTotal = () => {
     const totalProdutos = itensProdutos.reduce(
       (sum, item) => sum + item.valor_total,
-      0
+      0,
     );
     const totalServicos = itensServicos.reduce(
       (sum, item) => sum + item.valor_total,
-      0
+      0,
     );
     return totalProdutos + totalServicos;
   };
@@ -365,6 +439,7 @@ export default function OrcamentoForm() {
                     className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Selecione...</option>
+                    <option value="__add_new__">+ Novo Produto</option>
                     {produtos.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.nome}
@@ -409,7 +484,7 @@ export default function OrcamentoForm() {
                       atualizarProduto(
                         index,
                         "quantidade",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     min="0"
@@ -428,7 +503,7 @@ export default function OrcamentoForm() {
                       atualizarProduto(
                         index,
                         "valor_unitario",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     min="0"
@@ -499,14 +574,19 @@ export default function OrcamentoForm() {
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
                   </label>
-                  <input
-                    type="text"
-                    value={item.descricao}
-                    onChange={(e) =>
-                      atualizarServico(index, "descricao", e.target.value)
-                    }
+                  <select
+                    value={item.servico_id || ""}
+                    onChange={(e) => handleServicoSelect(index, e.target.value)}
                     className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">-- Selecionar serviço --</option>
+                    <option value="__add_new__">+ Novo Serviço</option>
+                    {servicos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -519,7 +599,7 @@ export default function OrcamentoForm() {
                       atualizarServico(
                         index,
                         "quantidade",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     min="0"
@@ -538,7 +618,7 @@ export default function OrcamentoForm() {
                       atualizarServico(
                         index,
                         "valor_unitario",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     min="0"
@@ -632,6 +712,24 @@ export default function OrcamentoForm() {
         onVeiculoCriado={(veiculo) => {
           carregarVeiculos(formData.cliente_id);
           setFormData({ ...formData, veiculo_id: veiculo.id });
+        }}
+      />
+
+      <ProdutoFormModal
+        isOpen={mostrarProdutoModal}
+        onClose={() => setMostrarProdutoModal(false)}
+        onSaved={(p) => {
+          handleProdutoCriado(p);
+          setMostrarProdutoModal(false);
+        }}
+      />
+
+      <ServicoFormModal
+        isOpen={mostrarServicoModal}
+        onClose={() => setMostrarServicoModal(false)}
+        onSaved={(s) => {
+          handleServicoCriado(s);
+          setMostrarServicoModal(false);
         }}
       />
     </div>
