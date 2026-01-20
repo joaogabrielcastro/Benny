@@ -5,6 +5,7 @@ import {
   Route,
   Link,
   useLocation,
+  Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -77,7 +78,10 @@ function App() {
                     element={<OrcamentoPublico />}
                   />
                   <Route path="/ordens-servico" element={<OrdensServico />} />
-                  <Route path="/ordens-servico/nova" element={<OSForm />} />
+                  <Route
+                    path="/ordens-servico/nova"
+                    element={<Navigate to="/orcamentos/novo" replace />}
+                  />
                   <Route path="/ordens-servico/:id/editar" element={<OSForm />} />
                   <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
                   <Route path="/agendamentos" element={<Agendamentos />} />
