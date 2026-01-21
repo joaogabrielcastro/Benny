@@ -557,19 +557,6 @@ export default function OrcamentoForm() {
                 key={index}
                 className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
               >
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Código
-                  </label>
-                  <input
-                    type="text"
-                    value={item.codigo}
-                    onChange={(e) =>
-                      atualizarServico(index, "codigo", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
                 <div className="col-span-4">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
@@ -587,6 +574,19 @@ export default function OrcamentoForm() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Código
+                  </label>
+                  <input
+                    type="text"
+                    value={item.codigo}
+                    onChange={(e) =>
+                      atualizarServico(index, "codigo", e.target.value)
+                    }
+                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">

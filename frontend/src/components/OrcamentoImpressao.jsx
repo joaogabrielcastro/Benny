@@ -328,8 +328,8 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
           <table>
             <thead>
               <tr>
-                <th style={{ width: "15%" }}>Código</th>
                 <th style={{ textAlign: "left" }}>Descrição</th>
+                <th style={{ width: "15%" }}>Código</th>
                 <th style={{ width: "10%", textAlign: "center" }}>Qtd</th>
                 <th style={{ width: "15%", textAlign: "right" }}>
                   Valor Unit.
@@ -340,8 +340,8 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
             <tbody>
               {orcamento.servicos.map((servico, index) => (
                 <tr key={index}>
-                  <td>{servico.codigo || "-"}</td>
                   <td>{servico.descricao || "-"}</td>
+                  <td>{servico.codigo || "-"}</td>
                   <td style={{ textAlign: "center" }}>
                     {servico.quantidade || 0}
                   </td>
