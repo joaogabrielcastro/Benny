@@ -159,9 +159,9 @@ const paginate = (req, res, next) => {
   next();
 };
 
-// Middleware de validação para criar produto
+// Middleware de validação para criar produto (codigo agora opcional)
 const validateProduto = [
-  body("codigo").notEmpty().withMessage("Código é obrigatório"),
+  body("codigo").optional().isString(),
   body("nome").notEmpty().withMessage("Nome é obrigatório"),
   body("quantidade")
     .optional()
@@ -355,20 +355,42 @@ app.post("/api/produtos", validateProduto, async (req, res) => {
       valor_venda,
       estoque_minimo,
     } = req.body;
+    let result;
 
-    const result = await pool.query(
-      `INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        codigo,
+    if (codigo && codigo.toString().trim() !== "") {
+      // Se o cliente forneceu um código, usa-o
+      result = await pool.query(
+        `INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [
+          codigo,
+          nome,
+          descricao,
+          quantidade || 0,
+          valor_custo || 0,
+          valor_venda || 0,
+          estoque_minimo || 5,
+        ],
+      );
+    } else {
+      // Gerar código automático no formato P-0001 baseado no maior número extraído dos códigos existentes
+      const insertQuery = `WITH next_num AS (
+          SELECT COALESCE(MAX((regexp_replace(codigo, '\\D', '', 'g'))::int), 0) + 1 AS n FROM produtos
+        )
+        INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo)
+        SELECT ('P-' || lpad(next_num.n::text, 4, '0')) as codigo, $1, $2, $3, $4, $5, $6
+        FROM next_num
+        RETURNING *`;
+
+      result = await pool.query(insertQuery, [
         nome,
         descricao,
         quantidade || 0,
         valor_custo || 0,
         valor_venda || 0,
         estoque_minimo || 5,
-      ],
-    );
+      ]);
+    }
 
     // Limpar cache de produtos
     clearCacheByPattern("/api/produtos");
