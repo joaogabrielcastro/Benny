@@ -1,6 +1,13 @@
-import { forwardRef } from "react";
+import { forwardRef, useImperativeHandle } from "react";
 
 const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
+  // Expor método imprimir para o componente pai
+  useImperativeHandle(ref, () => ({
+    imprimir: () => {
+      window.print();
+    }
+  }));
+
   const formatarData = (data) => {
     return new Date(data).toLocaleDateString("pt-BR");
   };
@@ -64,20 +71,20 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
             }
             
             .orc-header { 
-              margin-bottom: 10px; 
-              padding-bottom: 8px; 
-              border-bottom: 3px solid #059669; 
+              margin-bottom: 6px; 
+              padding-bottom: 5px; 
+              border-bottom: 3px solid #3b4e9e; 
             }
             
             .orc-section { 
-              margin-bottom: 10px; 
+              margin-bottom: 6px; 
             }
             
             .orc-section-title { 
-              font-size: 12px; 
+              font-size: 11px; 
               font-weight: bold; 
-              margin-bottom: 5px; 
-              padding-bottom: 3px;
+              margin-bottom: 3px; 
+              padding-bottom: 2px;
               border-bottom: 1px solid #ddd;
               color: #000;
             }
@@ -85,12 +92,12 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
             table { 
               width: 100%; 
               border-collapse: collapse; 
-              font-size: 10px; 
-              margin-top: 5px; 
+              font-size: 9px; 
+              margin-top: 3px; 
             }
             
             th, td { 
-              padding: 4px; 
+              padding: 3px; 
               border: 1px solid #000; 
               text-align: left;
             }
@@ -102,21 +109,21 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
             
             .orc-totals { 
               background-color: #f5f5f5; 
-              padding: 8px; 
-              margin-top: 10px;
+              padding: 5px; 
+              margin-top: 6px;
               text-align: right;
             }
             
             .signature-area { 
-              margin-top: 30px; 
-              padding-top: 10px; 
+              margin-top: 20px; 
+              padding-top: 8px; 
               border-top: 1px solid #000;
             }
             
             .signature-line { 
               border-top: 1px solid #000; 
-              margin-top: 40px;
-              padding-top: 5px;
+              margin-top: 30px;
+              padding-top: 4px;
               text-align: center;
             }
           }
@@ -131,35 +138,63 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
 
       {/* Cabeçalho */}
       <div className="orc-header">
-        <table style={{ width: "100%", border: "none", marginBottom: "10px" }}>
+        <table style={{ width: "100%", border: "none", marginBottom: "6px" }}>
           <tbody>
             <tr>
               <td
                 style={{ border: "none", width: "15%", verticalAlign: "top" }}
               >
+                {/* Logo Nova - Retangular Azul com Listras */}
                 <div
                   style={{
-                    width: "70px",
-                    height: "70px",
-                    border: "2px solid #000",
-                    borderRadius: "50%",
+                    width: "80px",
+                    height: "65px",
+                    backgroundColor: "#3b4e9e",
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "#059669",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
-                  <div style={{ textAlign: "center", color: "white" }}>
+                  {/* Listras decorativas */}
+                  <div style={{ 
+                    position: "absolute", 
+                    top: 0, 
+                    left: 0, 
+                    right: 0, 
+                    height: "3px", 
+                    background: "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)" 
+                  }} />
+                  <div style={{ 
+                    position: "absolute", 
+                    bottom: 0, 
+                    left: 0, 
+                    right: 0, 
+                    height: "3px", 
+                    background: "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)" 
+                  }} />
+                  
+                  <div style={{ textAlign: "center", color: "white", zIndex: 1 }}>
                     <div
                       style={{
-                        fontSize: "14px",
+                        fontSize: "18px",
                         fontWeight: "bold",
                         lineHeight: "1",
+                        letterSpacing: "1px",
                       }}
                     >
                       BENNY'S
                     </div>
-                    <div style={{ fontSize: "8px", marginTop: "2px" }}>
+                    <div style={{ 
+                      fontSize: "8px", 
+                      marginTop: "3px",
+                      letterSpacing: "2px",
+                      borderTop: "1px solid white",
+                      borderBottom: "1px solid white",
+                      padding: "2px 0"
+                    }}>
                       MOTORSPORT
                     </div>
                   </div>
@@ -170,25 +205,25 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                   border: "none",
                   width: "50%",
                   verticalAlign: "top",
-                  paddingLeft: "10px",
+                  paddingLeft: "8px",
                 }}
               >
                 <h1
                   style={{
-                    fontSize: "16px",
+                    fontSize: "15px",
                     fontWeight: "bold",
-                    margin: "0 0 5px 0",
+                    margin: "0 0 3px 0",
                   }}
                 >
                   BENNYS CENTRO AUTOMOTIVO
                 </h1>
-                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                <p style={{ fontSize: "8px", margin: "1px 0" }}>
                   <strong>CNPJ:</strong> 55.961.553/0001-00
                 </p>
-                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                <p style={{ fontSize: "8px", margin: "1px 0" }}>
                   <strong>Telefones:</strong> 91084254-47 | (41) 9 9236-2952
                 </p>
-                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                <p style={{ fontSize: "8px", margin: "1px 0" }}>
                   <strong>Endereço:</strong> Prefeito João Batista Stocco N°247
                 </p>
               </td>
@@ -200,14 +235,14 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                   verticalAlign: "top",
                 }}
               >
-                <p style={{ fontSize: "9px", margin: "2px 0" }}>
+                <p style={{ fontSize: "8px", margin: "1px 0" }}>
                   <strong>Data:</strong> {formatarData(dataCriacao)}{" "}
                   {formatarHora(dataCriacao)}
                 </p>
                 <p
                   style={{
-                    fontSize: "11px",
-                    margin: "5px 0",
+                    fontSize: "10px",
+                    margin: "3px 0",
                     fontWeight: "bold",
                   }}
                 >
@@ -215,17 +250,17 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                 </p>
                 <div
                   style={{
-                    border: "2px solid #059669",
-                    padding: "8px",
-                    marginTop: "5px",
+                    border: "2px solid #3b4e9e",
+                    padding: "5px",
+                    marginTop: "3px",
                     backgroundColor: "#f5f5f5",
                   }}
                 >
-                  <p style={{ fontSize: "9px", margin: "0 0 3px 0" }}>
+                  <p style={{ fontSize: "8px", margin: "0 0 2px 0" }}>
                     Orçamento Número
                   </p>
                   <p
-                    style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}
+                    style={{ fontSize: "14px", fontWeight: "bold", margin: 0 }}
                   >
                     {orcamento.numero || "N/A"}
                   </p>
@@ -239,13 +274,13 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
       {/* Dados do Cliente e Veículo */}
       <div className="orc-section">
         <table
-          style={{ width: "100%", border: "1px solid #000", fontSize: "10px" }}
+          style={{ width: "100%", border: "1px solid #000", fontSize: "9px" }}
         >
           <tbody>
             <tr>
               <td
                 style={{
-                  padding: "5px",
+                  padding: "3px",
                   width: "50%",
                   borderRight: "1px solid #000",
                 }}
@@ -253,7 +288,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                 <strong>Cliente:</strong>{" "}
                 {orcamento.cliente_nome || "Não informado"}
               </td>
-              <td style={{ padding: "5px", width: "50%" }}>
+              <td style={{ padding: "3px", width: "50%" }}>
                 <strong>Veículo:</strong> {orcamento.veiculo_marca}{" "}
                 {orcamento.veiculo_modelo} {orcamento.veiculo_cor}{" "}
                 {orcamento.veiculo_ano || "Não informado"}
@@ -262,7 +297,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
             <tr>
               <td
                 style={{
-                  padding: "5px",
+                  padding: "3px",
                   borderTop: "1px solid #000",
                   borderRight: "1px solid #000",
                 }}
@@ -270,7 +305,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                 <strong>Telefone:</strong>{" "}
                 {orcamento.cliente_telefone || "Não informado"}
               </td>
-              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+              <td style={{ padding: "3px", borderTop: "1px solid #000" }}>
                 <strong>Placa:</strong>{" "}
                 {orcamento.veiculo_placa || "Não informada"}
               </td>
@@ -278,16 +313,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
             <tr>
               <td
                 style={{
-                  padding: "5px",
-                  borderTop: "1px solid #000",
-                  borderRight: "1px solid #000",
-                }}
-              >
-                <strong>Status:</strong> {orcamento.status || "Pendente"}
-              </td>
-              <td
-                style={{
-                  padding: "5px",
+                  padding: "3px",
                   borderTop: "1px solid #000",
                   borderRight: "1px solid #000",
                 }}
@@ -295,7 +321,10 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                 <strong>Km:</strong>{" "}
                 {orcamento.km ? orcamento.km.toLocaleString() : "-"}
               </td>
-              <td style={{ padding: "5px", borderTop: "1px solid #000" }}>
+              <td
+                colSpan="2"
+                style={{ padding: "3px", borderTop: "1px solid #000" }}
+              >
                 <strong>Previsão:</strong>{" "}
                 {orcamento.previsao_entrega
                   ? formatarData(orcamento.previsao_entrega)
@@ -308,10 +337,10 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
         {temObservacoesVeiculo && (
           <div
             style={{
-              marginTop: "5px",
-              fontSize: "10px",
+              marginTop: "3px",
+              fontSize: "9px",
               backgroundColor: "#f5f5f5",
-              padding: "5px",
+              padding: "3px",
               border: "1px solid #ddd",
             }}
           >
@@ -476,9 +505,9 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
           <div
             style={{
               backgroundColor: "#f5f5f5",
-              padding: "8px",
+              padding: "5px",
               border: "1px solid #ddd",
-              fontSize: "10px",
+              fontSize: "9px",
             }}
           >
             {orcamento.observacoes_gerais}
@@ -489,21 +518,21 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
       {/* Informações de Garantia e Termos */}
       <div
         style={{
-          marginTop: "15px",
-          fontSize: "9px",
+          marginTop: "8px",
+          fontSize: "8px",
           backgroundColor: "#f5f5f5",
-          padding: "8px",
+          padding: "5px",
           border: "1px solid #ddd",
         }}
       >
-        <p style={{ margin: "0 0 4px 0", fontWeight: "bold" }}>
+        <p style={{ margin: "0 0 2px 0", fontWeight: "bold" }}>
           VALIDADE DO ORÇAMENTO:
         </p>
-        <p style={{ margin: "0 0 8px 0" }}>
+        <p style={{ margin: "0 0 4px 0" }}>
           Este orçamento tem validade de 7 dias corridos a partir da data de
           emissão.
         </p>
-        <p style={{ margin: "0 0 4px 0", fontWeight: "bold" }}>GARANTIA:</p>
+        <p style={{ margin: "0 0 2px 0", fontWeight: "bold" }}>GARANTIA:</p>
         <p style={{ margin: 0 }}>
           Todos os nossos serviços e produtos possuem 3 meses de garantia.
         </p>
@@ -515,7 +544,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            marginTop: "30px",
+            marginTop: "20px",
           }}
         >
           <div style={{ width: "45%", textAlign: "center" }}>

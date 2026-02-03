@@ -121,11 +121,18 @@ async function initDatabase() {
         valor_produtos DECIMAL(10,2) DEFAULT 0,
         valor_servicos DECIMAL(10,2) DEFAULT 0,
         valor_total DECIMAL(10,2) DEFAULT 0,
+        token_publico VARCHAR(64) UNIQUE,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clientes(id),
         FOREIGN KEY (veiculo_id) REFERENCES veiculos(id)
       )
+    `);
+
+    // Adicionar coluna token_publico em tabelas existentes
+    await client.query(`
+      ALTER TABLE orcamentos 
+      ADD COLUMN IF NOT EXISTS token_publico VARCHAR(64) UNIQUE
     `);
 
     // Tabela de Ordens de Serviço

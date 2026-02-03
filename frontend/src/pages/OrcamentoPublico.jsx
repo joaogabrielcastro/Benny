@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import api from "../services/api";
+import OrcamentoImpressao from "../components/OrcamentoImpressao";
 
 export default function OrcamentoPublico() {
-  const { id } = useParams();
+  const { id } = useParams(); // id aqui é o token
   const [orcamento, setOrcamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const impressaoRef = useRef();
 
   useEffect(() => {
     carregarOrcamento();
@@ -14,11 +16,10 @@ export default function OrcamentoPublico() {
 
   const carregarOrcamento = async () => {
     try {
-      const response = await api.get(`/orcamentos/publico/${id}`);
+      const response = await api.get(`/orcamentos/v/${id}`);
       setOrcamento(response.data);
       setLoading(false);
     } catch (error) {
-      console.error("Erro ao carregar orçamento:", error);
       alert("Erro ao carregar orçamento");
       setLoading(false);
     }
@@ -29,7 +30,7 @@ export default function OrcamentoPublico() {
 
     setEnviando(true);
     try {
-      await api.put(`/orcamentos/publico/${id}/aprovar`);
+      await api.put(`/orcamentos/v/${id}/aprovar`);
       alert("Orçamento aprovado com sucesso! Em breve entraremos em contato.");
       carregarOrcamento();
     } catch (error) {
@@ -44,7 +45,7 @@ export default function OrcamentoPublico() {
 
     setEnviando(true);
     try {
-      await api.put(`/orcamentos/publico/${id}/reprovar`);
+      await api.put(`/orcamentos/v/${id}/reprovar`);
       alert(
         "Orçamento reprovado. Entraremos em contato para mais informações."
       );
@@ -61,6 +62,12 @@ export default function OrcamentoPublico() {
       style: "currency",
       currency: "BRL",
     }).format(Number(valor) || 0);
+  };
+
+  const handleImprimir = () => {
+    if (impressaoRef.current) {
+      impressaoRef.current.imprimir();
+    }
   };
 
   if (loading) {
@@ -110,7 +117,26 @@ export default function OrcamentoPublico() {
                 {new Date(orcamento.criado_em).toLocaleDateString("pt-BR")}
               </p>
             </div>
-            <div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleImprimir}
+                className="no-print px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold transition-all flex items-center gap-2"
+                title="Imprimir Orçamento"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Imprimir PDF
+              </button>
               <span
                 className={`px-6 py-3 rounded-full text-lg font-semibold ${
                   orcamento.status === "Aprovado"
@@ -344,7 +370,7 @@ export default function OrcamentoPublico() {
         )}
 
         {/* Footer */}
-        <div className="text-center mt-8 text-gray-600">
+        <div className="text-center mt-8 text-gray-600 no-print">
           <p className="text-sm">
             © 2026 Benny's Motorsport - Centro Automotivo
           </p>
@@ -353,6 +379,9 @@ export default function OrcamentoPublico() {
           </p>
         </div>
       </div>
+
+      {/* Componente de impressão (oculto) */}
+      <OrcamentoImpressao ref={impressaoRef} orcamento={orcamento} />
     </div>
   );
 }

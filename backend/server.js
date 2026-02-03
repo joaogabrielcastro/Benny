@@ -710,6 +710,25 @@ async function gerarNumeroOrcamento() {
   return `ORC-${numero.toString().padStart(4, "0")}`;
 }
 
+// Função para gerar token público único
+async function gerarTokenPublico() {
+  const crypto = await import('crypto');
+  let token;
+  let existe = true;
+  
+  // Gerar token único
+  while (existe) {
+    token = crypto.randomBytes(32).toString('hex');
+    const result = await pool.query(
+      "SELECT id FROM orcamentos WHERE token_publico = $1",
+      [token]
+    );
+    existe = result.rows.length > 0;
+  }
+  
+  return token;
+}
+
 app.get("/api/orcamentos", async (req, res) => {
   try {
     const { status, busca } = req.query;
@@ -789,7 +808,7 @@ app.get("/api/orcamentos/:id", async (req, res) => {
 });
 
 // Rota pública para visualizar orçamento (sem autenticação)
-app.get("/api/orcamentos/publico/:id", async (req, res) => {
+app.get("/api/orcamentos/v/:token", async (req, res) => {
   try {
     const orcResult = await pool.query(
       `
@@ -799,9 +818,9 @@ app.get("/api/orcamentos/publico/:id", async (req, res) => {
       FROM orcamentos o
       LEFT JOIN clientes c ON o.cliente_id = c.id
       LEFT JOIN veiculos v ON o.veiculo_id = v.id
-      WHERE o.id = $1
+      WHERE o.token_publico = $1
     `,
-      [req.params.id],
+      [req.params.token],
     );
 
     if (orcResult.rows.length === 0) {
@@ -810,11 +829,11 @@ app.get("/api/orcamentos/publico/:id", async (req, res) => {
 
     const produtosResult = await pool.query(
       "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-      [req.params.id],
+      [orcResult.rows[0].id],
     );
     const servicosResult = await pool.query(
       "SELECT * FROM orcamento_servicos WHERE orcamento_id = $1",
-      [req.params.id],
+      [orcResult.rows[0].id],
     );
 
     res.json({
@@ -828,15 +847,15 @@ app.get("/api/orcamentos/publico/:id", async (req, res) => {
 });
 
 // Rota pública para aprovar orçamento
-app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
+app.put("/api/orcamentos/v/:token/aprovar", async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     // Verificar status atual antes de aprovar
     const statusAtual = await client.query(
-      "SELECT status FROM orcamentos WHERE id = $1",
-      [req.params.id],
+      "SELECT id, status FROM orcamentos WHERE token_publico = $1",
+      [req.params.token],
     );
 
     if (statusAtual.rows.length === 0) {
@@ -844,11 +863,12 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
       return res.status(404).json({ error: "Orçamento não encontrado" });
     }
 
+    const orcamentoId = statusAtual.rows[0].id;
     const jaAprovado = statusAtual.rows[0].status === "Aprovado";
 
     const result = await client.query(
-      "UPDATE orcamentos SET status = 'Aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
-      [req.params.id],
+      "UPDATE orcamentos SET status = 'Aprovado', atualizado_em = CURRENT_TIMESTAMP WHERE token_publico = $1 RETURNING *",
+      [req.params.token],
     );
 
     // Só dar baixa no estoque se não estava aprovado antes
@@ -856,7 +876,7 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
       // Buscar produtos do orçamento e dar baixa no estoque
       const produtosResult = await client.query(
         "SELECT * FROM orcamento_produtos WHERE orcamento_id = $1",
-        [req.params.id],
+        [orcamentoId],
       );
 
       if (produtosResult.rows.length > 0) {
@@ -874,14 +894,14 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
             await client.query(
               `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, orcamento_id)
                VALUES ($1, 'SAIDA', $2, 'Orçamento aprovado', $3)`,
-              [produto.produto_id, produto.quantidade, req.params.id],
+              [produto.produto_id, produto.quantidade, orcamentoId],
             );
           }
         }
       }
     } else {
       logger.info(
-        `Orçamento ${req.params.id} já estava aprovado, baixa ignorada`,
+        `Orçamento ${orcamentoId} já estava aprovado, baixa ignorada`,
       );
     }
 
@@ -905,11 +925,11 @@ app.put("/api/orcamentos/publico/:id/aprovar", async (req, res) => {
 });
 
 // Rota pública para reprovar orçamento
-app.put("/api/orcamentos/publico/:id/reprovar", async (req, res) => {
+app.put("/api/orcamentos/v/:token/reprovar", async (req, res) => {
   try {
     const result = await pool.query(
-      "UPDATE orcamentos SET status = 'Reprovado', atualizado_em = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
-      [req.params.id],
+      "UPDATE orcamentos SET status = 'Reprovado', atualizado_em = CURRENT_TIMESTAMP WHERE token_publico = $1 RETURNING *",
+      [req.params.token],
     );
 
     if (result.rows.length === 0) {
@@ -946,6 +966,7 @@ app.post("/api/orcamentos", async (req, res) => {
     } = req.body;
 
     const numero = await gerarNumeroOrcamento();
+    const tokenPublico = await gerarTokenPublico();
 
     // Calcular totais
     const valor_produtos =
@@ -956,8 +977,8 @@ app.post("/api/orcamentos", async (req, res) => {
 
     // Inserir orçamento
     const orcResult = await client.query(
-      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, responsavel_tecnico, valor_produtos, valor_servicos, valor_total)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      `INSERT INTO orcamentos (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, responsavel_tecnico, valor_produtos, valor_servicos, valor_total, token_publico)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
       [
         numero,
         cliente_id,
@@ -970,6 +991,7 @@ app.post("/api/orcamentos", async (req, res) => {
         valor_produtos,
         valor_servicos,
         valor_total,
+        tokenPublico,
       ],
     );
 

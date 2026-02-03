@@ -1,6 +1,13 @@
-import { forwardRef } from "react";
+import { forwardRef, useImperativeHandle } from "react";
 
 const OSImpressao = forwardRef(({ os }, ref) => {
+  // Expor método imprimir para o componente pai
+  useImperativeHandle(ref, () => ({
+    imprimir: () => {
+      window.print();
+    }
+  }));
+
   const formatarData = (data) => {
     return new Date(data).toLocaleDateString("pt-BR");
   };
@@ -61,20 +68,20 @@ const OSImpressao = forwardRef(({ os }, ref) => {
             }
             
             .os-header { 
-              margin-bottom: 10px; 
-              padding-bottom: 8px; 
-              border-bottom: 3px solid #1e40af; 
+              margin-bottom: 6px; 
+              padding-bottom: 5px; 
+              border-bottom: 3px solid #3b4e9e; 
             }
             
             .os-section { 
-              margin-bottom: 10px; 
+              margin-bottom: 6px; 
             }
             
             .os-section-title { 
-              font-size: 12px; 
+              font-size: 11px; 
               font-weight: bold; 
-              margin-bottom: 5px; 
-              padding-bottom: 3px;
+              margin-bottom: 3px; 
+              padding-bottom: 2px;
               border-bottom: 1px solid #ddd;
               color: #000;
             }
@@ -87,7 +94,7 @@ const OSImpressao = forwardRef(({ os }, ref) => {
             }
             
             th, td { 
-              padding: 4px; 
+              padding: 3px; 
               border: 1px solid #000; 
               text-align: left;
             }
@@ -119,8 +126,8 @@ const OSImpressao = forwardRef(({ os }, ref) => {
             
             .os-totals { 
               background-color: #f5f5f5; 
-              padding: 8px; 
-              margin-top: 10px;
+              padding: 5px; 
+              margin-top: 6px;
               text-align: right;
             }
             
@@ -154,41 +161,43 @@ const OSImpressao = forwardRef(({ os }, ref) => {
               <td
                 style={{ border: "none", width: "15%", verticalAlign: "top" }}
               >
-                <div
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    border: "3px solid #1e40af",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#1e40af",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                  }}
+                <svg
+                  width="90"
+                  height="50"
+                  viewBox="0 0 120 60"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ display: "block" }}
                 >
-                  <div style={{ textAlign: "center", color: "white" }}>
-                    <div
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "bold",
-                        lineHeight: "1.1",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      BENNY'S
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "9px",
-                        marginTop: "3px",
-                        fontWeight: "600",
-                      }}
-                    >
-                      MOTORSPORT
-                    </div>
-                  </div>
-                </div>
+                  <rect width="120" height="60" fill="#3b4e9e" rx="4" />
+                  <rect x="5" y="5" width="3" height="50" fill="#ffffff" opacity="0.3" />
+                  <rect x="12" y="5" width="2" height="50" fill="#ffffff" opacity="0.2" />
+                  <rect x="105" y="5" width="3" height="50" fill="#ffffff" opacity="0.3" />
+                  <rect x="112" y="5" width="3" height="50" fill="#ffffff" opacity="0.2" />
+                  <text
+                    x="60"
+                    y="28"
+                    fontFamily="Arial, sans-serif"
+                    fontSize="18"
+                    fontWeight="bold"
+                    fill="#ffffff"
+                    textAnchor="middle"
+                    letterSpacing="1"
+                  >
+                    BENNY'S
+                  </text>
+                  <text
+                    x="60"
+                    y="45"
+                    fontFamily="Arial, sans-serif"
+                    fontSize="10"
+                    fontWeight="600"
+                    fill="#ffffff"
+                    textAnchor="middle"
+                    letterSpacing="2"
+                  >
+                    MOTORSPORT
+                  </text>
+                </svg>
               </td>
               <td
                 style={{

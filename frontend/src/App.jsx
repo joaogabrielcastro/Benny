@@ -5,6 +5,7 @@ import {
   Route,
   Link,
   useLocation,
+  useNavigate,
   Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
@@ -15,8 +16,10 @@ import LoadingSpinner from "./components/LoadingSpinner";
 import ThemeToggle from "./components/ThemeToggle";
 import ErrorBoundary from "./components/ErrorBoundary";
 import NotificacoesWidget from "./components/NotificacoesWidget";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Lazy loading das páginas
+const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
@@ -64,29 +67,23 @@ function App() {
             <main className="container mx-auto px-4 py-8">
               <Suspense fallback={<LoadingSpinner size="xl" />}>
                 <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/estoque" element={<Estoque />} />
-                  <Route path="/orcamentos" element={<Orcamentos />} />
-                  <Route path="/orcamentos/novo" element={<OrcamentoForm />} />
-                  <Route
-                    path="/orcamentos/:id"
-                    element={<OrcamentoDetalhes />}
-                  />
-                  <Route
-                    path="/orcamento-publico/:id"
-                    element={<OrcamentoPublico />}
-                  />
-                  <Route path="/ordens-servico" element={<OrdensServico />} />
-                  <Route
-                    path="/ordens-servico/nova"
-                    element={<Navigate to="/orcamentos/novo" replace />}
-                  />
-                  <Route path="/ordens-servico/:id/editar" element={<OSForm />} />
-                  <Route path="/ordens-servico/:id" element={<OSDetalhes />} />
-                  <Route path="/agendamentos" element={<Agendamentos />} />
-                  <Route path="/contas-pagar" element={<ContasPagar />} />
-                  {/* <Route path="/gateway-configs" element={<GatewayConfigs />} /> */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/v/:id" element={<OrcamentoPublico />} />
+                  
+                  {/* Rotas Protegidas */}
+                  <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/estoque" element={<ProtectedRoute><Estoque /></ProtectedRoute>} />
+                  <Route path="/orcamentos" element={<ProtectedRoute><Orcamentos /></ProtectedRoute>} />
+                  <Route path="/orcamentos/novo" element={<ProtectedRoute><OrcamentoForm /></ProtectedRoute>} />
+                  <Route path="/orcamentos/:id" element={<ProtectedRoute><OrcamentoDetalhes /></ProtectedRoute>} />
+                  <Route path="/ordens-servico" element={<ProtectedRoute><OrdensServico /></ProtectedRoute>} />
+                  <Route path="/ordens-servico/nova" element={<ProtectedRoute><Navigate to="/orcamentos/novo" replace /></ProtectedRoute>} />
+                  <Route path="/ordens-servico/:id/editar" element={<ProtectedRoute><OSForm /></ProtectedRoute>} />
+                  <Route path="/ordens-servico/:id" element={<ProtectedRoute><OSDetalhes /></ProtectedRoute>} />
+                  <Route path="/agendamentos" element={<ProtectedRoute><Agendamentos /></ProtectedRoute>} />
+                  <Route path="/contas-pagar" element={<ProtectedRoute><ContasPagar /></ProtectedRoute>} />
+                  {/* <Route path="/gateway-configs" element={<ProtectedRoute><GatewayConfigs /></ProtectedRoute>} /> */}
                 </Routes>
               </Suspense>
             </main>
@@ -101,8 +98,8 @@ function App() {
 function ConditionalNavigation() {
   const location = useLocation();
 
-  // Não mostrar navegação na página pública
-  if (location.pathname.startsWith("/orcamento-publico")) {
+  // Não mostrar navegação na página pública ou login
+  if (location.pathname.startsWith("/v") || location.pathname === "/login") {
     return null;
   }
 
@@ -112,8 +109,8 @@ function ConditionalNavigation() {
 function ConditionalNotifications() {
   const location = useLocation();
 
-  // Não mostrar notificações na página pública
-  if (location.pathname.startsWith("/orcamento-publico")) {
+  // Não mostrar notificações na página pública ou login
+  if (location.pathname.startsWith("/v") || location.pathname === "/login") {
     return null;
   }
 
@@ -122,11 +119,20 @@ function ConditionalNotifications() {
 
 function Navigation() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path) => {
     return (
       location.pathname === path || location.pathname.startsWith(path + "/")
     );
+  };
+
+  const handleLogout = () => {
+    if (confirm("Deseja realmente sair do sistema?")) {
+      localStorage.removeItem("isAuthenticated");
+      localStorage.removeItem("usuario");
+      navigate("/login");
+    }
   };
 
   return (
@@ -171,6 +177,25 @@ function Navigation() {
               Estoque
             </NavLink>
             <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="ml-2 px-4 py-2 bg-red-500 hover:bg-red-600 rounded-md transition-colors flex items-center gap-2"
+              title="Sair do sistema"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Sair
+            </button>
           </div>
         </div>
       </div>
