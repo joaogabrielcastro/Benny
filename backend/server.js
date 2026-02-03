@@ -712,20 +712,20 @@ async function gerarNumeroOrcamento() {
 
 // Função para gerar token público único
 async function gerarTokenPublico() {
-  const crypto = await import('crypto');
+  const crypto = await import("crypto");
   let token;
   let existe = true;
-  
+
   // Gerar token único
   while (existe) {
-    token = crypto.randomBytes(32).toString('hex');
+    token = crypto.randomBytes(32).toString("hex");
     const result = await pool.query(
       "SELECT id FROM orcamentos WHERE token_publico = $1",
-      [token]
+      [token],
     );
     existe = result.rows.length > 0;
   }
-  
+
   return token;
 }
 

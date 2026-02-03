@@ -69,20 +69,104 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/v/:id" element={<OrcamentoPublico />} />
-                  
+
                   {/* Rotas Protegidas */}
-                  <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/estoque" element={<ProtectedRoute><Estoque /></ProtectedRoute>} />
-                  <Route path="/orcamentos" element={<ProtectedRoute><Orcamentos /></ProtectedRoute>} />
-                  <Route path="/orcamentos/novo" element={<ProtectedRoute><OrcamentoForm /></ProtectedRoute>} />
-                  <Route path="/orcamentos/:id" element={<ProtectedRoute><OrcamentoDetalhes /></ProtectedRoute>} />
-                  <Route path="/ordens-servico" element={<ProtectedRoute><OrdensServico /></ProtectedRoute>} />
-                  <Route path="/ordens-servico/nova" element={<ProtectedRoute><Navigate to="/orcamentos/novo" replace /></ProtectedRoute>} />
-                  <Route path="/ordens-servico/:id/editar" element={<ProtectedRoute><OSForm /></ProtectedRoute>} />
-                  <Route path="/ordens-servico/:id" element={<ProtectedRoute><OSDetalhes /></ProtectedRoute>} />
-                  <Route path="/agendamentos" element={<ProtectedRoute><Agendamentos /></ProtectedRoute>} />
-                  <Route path="/contas-pagar" element={<ProtectedRoute><ContasPagar /></ProtectedRoute>} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <Home />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/estoque"
+                    element={
+                      <ProtectedRoute>
+                        <Estoque />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/orcamentos"
+                    element={
+                      <ProtectedRoute>
+                        <Orcamentos />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/orcamentos/novo"
+                    element={
+                      <ProtectedRoute>
+                        <OrcamentoForm />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/orcamentos/:id"
+                    element={
+                      <ProtectedRoute>
+                        <OrcamentoDetalhes />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/ordens-servico"
+                    element={
+                      <ProtectedRoute>
+                        <OrdensServico />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/ordens-servico/nova"
+                    element={
+                      <ProtectedRoute>
+                        <Navigate to="/orcamentos/novo" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/ordens-servico/:id/editar"
+                    element={
+                      <ProtectedRoute>
+                        <OSForm />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/ordens-servico/:id"
+                    element={
+                      <ProtectedRoute>
+                        <OSDetalhes />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/agendamentos"
+                    element={
+                      <ProtectedRoute>
+                        <Agendamentos />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/contas-pagar"
+                    element={
+                      <ProtectedRoute>
+                        <ContasPagar />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* <Route path="/gateway-configs" element={<ProtectedRoute><GatewayConfigs /></ProtectedRoute>} /> */}
                 </Routes>
               </Suspense>

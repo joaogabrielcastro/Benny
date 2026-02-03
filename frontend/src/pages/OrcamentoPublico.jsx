@@ -47,7 +47,7 @@ export default function OrcamentoPublico() {
     try {
       await api.put(`/orcamentos/v/${id}/reprovar`);
       alert(
-        "Orçamento reprovado. Entraremos em contato para mais informações."
+        "Orçamento reprovado. Entraremos em contato para mais informações.",
       );
       carregarOrcamento();
     } catch (error) {
@@ -142,8 +142,8 @@ export default function OrcamentoPublico() {
                   orcamento.status === "Aprovado"
                     ? "bg-green-100 text-green-800"
                     : orcamento.status === "Reprovado"
-                    ? "bg-red-100 text-red-800"
-                    : "bg-yellow-100 text-yellow-800"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-yellow-100 text-yellow-800"
                 }`}
               >
                 {orcamento.status}

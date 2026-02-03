@@ -37,7 +37,7 @@ export default function Login() {
         // Autenticação bem-sucedida
         localStorage.setItem("isAuthenticated", "true");
         localStorage.setItem("usuario", formData.usuario);
-        
+
         // Redirecionar para dashboard
         navigate("/dashboard");
       } else {
@@ -70,7 +70,9 @@ export default function Login() {
             <h1 className="text-2xl font-bold text-gray-800 mb-1">
               Benny's Motorsport
             </h1>
-            <p className="text-sm text-gray-600">Sistema de Gestão Automotiva</p>
+            <p className="text-sm text-gray-600">
+              Sistema de Gestão Automotiva
+            </p>
           </div>
 
           {/* Formulário */}
@@ -218,9 +220,7 @@ export default function Login() {
 
           {/* Rodapé */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              © 2026 Benny's Motorsport
-            </p>
+            <p className="text-xs text-gray-500">© 2026 Benny's Motorsport</p>
             <p className="text-xs text-gray-400 mt-0.5">
               Sistema de Gestão - Todos os direitos reservados
             </p>

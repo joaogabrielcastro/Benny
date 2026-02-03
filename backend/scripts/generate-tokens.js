@@ -7,7 +7,7 @@ async function generateTokens() {
 
     // Buscar orçamentos sem token
     const result = await pool.query(
-      "SELECT id FROM orcamentos WHERE token_publico IS NULL"
+      "SELECT id FROM orcamentos WHERE token_publico IS NULL",
     );
 
     if (result.rows.length === 0) {
@@ -27,7 +27,7 @@ async function generateTokens() {
         token = crypto.randomBytes(32).toString("hex");
         const check = await pool.query(
           "SELECT id FROM orcamentos WHERE token_publico = $1",
-          [token]
+          [token],
         );
         existe = check.rows.length > 0;
       }
@@ -35,7 +35,7 @@ async function generateTokens() {
       // Atualizar o orçamento com o token
       await pool.query(
         "UPDATE orcamentos SET token_publico = $1 WHERE id = $2",
-        [token, row.id]
+        [token, row.id],
       );
 
       console.log(`  ✓ Token gerado para orçamento ID ${row.id}`);

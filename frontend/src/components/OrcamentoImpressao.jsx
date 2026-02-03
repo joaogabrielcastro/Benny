@@ -5,7 +5,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
   useImperativeHandle(ref, () => ({
     imprimir: () => {
       window.print();
-    }
+    },
   }));
 
   const formatarData = (data) => {
@@ -159,24 +159,32 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                   }}
                 >
                   {/* Listras decorativas */}
-                  <div style={{ 
-                    position: "absolute", 
-                    top: 0, 
-                    left: 0, 
-                    right: 0, 
-                    height: "3px", 
-                    background: "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)" 
-                  }} />
-                  <div style={{ 
-                    position: "absolute", 
-                    bottom: 0, 
-                    left: 0, 
-                    right: 0, 
-                    height: "3px", 
-                    background: "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)" 
-                  }} />
-                  
-                  <div style={{ textAlign: "center", color: "white", zIndex: 1 }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: "3px",
+                      background:
+                        "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "3px",
+                      background:
+                        "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)",
+                    }}
+                  />
+
+                  <div
+                    style={{ textAlign: "center", color: "white", zIndex: 1 }}
+                  >
                     <div
                       style={{
                         fontSize: "18px",
@@ -187,14 +195,16 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
                     >
                       BENNY'S
                     </div>
-                    <div style={{ 
-                      fontSize: "8px", 
-                      marginTop: "3px",
-                      letterSpacing: "2px",
-                      borderTop: "1px solid white",
-                      borderBottom: "1px solid white",
-                      padding: "2px 0"
-                    }}>
+                    <div
+                      style={{
+                        fontSize: "8px",
+                        marginTop: "3px",
+                        letterSpacing: "2px",
+                        borderTop: "1px solid white",
+                        borderBottom: "1px solid white",
+                        padding: "2px 0",
+                      }}
+                    >
                       MOTORSPORT
                     </div>
                   </div>

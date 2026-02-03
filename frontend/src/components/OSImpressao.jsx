@@ -5,7 +5,7 @@ const OSImpressao = forwardRef(({ os }, ref) => {
   useImperativeHandle(ref, () => ({
     imprimir: () => {
       window.print();
-    }
+    },
   }));
 
   const formatarData = (data) => {
@@ -169,10 +169,38 @@ const OSImpressao = forwardRef(({ os }, ref) => {
                   style={{ display: "block" }}
                 >
                   <rect width="120" height="60" fill="#3b4e9e" rx="4" />
-                  <rect x="5" y="5" width="3" height="50" fill="#ffffff" opacity="0.3" />
-                  <rect x="12" y="5" width="2" height="50" fill="#ffffff" opacity="0.2" />
-                  <rect x="105" y="5" width="3" height="50" fill="#ffffff" opacity="0.3" />
-                  <rect x="112" y="5" width="3" height="50" fill="#ffffff" opacity="0.2" />
+                  <rect
+                    x="5"
+                    y="5"
+                    width="3"
+                    height="50"
+                    fill="#ffffff"
+                    opacity="0.3"
+                  />
+                  <rect
+                    x="12"
+                    y="5"
+                    width="2"
+                    height="50"
+                    fill="#ffffff"
+                    opacity="0.2"
+                  />
+                  <rect
+                    x="105"
+                    y="5"
+                    width="3"
+                    height="50"
+                    fill="#ffffff"
+                    opacity="0.3"
+                  />
+                  <rect
+                    x="112"
+                    y="5"
+                    width="3"
+                    height="50"
+                    fill="#ffffff"
+                    opacity="0.2"
+                  />
                   <text
                     x="60"
                     y="28"

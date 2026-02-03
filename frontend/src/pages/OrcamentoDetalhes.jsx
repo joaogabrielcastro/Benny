@@ -53,7 +53,7 @@ export default function OrcamentoDetalhes() {
     } catch (error) {
       alert(
         "Erro ao converter orçamento: " +
-          (error.response?.data?.error || error.message)
+          (error.response?.data?.error || error.message),
       );
     }
   };
@@ -69,7 +69,7 @@ export default function OrcamentoDetalhes() {
     const mensagem = `Olá! Segue o link para visualizar e aprovar o orçamento ${orcamento.numero}: ${linkPublico}`;
     const whatsappUrl = `https://wa.me/${orcamento.cliente_telefone?.replace(
       /\D/g,
-      ""
+      "",
     )}?text=${encodeURIComponent(mensagem)}`;
     window.open(whatsappUrl, "_blank");
   };
