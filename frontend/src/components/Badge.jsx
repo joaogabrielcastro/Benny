@@ -13,16 +13,16 @@ const Badge = ({
     success:
       "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
     warning:
-      "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700",
+      "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-700",
     danger:
-      "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
-    info: "bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-700",
+      "bg-red-100 text-red-900 border-red-300 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700",
+    info: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
   };
 
   const sizes = {
     sm: "px-2 py-0.5 text-xs",
-    md: "px-2 py-1 text-xs",
-    lg: "px-3 py-1.5 text-sm",
+    md: "px-2.5 py-1 text-sm font-medium",
+    lg: "px-3 py-1.5 text-base font-semibold",
   };
 
   const roundedOptions = {

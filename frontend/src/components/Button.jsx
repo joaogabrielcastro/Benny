@@ -147,13 +147,15 @@ const Button = forwardRef(
           <>
             {isIconOnly ? (
               <span aria-hidden className="text-sm">
-                {emoji || leftIcon || icon}
+                {emoji ? emoji : (leftIcon || icon) ? React.createElement(leftIcon || icon, { size: 16 }) : null}
               </span>
             ) : (
-              (leftIcon || icon) && <span>{leftIcon || icon}</span>
+              <>
+                {(leftIcon || icon) && <span>{React.createElement(leftIcon || icon, { size: 18 })}</span>}
+              </>
             )}
             {children}
-            {rightIcon && <span>{rightIcon}</span>}
+            {rightIcon && <span>{React.createElement(rightIcon, { size: 18 })}</span>}
           </>
         )}
       </button>

@@ -1,27 +1,12 @@
-import winston from "winston";
+// Logger simplificado - usa console nativo
+// Para SaaS pequeno (10-50 clientes), console.log é suficiente
+// Render/Railway já capturam stdout/stderr automaticamente
 
-// Configurar Winston Logger
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.File({ filename: "error.log", level: "error" }),
-    new winston.transports.File({ filename: "combined.log" }),
-  ],
-});
-
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    })
-  );
-}
+const logger = {
+  info: (...args) => console.log('[INFO]', ...args),
+  error: (...args) => console.error('[ERROR]', ...args),
+  warn: (...args) => console.warn('[WARN]', ...args),
+  debug: (...args) => console.log('[DEBUG]', ...args),
+};
 
 export default logger;

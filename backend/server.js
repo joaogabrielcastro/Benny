@@ -3,12 +3,8 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import compression from "compression";
 import dotenv from "dotenv";
-import NodeCache from "node-cache";
 import schedule from "node-schedule";
 import { body, validationResult } from "express-validator";
-import winston from "winston";
-import { WebSocketServer } from "ws";
-import { createServer } from "http";
 import path from "path";
 import pool from "./database.js";
 
@@ -19,33 +15,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Configurar cache (TTL de 5 minutos por padrão)
-const cache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
-
-// Configurar Winston Logger
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json(),
-  ),
-  transports: [
-    new winston.transports.File({ filename: "error.log", level: "error" }),
-    new winston.transports.File({ filename: "combined.log" }),
-  ],
-});
-
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple(),
-      ),
-    }),
-  );
-}
 
 // Middlewares
 app.use(compression()); // Compressão de respostas
@@ -65,34 +34,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Adicionar headers CORS manualmente para garantir
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  // Aceitar localhost ou Vercel
-  if (
-    origin &&
-    (origin.startsWith("http://localhost:") || /\.vercel\.app$/.test(origin))
-  ) {
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    );
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With",
-    );
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
-
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -104,50 +45,6 @@ app.use(
 );
 
 app.use("/api", apiRoutes);
-
-// Middleware de logging de requisições
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    logger.info(
-      `${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
-    );
-  });
-  next();
-});
-
-// Middleware de cache para GET requests
-const cacheMiddleware = (duration) => (req, res, next) => {
-  if (req.method !== "GET") {
-    return next();
-  }
-
-  const key = req.originalUrl;
-  const cachedResponse = cache.get(key);
-
-  if (cachedResponse) {
-    return res.json(cachedResponse);
-  }
-
-  res.originalJson = res.json;
-  res.json = (body) => {
-    cache.set(key, body, duration);
-    res.originalJson(body);
-  };
-
-  next();
-};
-
-// Função para limpar cache específico
-function clearCacheByPattern(pattern) {
-  const keys = cache.keys();
-  keys.forEach((key) => {
-    if (key.includes(pattern)) {
-      cache.del(key);
-    }
-  });
-}
 
 // Middleware de paginação
 const paginate = (req, res, next) => {
@@ -187,33 +84,10 @@ const validateProduto = [
 // Endpoint de monitoramento de saúde
 app.get("/api/health", async (req, res) => {
   try {
-    // Verificar conexão com banco
     await pool.query("SELECT 1");
-
-    // Verificar uso de memória
-    const memoryUsage = process.memoryUsage();
-
-    res.json({
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      database: "connected",
-      memory: {
-        rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
-        heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
-        heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
-      },
-      uptime: Math.round(process.uptime()),
-      cache: {
-        keys: cache.keys().length,
-        stats: cache.getStats(),
-      },
-    });
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
   } catch (error) {
-    logger.error("Health check failed:", error);
-    res.status(500).json({
-      status: "unhealthy",
-      error: error.message,
-    });
+    res.status(500).json({ status: "error", message: error.message });
   }
 });
 
@@ -221,12 +95,12 @@ app.get("/api/health", async (req, res) => {
 // ROTAS - PRODUTOS/ESTOQUE
 // ============================================
 
-// Listar todos os produtos (com cache e paginação)
-app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
+// Listar todos os produtos (com paginação)
+app.get("/api/produtos", paginate, async (req, res) => {
   try {
     const { limit, offset, page } = req.pagination;
 
-    logger.info(`Listando produtos - limit: ${limit}, offset: ${offset}`);
+    console.log(`Listando produtos - limit: ${limit}, offset: ${offset}`);
 
     const result = await pool.query(
       "SELECT * FROM produtos ORDER BY nome LIMIT $1 OFFSET $2",
@@ -236,7 +110,7 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
     const countResult = await pool.query("SELECT COUNT(*) FROM produtos");
     const total = parseInt(countResult.rows[0].count);
 
-    logger.info(`Produtos encontrados: ${result.rows.length} de ${total}`);
+    console.log(`Produtos encontrados: ${result.rows.length} de ${total}`);
 
     res.json({
       data: result.rows,
@@ -248,7 +122,7 @@ app.get("/api/produtos", paginate, cacheMiddleware(300), async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Erro ao listar produtos:", error);
+    console.error("Erro ao listar produtos:", error);
     res.status(500).json({
       error: "Erro ao carregar produtos",
       message: error.message,
@@ -294,7 +168,7 @@ app.get("/api/produtos/diagnostico/verificar", async (req, res) => {
       allProducts: result.rows,
     });
   } catch (error) {
-    logger.error("Erro no diagnóstico:", error);
+    console.error("Erro no diagnóstico:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -329,7 +203,7 @@ app.get("/api/produtos/:id", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error(`Erro ao buscar produto ${req.params.id}:`, {
+    console.error(`Erro ao buscar produto ${req.params.id}:`, {
       message: error.message,
       code: error.code,
     });
@@ -392,13 +266,9 @@ app.post("/api/produtos", validateProduto, async (req, res) => {
       ]);
     }
 
-    // Limpar cache de produtos
-    clearCacheByPattern("/api/produtos");
+    // Cache removido (não necessário para 10-50 clientes)
 
-    // Notificar clientes WebSocket
-    broadcastUpdate("produto_criado", result.rows[0]);
-
-    logger.info(`Produto criado: ${result.rows[0].id}`);
+    console.log(`Produto criado: ${result.rows[0].id}`);
 
     res.status(201).json({
       id: result.rows[0].id,
@@ -406,7 +276,7 @@ app.post("/api/produtos", validateProduto, async (req, res) => {
       produto: result.rows[0],
     });
   } catch (error) {
-    logger.error("Erro ao criar produto:", error);
+    console.error("Erro ao criar produto:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -442,23 +312,20 @@ app.put("/api/produtos/:id", async (req, res) => {
       ],
     );
 
-    logger.info(
+    console.log(
       `Produto ${req.params.id} atualizado - Nova quantidade: ${quantidade}`,
     );
 
-    clearCacheByPattern("/api/produtos");
+    // WebSocket removido (HTTP simples suficiente)
 
-    // Notificar clientes WebSocket
-    broadcastUpdate("produto_atualizado", result.rows[0]);
-
-    logger.info(`Produto atualizado: ${req.params.id}`);
+    console.log(`Produto atualizado: ${req.params.id}`);
 
     res.json({
       message: "Produto atualizado com sucesso",
       produto: result.rows[0],
     });
   } catch (error) {
-    logger.error("Erro ao atualizar produto:", error);
+    console.error("Erro ao atualizar produto:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -468,12 +335,9 @@ app.delete("/api/produtos/:id", async (req, res) => {
   try {
     await pool.query("DELETE FROM produtos WHERE id = $1", [req.params.id]);
 
-    // Limpar cache de produtos
-    clearCacheByPattern("/api/produtos");
-
     res.json({ message: "Produto deletado com sucesso" });
   } catch (error) {
-    logger.error("Erro ao deletar produto:", error);
+    console.error("Erro ao deletar produto:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -488,7 +352,7 @@ app.get("/api/servicos", async (req, res) => {
     const result = await pool.query("SELECT * FROM servicos ORDER BY nome");
     res.json(result.rows);
   } catch (error) {
-    logger.error("Erro ao listar serviços:", error);
+    console.error("Erro ao listar serviços:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -503,7 +367,7 @@ app.get("/api/servicos/:id", async (req, res) => {
       return res.status(404).json({ error: "Serviço não encontrado" });
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error(`Erro ao buscar serviço ${req.params.id}:`, error);
+    console.error(`Erro ao buscar serviço ${req.params.id}:`, error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -512,16 +376,38 @@ app.get("/api/servicos/:id", async (req, res) => {
 app.post("/api/servicos", async (req, res) => {
   try {
     const { codigo, nome, descricao, valor_unitario } = req.body;
-    const result = await pool.query(
-      `INSERT INTO servicos (codigo, nome, descricao, valor_unitario) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [codigo, nome, descricao, valor_unitario || 0],
-    );
-    logger.info(`Serviço criado: ${result.rows[0].id}`);
+    let result;
+
+    if (codigo && codigo.toString().trim() !== "") {
+      // Se o cliente forneceu um código, usa-o
+      result = await pool.query(
+        `INSERT INTO servicos (codigo, nome, descricao, valor_unitario) 
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [codigo, nome, descricao, valor_unitario || 0],
+      );
+    } else {
+      // Gerar código automático no formato S-0001 baseado no maior número
+      const insertQuery = `WITH next_num AS (
+          SELECT COALESCE(MAX((regexp_replace(codigo, '\\D', '', 'g'))::int), 0) + 1 AS n FROM servicos
+        )
+        INSERT INTO servicos (codigo, nome, descricao, valor_unitario)
+        SELECT ('S-' || lpad(next_num.n::text, 4, '0')) as codigo, $1, $2, $3
+        FROM next_num
+        RETURNING *`;
+
+      result = await pool.query(insertQuery, [
+        nome,
+        descricao,
+        valor_unitario || 0,
+      ]);
+    }
+
+    console.log(`Serviço criado: ${result.rows[0].id}`);
     res
       .status(201)
       .json({ servico: result.rows[0], message: "Serviço criado" });
   } catch (error) {
-    logger.error("Erro ao criar serviço:", error);
+    console.error("Erro ao criar serviço:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -536,7 +422,7 @@ app.put("/api/servicos/:id", async (req, res) => {
     );
     res.json({ servico: result.rows[0], message: "Serviço atualizado" });
   } catch (error) {
-    logger.error(`Erro ao atualizar serviço ${req.params.id}:`, error);
+    console.error(`Erro ao atualizar serviço ${req.params.id}:`, error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -547,19 +433,7 @@ app.delete("/api/servicos/:id", async (req, res) => {
     await pool.query("DELETE FROM servicos WHERE id = $1", [req.params.id]);
     res.json({ message: "Serviço deletado com sucesso" });
   } catch (error) {
-    logger.error(`Erro ao deletar serviço ${req.params.id}:`, error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Produtos com estoque baixo
-app.get("/api/produtos/alertas/estoque-baixo", async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT * FROM produtos WHERE quantidade <= estoque_minimo ORDER BY quantidade",
-    );
-    res.json(result.rows);
-  } catch (error) {
+    console.error(`Erro ao deletar serviço ${req.params.id}:`, error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -572,7 +446,7 @@ app.get("/api/clientes", async (req, res) => {
   try {
     const { busca } = req.query;
 
-    logger.info(`Buscando clientes - busca: "${busca}"`);
+    console.log(`Buscando clientes - busca: "${busca}"`);
 
     let query = "SELECT * FROM clientes";
     const params = [];
@@ -585,16 +459,16 @@ app.get("/api/clientes", async (req, res) => {
 
     query += " ORDER BY nome LIMIT 50";
 
-    logger.info(`Query SQL: ${query}`);
-    logger.info(`Params: ${JSON.stringify(params)}`);
+    console.log(`Query SQL: ${query}`);
+    console.log(`Params: ${JSON.stringify(params)}`);
 
     const result = await pool.query(query, params);
 
-    logger.info(`Clientes encontrados: ${result.rows.length}`);
+    console.log(`Clientes encontrados: ${result.rows.length}`);
 
     res.json(result.rows);
   } catch (error) {
-    logger.error("Erro ao buscar clientes:", error);
+    console.error("Erro ao buscar clientes:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -882,7 +756,7 @@ app.put("/api/orcamentos/v/:token/aprovar", async (req, res) => {
       if (produtosResult.rows.length > 0) {
         for (const produto of produtosResult.rows) {
           if (produto.produto_id) {
-            logger.info(
+            console.log(
               `Aprovação de orçamento: Dando baixa - produto_id=${produto.produto_id}, qtd=${produto.quantidade}`,
             );
 
@@ -900,16 +774,12 @@ app.put("/api/orcamentos/v/:token/aprovar", async (req, res) => {
         }
       }
     } else {
-      logger.info(
+      console.log(
         `Orçamento ${orcamentoId} já estava aprovado, baixa ignorada`,
       );
     }
 
     await client.query("COMMIT");
-    clearCacheByPattern("/api/orcamentos");
-
-    // Notificar clientes WebSocket
-    broadcastUpdate("orcamento_aprovado", result.rows[0]);
 
     res.json({
       message: "Orçamento aprovado com sucesso",
@@ -917,7 +787,7 @@ app.put("/api/orcamentos/v/:token/aprovar", async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    logger.error("Erro ao aprovar orçamento:", error);
+    console.error("Erro ao aprovar orçamento:", error);
     res.status(500).json({ error: error.message });
   } finally {
     client.release();
@@ -935,11 +805,6 @@ app.put("/api/orcamentos/v/:token/reprovar", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Orçamento não encontrado" });
     }
-
-    clearCacheByPattern("/api/orcamentos");
-
-    // Notificar clientes WebSocket
-    broadcastUpdate("orcamento_reprovado", result.rows[0]);
 
     res.json({ message: "Orçamento reprovado", orcamento: result.rows[0] });
   } catch (error) {
@@ -1042,7 +907,7 @@ app.post("/api/orcamentos", async (req, res) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    logger.error("Erro ao criar orçamento:", error);
+    console.error("Erro ao criar orçamento:", error);
     console.error("Erro detalhado ao criar orçamento:", error);
     res.status(500).json({ error: error.message });
   } finally {
@@ -1167,17 +1032,17 @@ app.put("/api/orcamentos/:id", async (req, res) => {
         ],
       );
     } catch (auditoriaError) {
-      logger.error("Erro ao registrar auditoria:", auditoriaError);
+      console.error("Erro ao registrar auditoria:", auditoriaError);
     }
 
     // Se o status mudou para "Aprovado", dar baixa no estoque
     const statusAnterior = dadosAnteriores.rows[0]?.status;
-    logger.info(
+    console.log(
       `Orçamento ${req.params.id}: Status anterior: ${statusAnterior}, Status novo: ${status}`,
     );
 
     if (status === "Aprovado" && statusAnterior !== "Aprovado") {
-      logger.info(
+      console.log(
         `Orçamento aprovado via edição: ID=${req.params.id}, dando baixa no estoque`,
       );
 
@@ -1258,21 +1123,12 @@ app.put("/api/orcamentos/:id", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    clearCacheByPattern("/api/orcamentos");
 
-    // Notificar clientes WebSocket
-    broadcastUpdate("orcamento_atualizado", { id: req.params.id, status });
-
-    // Se orçamento foi aprovado, limpar cache de produtos (estoque foi alterado)
+    // Se orçamento foi aprovado, log de info
     if (status === "Aprovado" && statusAnterior !== "Aprovado") {
       console.log(
-        `[CACHE] Limpando cache de produtos após aprovar orçamento ${req.params.id}`,
+        `[INFO] Orçamento ${req.params.id} aprovado - estoque foi alterado`,
       );
-      clearCacheByPattern("/api/produtos");
-      broadcastUpdate("estoque_atualizado", {
-        orcamento_id: req.params.id,
-        status,
-      });
     }
 
     res.json({ message: "Orçamento atualizado com sucesso" });
@@ -1514,7 +1370,7 @@ app.post("/api/ordens-servico", async (req, res) => {
       responsavel_tecnico,
     } = req.body;
 
-    logger.info("Criando nova OS", {
+    console.log("Criando nova OS", {
       produtos: produtos?.length || 0,
       servicos: servicos?.length || 0,
     });
@@ -1568,7 +1424,7 @@ app.post("/api/ordens-servico", async (req, res) => {
         );
 
         if (produto.produto_id) {
-          logger.info(
+          console.log(
             `Baixa estoque OS: produto=${produto.produto_id}, qtd=${produto.quantidade}`,
           );
 
@@ -1673,7 +1529,7 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
         ],
       );
     } catch (auditoriaError) {
-      logger.error("Erro ao registrar auditoria:", auditoriaError);
+      console.error("Erro ao registrar auditoria:", auditoriaError);
       // Continua mesmo se auditoria falhar
     }
 
@@ -1866,18 +1722,12 @@ app.put("/api/ordens-servico/:id", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    clearCacheByPattern("/api/ordens-servico");
 
-    // Notificar clientes WebSocket
-    broadcastUpdate("os_atualizada", { id: req.params.id, status });
-
-    // Se o estoque foi alterado, notificar também e limpar cache de produtos
+    // Log de info se estoque foi alterado
     if (status === "Finalizada" || status === "Cancelada") {
       console.log(
-        `[BROADCAST] Enviando estoque_atualizado: os_id=${req.params.id}, status=${status}`,
+        `[INFO] Estoque atualizado: os_id=${req.params.id}, status=${status}`,
       );
-      clearCacheByPattern("/api/produtos");
-      broadcastUpdate("estoque_atualizado", { os_id: req.params.id, status });
     }
 
     res.json({ message: "OS atualizada com sucesso" });
@@ -2117,7 +1967,7 @@ app.get("/api/agendamentos", async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    logger.error("Erro ao listar agendamentos:", error);
+    console.error("Erro ao listar agendamentos:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2217,15 +2067,14 @@ app.post("/api/agendamentos", async (req, res) => {
       ],
     );
 
-    broadcastUpdate("agendamento_criado", result.rows[0]);
-    logger.info(`Agendamento criado: ${result.rows[0].id}`);
+    console.log(`Agendamento criado: ${result.rows[0].id}`);
 
     res.status(201).json({
       message: "Agendamento criado com sucesso",
       agendamento: result.rows[0],
     });
   } catch (error) {
-    logger.error("Erro ao criar agendamento:", error);
+    console.error("Erro ao criar agendamento:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2274,14 +2123,12 @@ app.put("/api/agendamentos/:id", async (req, res) => {
       return res.status(404).json({ error: "Agendamento não encontrado" });
     }
 
-    broadcastUpdate("agendamento_atualizado", result.rows[0]);
-
     res.json({
       message: "Agendamento atualizado com sucesso",
       agendamento: result.rows[0],
     });
   } catch (error) {
-    logger.error("Erro ao atualizar agendamento:", error);
+    console.error("Erro ao atualizar agendamento:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2297,7 +2144,7 @@ app.delete("/api/agendamentos/:id", async (req, res) => {
 
     res.json({ message: "Agendamento deletado com sucesso" });
   } catch (error) {
-    logger.error("Erro ao deletar agendamento:", error);
+    console.error("Erro ao deletar agendamento:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2367,7 +2214,7 @@ app.get("/api/contas-pagar", async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    logger.error("Erro ao listar contas a pagar:", error);
+    console.error("Erro ao listar contas a pagar:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2443,15 +2290,14 @@ app.post("/api/contas-pagar", async (req, res) => {
       ],
     );
 
-    broadcastUpdate("conta_criada", result.rows[0]);
-    logger.info(`Conta a pagar criada: ${result.rows[0].id}`);
+    console.log(`Conta a pagar criada: ${result.rows[0].id}`);
 
     res.status(201).json({
       message: "Conta criada com sucesso",
       conta: result.rows[0],
     });
   } catch (error) {
-    logger.error("Erro ao criar conta:", error);
+    console.error("Erro ao criar conta:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2491,7 +2337,7 @@ app.put("/api/contas-pagar/:id", async (req, res) => {
            intervalo = COALESCE($12, intervalo),
            data_termino = COALESCE($13, data_termino),
            atualizado_em = CURRENT_TIMESTAMP
-       WHERE id = $10
+       WHERE id = $14
        RETURNING *`,
       [
         descricao,
@@ -2519,14 +2365,12 @@ app.put("/api/contas-pagar/:id", async (req, res) => {
       return res.status(404).json({ error: "Conta não encontrada" });
     }
 
-    broadcastUpdate("conta_atualizada", result.rows[0]);
-
     res.json({
       message: "Conta atualizada com sucesso",
       conta: result.rows[0],
     });
   } catch (error) {
-    logger.error("Erro ao atualizar conta:", error);
+    console.error("Erro ao atualizar conta:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2542,7 +2386,7 @@ app.delete("/api/contas-pagar/:id", async (req, res) => {
 
     res.json({ message: "Conta deletada com sucesso" });
   } catch (error) {
-    logger.error("Erro ao deletar conta:", error);
+    console.error("Erro ao deletar conta:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2607,7 +2451,7 @@ app.get("/api/lembretes", async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    logger.error("Erro ao listar lembretes:", error);
+    console.error("Erro ao listar lembretes:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2883,7 +2727,8 @@ async function processarLembretesPendentes() {
           console.log(`   Mensagem: ${lembrete.mensagem}`);
 
           if (lembrete.dados_referencia) {
-            console.log(`   Dados:`, JSON.parse(lembrete.dados_referencia));
+            // dados_referencia já é um objeto JavaScript (do json_build_object do PostgreSQL)
+            console.log(`   Dados:`, lembrete.dados_referencia);
           }
 
           // Marcar como enviado
@@ -2893,15 +2738,6 @@ async function processarLembretesPendentes() {
              WHERE id = $1`,
             [lembrete.id],
           );
-
-          // Broadcast via WebSocket para clientes conectados
-          broadcastUpdate("lembrete_novo", {
-            id: lembrete.id,
-            titulo: lembrete.titulo,
-            mensagem: lembrete.mensagem,
-            tipo: lembrete.tipo,
-            prioridade: lembrete.prioridade,
-          });
 
           console.log(`   ✓ Lembrete processado com sucesso`);
         } catch (error) {
@@ -3059,53 +2895,12 @@ console.log("🔁 Geração de contas recorrentes agendada diariamente à 00:00"
 setTimeout(gerarContasRecorrentes, 8000);
 
 // ============================================
-// WEBSOCKET PARA ATUALIZAÇÕES EM TEMPO REAL
-// ============================================
-
-const server = createServer(app);
-const wss = new WebSocketServer({ server });
-
-wss.on("connection", (ws) => {
-  logger.info("Novo cliente WebSocket conectado");
-
-  ws.on("message", (message) => {
-    logger.info(`Mensagem WebSocket recebida: ${message}`);
-  });
-
-  ws.on("close", () => {
-    logger.info("Cliente WebSocket desconectado");
-  });
-
-  ws.on("error", (error) => {
-    logger.error("Erro WebSocket:", error);
-  });
-});
-
-// Função para notificar todos os clientes WebSocket
-function broadcastUpdate(type, data) {
-  const message = JSON.stringify({
-    type,
-    data,
-    timestamp: new Date().toISOString(),
-  });
-
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) {
-      // WebSocket.OPEN
-      client.send(message);
-    }
-  });
-
-  logger.debug(`Broadcast enviado: ${type}`);
-}
-
-// ============================================
 // TRATAMENTO DE ERROS CENTRALIZADO
 // ============================================
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
-  logger.error("Erro na requisição:", {
+  console.error("Erro na requisição:", {
     error: err.message,
     stack: err.stack,
     url: req.originalUrl,
@@ -3137,7 +2932,7 @@ app.use((err, req, res, next) => {
 
 // Handler para rotas não encontradas (404)
 app.use((req, res) => {
-  logger.warn(`Rota não encontrada: ${req.method} ${req.originalUrl}`);
+  console.warn(`Rota não encontrada: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ error: "Endpoint não encontrado" });
 });
 
@@ -3145,8 +2940,6 @@ app.use((req, res) => {
 // INICIAR SERVIDOR
 // ============================================
 
-server.listen(PORT, () => {
-  logger.info(`✓ Servidor rodando em http://localhost:${PORT}`);
-  logger.info(`✓ WebSocket disponível na mesma porta`);
+app.listen(PORT, () => {
   console.log(`✓ Servidor rodando em http://localhost:${PORT}`);
 });
