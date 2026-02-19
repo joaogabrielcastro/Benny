@@ -53,7 +53,7 @@ app.use(compression()); // Compressão de respostas
 // Configurar CORS
 const corsOptions = {
   origin: [
-    "http://localhost:5175", // Vite dev server
+    "http://localhost:7", // Vite dev server
     "https://benny-theta.vercel.app", // Produção no Vercel
     /\.vercel\.app$/, // Permite todos os preview deployments do Vercel
   ],

@@ -1,13 +1,6 @@
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef } from "react";
 
 const OSImpressao = forwardRef(({ os }, ref) => {
-  // Expor método imprimir para o componente pai
-  useImperativeHandle(ref, () => ({
-    imprimir: () => {
-      window.print();
-    },
-  }));
-
   const formatarData = (data) => {
     return new Date(data).toLocaleDateString("pt-BR");
   };
