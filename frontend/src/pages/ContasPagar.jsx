@@ -123,12 +123,12 @@ export default function ContasPagar() {
 
   const getStatusBadgeVariant = (conta) => {
     if (conta.status === "Pago") return "success";
-    if (conta.status === "Cancelado") return "error";
+    if (conta.status === "Cancelado") return "danger";
 
     const hoje = new Date();
     const vencimento = new Date(conta.data_vencimento);
 
-    if (vencimento < hoje) return "error";
+    if (vencimento < hoje) return "danger";
     if (vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000)
       return "warning";
 
@@ -136,17 +136,17 @@ export default function ContasPagar() {
   };
 
   const getStatusTexto = (conta) => {
-    if (conta.status === "Pago") return "Pago";
-    if (conta.status === "Cancelado") return "Cancelado";
+    if (conta.status === "Pago") return "✓ Pago";
+    if (conta.status === "Cancelado") return "✕ Cancelado";
 
     const hoje = new Date();
     const vencimento = new Date(conta.data_vencimento);
 
-    if (vencimento < hoje) return "Vencida";
+    if (vencimento < hoje) return "⚠ Vencida";
     if (vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000)
-      return "Vence em breve";
+      return "⏰ Vence em breve";
 
-    return "Pendente";
+    return "○ Pendente";
   };
 
   const totais = calcularTotais();
@@ -326,8 +326,23 @@ export default function ContasPagar() {
             </div>
           </Card>
         ) : (
-          contas.map((conta) => (
-            <Card key={conta.id} className="hover:shadow-lg transition-shadow">
+          contas.map((conta) => {
+            const hoje = new Date();
+            const vencimento = new Date(conta.data_vencimento);
+            const estaVencida = conta.status === "Pendente" && vencimento < hoje;
+            const venceEmBreve = conta.status === "Pendente" && vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000;
+            
+            return (
+              <Card 
+                key={conta.id} 
+                className={`hover:shadow-lg transition-all ${
+                  estaVencida 
+                    ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10 dark:border-red-600' 
+                    : venceEmBreve 
+                    ? 'border-yellow-400 bg-yellow-50/30 dark:bg-yellow-900/10 dark:border-yellow-600'
+                    : ''
+                }`}
+              >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -413,7 +428,8 @@ export default function ContasPagar() {
                 </div>
               </div>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
 
