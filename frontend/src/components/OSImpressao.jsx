@@ -555,9 +555,6 @@ const OSImpressao = forwardRef(({ os }, ref) => {
         >
           <tbody>
             <tr>
-              <td style={{ border: "none", padding: "2px" }}>
-                <strong>Status:</strong> {os.status || "Não informado"}
-              </td>
               {os.responsavel_tecnico && (
                 <td style={{ border: "none", padding: "2px" }}>
                   <strong>Responsável Técnico:</strong> {os.responsavel_tecnico}
