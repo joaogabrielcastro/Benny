@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import Logo from "./components/Logo";
 import LoadingSpinner from "./components/LoadingSpinner";
@@ -37,8 +38,9 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <Router>
-          <Toaster
+        <AuthProvider>
+          <Router>
+            <Toaster
             position="top-right"
             toastOptions={{
               duration: 3000,
@@ -174,6 +176,7 @@ function App() {
             <ConditionalNotifications />
           </div>
         </Router>
+        </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
@@ -204,6 +207,7 @@ function ConditionalNotifications() {
 function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const isActive = (path) => {
     return (
@@ -213,8 +217,7 @@ function Navigation() {
 
   const handleLogout = () => {
     if (confirm("Deseja realmente sair do sistema?")) {
-      localStorage.removeItem("isAuthenticated");
-      localStorage.removeItem("usuario");
+      logout();
       navigate("/login");
     }
   };

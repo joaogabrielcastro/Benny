@@ -51,13 +51,6 @@ class AuthController {
           email: req.user.email,
           role: req.user.role,
         },
-        tenant: {
-          id: req.tenant.id,
-          nome: req.tenant.nome,
-          slug: req.tenant.slug,
-          plano: req.tenant.plano,
-          status: req.tenant.status,
-        },
       });
     } catch (error) {
       res.status(500).json({
@@ -83,9 +76,10 @@ class AuthController {
       }
 
       const usuario = await authService.criarUsuario(
-        req.tenantId,
-        dados,
-        req.userId,
+        dados.nome,
+        dados.email,
+        dados.senha,
+        dados.role || 'user'
       );
 
       res.status(201).json({
