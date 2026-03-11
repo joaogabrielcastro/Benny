@@ -1,60 +1,52 @@
 import express from "express";
+
+// Autenticação
+import authRoutes from "./authRoutes.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
+
+// Utilitários e infraestrutura
 import cepRoutes from "./cepRoutes.js";
 import nfRoutes from "./nfRoutes.js";
+import empresasRoutes from "./empresasRoutes.js";
+
+// Recursos do sistema
+import produtosRoutes from "./produtosRoutes.js";
+import servicosRoutes from "./servicosRoutes.js";
+import clientesRoutes from "./clientesRoutes.js";
+import veiculosRoutes from "./veiculosRoutes.js";
+import orcamentosRoutes from "./orcamentosRoutes.js";
+import ordensServicoRoutes from "./ordensServicoRoutes.js";
 import agendamentosRoutes from "./agendamentosRoutes.js";
 import contasPagarRoutes from "./contasPagarRoutes.js";
 import lembretesRoutes from "./lembretesRoutes.js";
-import empresasRoutes from "./empresasRoutes.js";
-import gatewayRoutes from "./gatewayRoutes.js";
-// import tenantsRoutes from "./tenantsRoutes.js";  // Multi-tenant desabilitado temporariamente
-// import authRoutes from "./authRoutes.js";  // Multi-tenant desabilitado temporariamente
-// import metricsRoutes from "./metricsRoutes.js";  // Multi-tenant desabilitado temporariamente
-// import authMiddleware from "../middleware/authMiddleware.js";  // Multi-tenant desabilitado temporariamente
+import relatoriosRoutes from "./relatoriosRoutes.js";
+import auditoriaRoutes from "./auditoriaRoutes.js";
+import backupRoutes from "./backupRoutes.js";
 
 const router = express.Router();
 
-// ========================================
-// ROTAS PÚBLICAS (sem autenticação)
-// ========================================
-
-// Rotas de CEP (pública)
+// ── Públicas (sem autenticação) ───────────────────────────────────────────────
+router.use("/auth", authRoutes);
 router.use("/cep", cepRoutes);
 
-// ========================================
-// MULTI-TENANT DESABILITADO TEMPORARIAMENTE
-// ========================================
-// Descomentar quando for usar multi-tenant:
-// router.use("/", tenantsRoutes);
-// router.use("/auth", authRoutes);
-// router.use(authMiddleware.authenticate.bind(authMiddleware));
-// router.use("/metrics", metricsRoutes);
+// Rotas de orçamento: as /v/:token são públicas (handled inside orcamentosRoutes)
+router.use("/orcamentos", orcamentosRoutes);
 
-// ========================================
-// ROTAS SEM AUTENTICAÇÃO (temporário)
-// ========================================
+// ── Recursos protegidos ───────────────────────────────────────────────────────
+router.use("/produtos", requireAuth, produtosRoutes);
+router.use("/servicos", requireAuth, servicosRoutes);
+router.use("/clientes", requireAuth, clientesRoutes);
+router.use("/veiculos", requireAuth, veiculosRoutes);
+router.use("/ordens-servico", requireAuth, ordensServicoRoutes);
+router.use("/agendamentos", requireAuth, agendamentosRoutes);
+router.use("/contas-pagar", requireAuth, contasPagarRoutes);
+router.use("/lembretes", requireAuth, lembretesRoutes);
+router.use("/relatorios", requireAuth, relatoriosRoutes);
+router.use("/auditoria", requireAuth, auditoriaRoutes);
+router.use("/backup", requireAuth, backupRoutes);
 
-// Rotas de Notas Fiscais
-router.use("/notas-fiscais", nfRoutes);
-
-// Rotas migradas do monolito
-router.use("/agendamentos", agendamentosRoutes);
-router.use("/contas-pagar", contasPagarRoutes);
-router.use("/lembretes", lembretesRoutes);
-
-// Rotas para empresas (emitentes)
-router.use("/empresas", empresasRoutes);
-
-// Rotas para configuração de gateways NF
-// router.use("/gateway-configs", gatewayRoutes); // Desabilitado temporariamente
-
-// TODO: Migrar outras rotas do server.js para cá
-// - produtosRoutes
-// - clientesRoutes
-// - veiculosRoutes
-// - orcamentosRoutes
-// - ordensServicoRoutes
-// - agendamentosRoutes
-// - contasPagarRoutes
-// - lembretesRoutes
+// ── NF e Empresas ─────────────────────────────────────────────────────────────
+router.use("/notas-fiscais", requireAuth, nfRoutes);
+router.use("/empresas", requireAuth, empresasRoutes);
 
 export default router;

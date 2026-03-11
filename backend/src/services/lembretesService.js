@@ -1,11 +1,11 @@
 import pool from "../../database.js";
 
-const listar = async (filtros) => {
+const listar = async (tenantId, filtros) => {
   const { tipo, enviado } = filtros;
 
-  let query = "SELECT * FROM lembretes WHERE 1=1";
-  const params = [];
-  let paramIndex = 1;
+  let query = "SELECT * FROM lembretes WHERE tenant_id = $1";
+  const params = [tenantId];
+  let paramIndex = 2;
 
   if (tipo) {
     query += ` AND tipo = $${paramIndex}`;
@@ -25,7 +25,7 @@ const listar = async (filtros) => {
   return result.rows;
 };
 
-const hoje = async () => {
+const hoje = async (tenantId) => {
   const hojeDate = new Date();
   hojeDate.setHours(0, 0, 0, 0);
   const amanha = new Date(hojeDate);
@@ -40,9 +40,9 @@ const hoje = async () => {
      FROM lembretes l
      LEFT JOIN agendamentos a ON l.tipo = 'agendamento' AND l.referencia_id = a.id
      LEFT JOIN contas_pagar c ON l.tipo = 'conta_pagar' AND l.referencia_id = c.id
-     WHERE l.data_lembrete >= $1 AND l.data_lembrete < $2 AND l.enviado = false
+     WHERE l.tenant_id = $1 AND l.data_lembrete >= $2 AND l.data_lembrete < $3 AND l.enviado = false
      ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
-    [hojeDate, amanha],
+    [tenantId, hojeDate, amanha],
   );
 
   return result.rows;
@@ -60,12 +60,12 @@ const marcarEnviado = async (id) => {
   return result.rows[0];
 };
 
-const criar = async (dados) => {
+const criar = async (tenantId, dados) => {
   const { tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade } =
     dados;
   const result = await pool.query(
-    `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [
       tipo,
       referencia_id,
@@ -73,6 +73,7 @@ const criar = async (dados) => {
       mensagem,
       data_lembrete,
       prioridade || "media",
+      tenantId,
     ],
   );
 

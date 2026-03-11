@@ -1,77 +1,78 @@
-/**
- * Service de Autenticação
- * 
- * Login simples e direto para SaaS pequeno
- */
-
-import bcrypt from "bcrypt";
 import pool from "../../database.js";
-import authMiddleware from "../middleware/authMiddleware.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
-class AuthService {
-  /**
-   * Login de usuário
-   * Retorna token JWT com tenantId incluso
-   */
-  async login(email, senha) {
-    // 1. Buscar usuário por email (sem filtrar por tenant ainda)
-    const result = await pool.query(
-      `SELECT u.*, t.status as tenant_status, t.data_expiracao, t.nome as tenant_nome
-       FROM usuarios u
-       JOIN tenants t ON u.tenant_id = t.id
-       WHERE u.email = $1`,
-      [email.toLowerCase()],
+const JWT_SECRET = process.env.JWT_SECRET || "benny-change-this-in-production";
+const JWT_EXPIRY = "8h";
+
+const gerarToken = (user, tenantId) =>
+  jwt.sign(
+    {
+      userId: user.id,
+      tenantId,
+      email: user.email,
+      nome: user.nome,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRY },
+  );
+
+// Registra nova oficina (tenant) + usuário admin
+const registrar = async ({
+  tenantNome,
+  tenantSlug,
+  tenantEmail,
+  nome,
+  email,
+  senha,
+}) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Verificar slug único
+    const slugExiste = await client.query(
+      "SELECT id FROM tenants WHERE slug = $1",
+      [tenantSlug],
     );
-
-    if (result.rows.length === 0) {
-      throw new Error("Email ou senha incorretos");
+    if (slugExiste.rows.length > 0) {
+      throw Object.assign(new Error("Identificador de oficina já em uso"), {
+        code: "SLUG_TAKEN",
+      });
     }
 
-    const user = result.rows[0];
-
-    // 2. Validar senha
-    const senhaValida = await bcrypt.compare(senha, user.senha_hash);
-
-    if (!senhaValida) {
-      throw new Error("Email ou senha incorretos");
-    }
-
-    // 3. Validar se usuário está ativo
-    if (!user.ativo) {
-      throw new Error(
-        "Sua conta foi desativada. Contate o administrador.",
-      );
-    }
-
-    // 4. BLOQUEIO AUTOMÁTICO: Validar tenant
-    if (user.tenant_status !== "active") {
-      throw new Error(`Sua organização está ${user.tenant_status}`);
-    }
-
-    // 5. BLOQUEIO AUTOMÁTICO: Validar expiração
-    if (user.data_expiracao) {
-      const now = new Date();
-      const expiracao = new Date(user.data_expiracao);
-
-      if (expiracao < now) {
-        throw new Error("Sua assinatura expirou. Renove para continuar.");
-      }
-    }
-
-    // 6. Gerar token JWT
-    const token = authMiddleware.generateToken(
-      user.id,
-      user.tenant_id,
-      user.role,
+    // Verificar e-mail único no tenant
+    const emailExiste = await client.query(
+      "SELECT id FROM usuarios WHERE email = $1",
+      [email],
     );
+    if (emailExiste.rows.length > 0) {
+      throw Object.assign(new Error("E-mail já cadastrado"), {
+        code: "EMAIL_TAKEN",
+      });
+    }
 
-    // 7. Atualizar último login
-    await pool.query(
-      "UPDATE usuarios SET ultimo_login = CURRENT_TIMESTAMP WHERE id = $1",
-      [user.id],
+    const tenantResult = await client.query(
+      `INSERT INTO tenants (slug, nome, email, status, plano)
+       VALUES ($1, $2, $3, 'active', 'basic') RETURNING *`,
+      [tenantSlug, tenantNome, tenantEmail],
     );
+    const tenant = tenantResult.rows[0];
 
-    // 8. Retornar dados
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    const userResult = await client.query(
+      `INSERT INTO usuarios (tenant_id, nome, email, senha_hash, role)
+       VALUES ($1, $2, $3, $4, 'admin') RETURNING id, nome, email, role`,
+      [tenant.id, nome, email, senhaHash],
+    );
+    const user = userResult.rows[0];
+
+    await client.query("COMMIT");
+
+    const token = gerarToken(user, tenant.id);
+
     return {
       token,
       user: {
@@ -79,153 +80,58 @@ class AuthService {
         nome: user.nome,
         email: user.email,
         role: user.role,
-        tenantId: user.tenant_id,
-        tenantNome: user.tenant_nome,
+        tenantId: tenant.id,
       },
+      tenant: { id: tenant.id, nome: tenant.nome, slug: tenant.slug },
     };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
+};
 
-  /**
-   * Criar primeiro usuário de um novo tenant
-   * (Usado no onboarding)
-   */
-  async criarPrimeiroUsuario(tenantId, nome, email, senha) {
-    // Hash da senha
-    const senhaHash = await bcrypt.hash(senha, 10);
+// Login de usuário existente
+const login = async ({ email, senha }) => {
+  const result = await pool.query(
+    `SELECT u.id, u.nome, u.email, u.senha_hash, u.role, u.ativo,
+            u.tenant_id, t.nome as tenant_nome, t.slug as tenant_slug, t.status as tenant_status
+     FROM usuarios u
+     JOIN tenants t ON u.tenant_id = t.id
+     WHERE u.email = $1`,
+    [email],
+  );
 
-    const result = await pool.query(
-      `INSERT INTO usuarios (tenant_id, nome, email, senha_hash, role, ativo)
-       VALUES ($1, $2, $3, $4, 'admin', true)
-       RETURNING id, nome, email, role, tenant_id`,
-      [tenantId, nome, email.toLowerCase(), senhaHash],
-    );
+  const user = result.rows[0];
 
-    return result.rows[0];
-  }
+  // Mensagem genérica para não revelar se e-mail existe
+  if (!user || !user.ativo) throw new Error("Credenciais inválidas");
+  if (user.tenant_status !== "active")
+    throw new Error("Conta suspensa. Entre em contato com o suporte.");
 
-  /**
-   * Criar usuário adicional (por admin)
-   */
-  async criarUsuario(tenantId, dados, criadoPor) {
-    // Validar limite de usuários
-    const tenant = await pool.query("SELECT * FROM tenants WHERE id = $1", [
-      tenantId,
-    ]);
+  const senhaValida = await bcrypt.compare(senha, user.senha_hash);
+  if (!senhaValida) throw new Error("Credenciais inválidas");
 
-    if (tenant.rows[0].max_usuarios) {
-      const countResult = await pool.query(
-        "SELECT COUNT(*) as total FROM usuarios WHERE tenant_id = $1 AND ativo = true",
-        [tenantId],
-      );
+  await pool.query(
+    "UPDATE usuarios SET ultimo_login = CURRENT_TIMESTAMP WHERE id = $1",
+    [user.id],
+  );
 
-      const total = parseInt(countResult.rows[0].total);
+  const token = gerarToken(user, user.tenant_id);
 
-      if (total >= tenant.rows[0].max_usuarios) {
-        throw new Error(
-          `Limite de ${tenant.rows[0].max_usuarios} usuários atingido. Faça upgrade do plano.`,
-        );
-      }
-    }
+  return {
+    token,
+    user: {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenant_id,
+      tenantNome: user.tenant_nome,
+      tenantSlug: user.tenant_slug,
+    },
+  };
+};
 
-    // Hash da senha
-    const senhaHash = await bcrypt.hash(dados.senha, 10);
-
-    const result = await pool.query(
-      `INSERT INTO usuarios (tenant_id, nome, email, senha_hash, role, ativo)
-       VALUES ($1, $2, $3, $4, $5, true)
-       RETURNING id, nome, email, role, tenant_id, criado_em`,
-      [
-        tenantId,
-        dados.nome,
-        dados.email.toLowerCase(),
-        senhaHash,
-        dados.role || "user",
-      ],
-    );
-
-    return result.rows[0];
-  }
-
-  /**
-   * Listar usuários do tenant
-   */
-  async listarUsuarios(tenantId) {
-    const result = await pool.query(
-      `SELECT id, nome, email, role, ativo, ultimo_login, criado_em
-       FROM usuarios
-       WHERE tenant_id = $1
-       ORDER BY criado_em DESC`,
-      [tenantId],
-    );
-
-    return result.rows;
-  }
-
-  /**
-   * Desativar usuário
-   */
-  async desativarUsuario(userId, tenantId) {
-    const result = await pool.query(
-      `UPDATE usuarios 
-       SET ativo = false
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id, nome, email`,
-      [userId, tenantId],
-    );
-
-    return result.rows[0];
-  }
-
-  /**
-   * Reativar usuário
-   */
-  async reativarUsuario(userId, tenantId) {
-    const result = await pool.query(
-      `UPDATE usuarios 
-       SET ativo = true
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id, nome, email`,
-      [userId, tenantId],
-    );
-
-    return result.rows[0];
-  }
-
-  /**
-   * Alterar senha
-   */
-  async alterarSenha(userId, senhaAtual, senhaNova) {
-    // Buscar usuário
-    const result = await pool.query(
-      "SELECT senha_hash FROM usuarios WHERE id = $1",
-      [userId],
-    );
-
-    if (result.rows.length === 0) {
-      throw new Error("Usuário não encontrado");
-    }
-
-    // Validar senha atual
-    const senhaValida = await bcrypt.compare(
-      senhaAtual,
-      result.rows[0].senha_hash,
-    );
-
-    if (!senhaValida) {
-      throw new Error("Senha atual incorreta");
-    }
-
-    // Hash da nova senha
-    const novoHash = await bcrypt.hash(senhaNova, 10);
-
-    // Atualizar
-    await pool.query("UPDATE usuarios SET senha_hash = $1 WHERE id = $2", [
-      novoHash,
-      userId,
-    ]);
-
-    return { message: "Senha alterada com sucesso" };
-  }
-}
-
-export default new AuthService();
+export default { registrar, login };

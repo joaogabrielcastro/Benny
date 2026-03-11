@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import Logo from "./components/Logo";
 import LoadingSpinner from "./components/LoadingSpinner";
@@ -20,6 +21,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // Lazy loading das páginas
 const Login = lazy(() => import("./pages/Login"));
+const Cadastro = lazy(() => import("./pages/Cadastro"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
@@ -37,143 +39,146 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <Router>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: "#363636",
-                color: "#fff",
-              },
-              success: {
+        <AuthProvider>
+          <Router>
+            <Toaster
+              position="top-right"
+              toastOptions={{
                 duration: 3000,
-                iconTheme: {
-                  primary: "#10B981",
-                  secondary: "#fff",
+                style: {
+                  background: "#363636",
+                  color: "#fff",
                 },
-              },
-              error: {
-                duration: 4000,
-                iconTheme: {
-                  primary: "#EF4444",
-                  secondary: "#fff",
+                success: {
+                  duration: 3000,
+                  iconTheme: {
+                    primary: "#10B981",
+                    secondary: "#fff",
+                  },
                 },
-              },
-            }}
-          />
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-            <ConditionalNavigation />
-            <main className="container mx-auto px-4 py-8">
-              <Suspense fallback={<LoadingSpinner size="xl" />}>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/v/:id" element={<OrcamentoPublico />} />
+                error: {
+                  duration: 4000,
+                  iconTheme: {
+                    primary: "#EF4444",
+                    secondary: "#fff",
+                  },
+                },
+              }}
+            />
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+              <ConditionalNavigation />
+              <main className="container mx-auto px-4 py-8">
+                <Suspense fallback={<LoadingSpinner size="xl" />}>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/cadastro" element={<Cadastro />} />
+                    <Route path="/v/:id" element={<OrcamentoPublico />} />
 
-                  {/* Rotas Protegidas */}
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Home />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/estoque"
-                    element={
-                      <ProtectedRoute>
-                        <Estoque />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/orcamentos"
-                    element={
-                      <ProtectedRoute>
-                        <Orcamentos />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/orcamentos/novo"
-                    element={
-                      <ProtectedRoute>
-                        <OrcamentoForm />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/orcamentos/:id"
-                    element={
-                      <ProtectedRoute>
-                        <OrcamentoDetalhes />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/ordens-servico"
-                    element={
-                      <ProtectedRoute>
-                        <OrdensServico />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/ordens-servico/nova"
-                    element={
-                      <ProtectedRoute>
-                        <Navigate to="/orcamentos/novo" replace />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/ordens-servico/:id/editar"
-                    element={
-                      <ProtectedRoute>
-                        <OSForm />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/ordens-servico/:id"
-                    element={
-                      <ProtectedRoute>
-                        <OSDetalhes />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/agendamentos"
-                    element={
-                      <ProtectedRoute>
-                        <Agendamentos />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/contas-pagar"
-                    element={
-                      <ProtectedRoute>
-                        <ContasPagar />
-                      </ProtectedRoute>
-                    }
-                  />
-                  {/* <Route path="/gateway-configs" element={<ProtectedRoute><GatewayConfigs /></ProtectedRoute>} /> */}
-                </Routes>
-              </Suspense>
-            </main>
-            <ConditionalNotifications />
-          </div>
-        </Router>
+                    {/* Rotas Protegidas */}
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedRoute>
+                          <Home />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/estoque"
+                      element={
+                        <ProtectedRoute>
+                          <Estoque />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/orcamentos"
+                      element={
+                        <ProtectedRoute>
+                          <Orcamentos />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/orcamentos/novo"
+                      element={
+                        <ProtectedRoute>
+                          <OrcamentoForm />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/orcamentos/:id"
+                      element={
+                        <ProtectedRoute>
+                          <OrcamentoDetalhes />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/ordens-servico"
+                      element={
+                        <ProtectedRoute>
+                          <OrdensServico />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/ordens-servico/nova"
+                      element={
+                        <ProtectedRoute>
+                          <Navigate to="/orcamentos/novo" replace />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/ordens-servico/:id/editar"
+                      element={
+                        <ProtectedRoute>
+                          <OSForm />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/ordens-servico/:id"
+                      element={
+                        <ProtectedRoute>
+                          <OSDetalhes />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/agendamentos"
+                      element={
+                        <ProtectedRoute>
+                          <Agendamentos />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/contas-pagar"
+                      element={
+                        <ProtectedRoute>
+                          <ContasPagar />
+                        </ProtectedRoute>
+                      }
+                    />
+                    {/* <Route path="/gateway-configs" element={<ProtectedRoute><GatewayConfigs /></ProtectedRoute>} /> */}
+                  </Routes>
+                </Suspense>
+              </main>
+              <ConditionalNotifications />
+            </div>
+          </Router>
+        </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
@@ -183,7 +188,11 @@ function ConditionalNavigation() {
   const location = useLocation();
 
   // Não mostrar navegação na página pública ou login
-  if (location.pathname.startsWith("/v") || location.pathname === "/login") {
+  if (
+    location.pathname.startsWith("/v") ||
+    location.pathname === "/login" ||
+    location.pathname === "/cadastro"
+  ) {
     return null;
   }
 
@@ -194,7 +203,11 @@ function ConditionalNotifications() {
   const location = useLocation();
 
   // Não mostrar notificações na página pública ou login
-  if (location.pathname.startsWith("/v") || location.pathname === "/login") {
+  if (
+    location.pathname.startsWith("/v") ||
+    location.pathname === "/login" ||
+    location.pathname === "/cadastro"
+  ) {
     return null;
   }
 
@@ -204,6 +217,7 @@ function ConditionalNotifications() {
 function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const isActive = (path) => {
     return (
@@ -213,8 +227,7 @@ function Navigation() {
 
   const handleLogout = () => {
     if (confirm("Deseja realmente sair do sistema?")) {
-      localStorage.removeItem("isAuthenticated");
-      localStorage.removeItem("usuario");
+      logout();
       navigate("/login");
     }
   };

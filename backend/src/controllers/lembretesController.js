@@ -5,7 +5,7 @@ class LembretesController {
   async listar(req, res) {
     try {
       const filtros = req.query || {};
-      const rows = await lembretesService.listar(filtros);
+      const rows = await lembretesService.listar(req.tenantId, filtros);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar lembretes:", error);
@@ -15,7 +15,7 @@ class LembretesController {
 
   async hoje(req, res) {
     try {
-      const rows = await lembretesService.hoje();
+      const rows = await lembretesService.hoje(req.tenantId);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar lembretes de hoje:", error);

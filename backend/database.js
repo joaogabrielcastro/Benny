@@ -28,7 +28,46 @@ async function initDatabase() {
   const client = await pool.connect();
 
   try {
-    // Tabela de Produtos/Estoque
+    // ── Multi-tenant: tenants e usuários ─────────────────────────────────────
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        slug VARCHAR(100) UNIQUE NOT NULL,
+        nome VARCHAR(255) NOT NULL,
+        cnpj VARCHAR(20) UNIQUE,
+        email VARCHAR(255) NOT NULL,
+        telefone VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'active',
+        plano VARCHAR(50) DEFAULT 'basic',
+        data_expiracao DATE,
+        max_usuarios INTEGER DEFAULT 5,
+        configuracoes JSONB DEFAULT '{}',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        nome VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
+        ativo BOOLEAN DEFAULT TRUE,
+        ultimo_login TIMESTAMP,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tenant_id, email)
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_usuarios_tenant ON usuarios(tenant_id)
+    `);
+
+    // ── Tabela de Produtos/Estoque ────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS produtos (
         id SERIAL PRIMARY KEY,
@@ -531,6 +570,37 @@ async function initDatabase() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_lembretes_enviado 
       ON lembretes(enviado);
+    `);
+
+    // ── Adicionar tenant_id em todas as tabelas principais ───────────────────
+    const tabelasComTenant = [
+      "clientes",
+      "veiculos",
+      "produtos",
+      "servicos",
+      "orcamentos",
+      "ordens_servico",
+      "agendamentos",
+      "contas_pagar",
+      "lembretes",
+      "notas_fiscais",
+      "empresas",
+    ];
+    for (const tabela of tabelasComTenant) {
+      await client.query(
+        `ALTER TABLE ${tabela} ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE`,
+      );
+      await client.query(
+        `CREATE INDEX IF NOT EXISTS idx_${tabela}_tenant ON ${tabela}(tenant_id)`,
+      );
+    }
+
+    // Recriar unique indexes como compostos com tenant_id
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_produtos_codigo_tenant ON produtos(codigo, tenant_id)
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_servicos_codigo_tenant ON servicos(codigo, tenant_id)
     `);
 
     console.log("✓ Tabelas do banco de dados criadas/verificadas com sucesso!");

@@ -1,0 +1,30 @@
+import backupService from "../services/backupService.js";
+import logger from "../config/logger.js";
+
+class BackupController {
+  async realizar(req, res) {
+    try {
+      const result = await backupService.realizar(req.tenantId);
+      res.json({
+        success: true,
+        message: "Backup realizado com sucesso",
+        ...result,
+      });
+    } catch (error) {
+      logger.error("Erro ao realizar backup:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async listar(req, res) {
+    try {
+      const backups = await backupService.listar();
+      res.json(backups);
+    } catch (error) {
+      logger.error("Erro ao listar backups:", error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+}
+
+export default new BackupController();
