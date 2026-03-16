@@ -60,10 +60,32 @@ const gerarToken = (user, tenantId) =>
 const login = async ({ email, senha }) => {
   const { user, tableName } = await findUserByEmail(email);
 
-  // Mensagem genérica para não revelar se e-mail existe
-  if (!user || !user.ativo) throw new Error("Credenciais inválidas");
+  // Debug: Verificando se o usuário foi encontrado
+  if (!user) {
+    console.log(`[DEBUG LOGIN] Usuário não encontrado para o email: ${email}`);
+    throw new Error("Credenciais inválidas");
+  }
 
+  if (!user.ativo) {
+    console.log(`[DEBUG LOGIN] Usuário encontrado mas está inativo: ${email}`);
+    throw new Error("Credenciais inválidas");
+  }
+
+  // --- BLOCO DE DEBUG DA SENHA ---
+  console.log('--- [INICIO DEBUG LOGIN] ---');
+  console.log('Tabela utilizada:', tableName);
+  console.log('Email:', email);
+  console.log('Senha vinda do Front:', `"${senha}"`); // Aspas ajudam a ver espaços
+  console.log('Tamanho da senha do Front:', senha?.length);
+  console.log('Hash vindo do Banco:', `"${user.senha_hash}"`);
+  console.log('Tamanho do Hash do Banco:', user.senha_hash?.length);
+  
   const senhaValida = await bcrypt.compare(senha, user.senha_hash);
+  
+  console.log('Resultado da comparação Bcrypt:', senhaValida);
+  console.log('--- [FIM DEBUG LOGIN] ---');
+  // -------------------------------
+
   if (!senhaValida) throw new Error("Credenciais inválidas");
 
   await pool.query(
