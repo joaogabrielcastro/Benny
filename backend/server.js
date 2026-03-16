@@ -18,15 +18,39 @@ const PORT = process.env.PORT || 3011;
 
 app.use(compression());
 
+const allowedOrigins = [
+  "https://benny.jwsoftware.com.br",
+  "https://api-benny.jwsoftware.com.br",
+];
+
+const allowedOriginPatterns = [
+  /^http:\/\/localhost:\d+$/,
+  /^http:\/\/127\.0\.0\.1:\d+$/,
+  /\.vercel\.app$/,
+];
+
+const corsOrigin = (origin, callback) => {
+  // Permite chamadas sem Origin (curl, health checks internos)
+  if (!origin) return callback(null, true);
+
+  if (allowedOrigins.includes(origin)) {
+    return callback(null, true);
+  }
+
+  const matchesPattern = allowedOriginPatterns.some((pattern) =>
+    pattern.test(origin),
+  );
+
+  if (matchesPattern) {
+    return callback(null, true);
+  }
+
+  return callback(new Error(`CORS bloqueado para origem: ${origin}`));
+};
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3011",
-      "https://benny.jwsoftware.com.br",
-      "https://api-benny.jwsoftware.com.br",
-      /\.vercel\.app$/,
-    ],
+    origin: corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],

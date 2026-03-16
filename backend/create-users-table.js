@@ -3,11 +3,11 @@
  * Garante a tabela usuarios usada pelo login atual.
  */
 
-import pool from './database.js';
+import pool from "./database.js";
 
 async function createUsersTable() {
   try {
-    console.log('🔨 Garantindo tabela de usuários...');
+    console.log("🔨 Garantindo tabela de usuários...");
 
     // Garantir estrutura mínima de tenant para evitar inconsistências de FK
     await pool.query(`
@@ -50,20 +50,19 @@ async function createUsersTable() {
       )
     `);
 
-    console.log('✅ Tabela usuarios criada com sucesso!');
+    console.log("✅ Tabela usuarios criada com sucesso!");
 
     // Criar índice no email
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)
     `);
 
-    console.log('✅ Índice no email criado!');
+    console.log("✅ Índice no email criado!");
 
-    const result = await pool.query('SELECT COUNT(*) FROM usuarios');
+    const result = await pool.query("SELECT COUNT(*) FROM usuarios");
     console.log(`\n📊 Total de usuários: ${result.rows[0].count}`);
-
   } catch (error) {
-    console.error('❌ Erro:', error.message);
+    console.error("❌ Erro:", error.message);
     throw error;
   } finally {
     await pool.end();
