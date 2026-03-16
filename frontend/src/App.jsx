@@ -11,6 +11,7 @@ import {
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import Logo from "./components/Logo";
 import LoadingSpinner from "./components/LoadingSpinner";
@@ -218,6 +219,7 @@ function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { logout } = useAuth();
 
   const isActive = (path) => {
     return (
@@ -227,6 +229,7 @@ function Navigation() {
 
   const handleLogout = () => {
     if (confirm("Deseja realmente sair do sistema?")) {
+      logout();
       logout();
       navigate("/login");
     }
