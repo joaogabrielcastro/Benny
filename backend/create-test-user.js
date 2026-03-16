@@ -19,7 +19,7 @@ async function createTestUser() {
     const senhaHash = await bcrypt.hash(senha, 10);
 
     // Verificar se usuário já existe
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const exists = await pool.query('SELECT id FROM usuarios WHERE email = $1', [email]);
 
     if (exists.rows.length > 0) {
       console.log('⚠️  Usuário já existe!');
@@ -30,10 +30,10 @@ async function createTestUser() {
 
     // Criar usuário
     const result = await pool.query(
-      `INSERT INTO users (nome, email, senha_hash, role, ativo)
-       VALUES ($1, $2, $3, $4, true)
+      `INSERT INTO usuarios (tenant_id, nome, email, senha_hash, role, ativo)
+       VALUES ($1, $2, $3, $4, $5, true)
        RETURNING id, nome, email, role`,
-      [nome, email, senhaHash, role]
+      [1, nome, email, senhaHash, role]
     );
 
     const user = result.rows[0];
