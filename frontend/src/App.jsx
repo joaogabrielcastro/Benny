@@ -219,7 +219,6 @@ function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { logout } = useAuth();
 
   const isActive = (path) => {
     return (
@@ -229,7 +228,6 @@ function Navigation() {
 
   const handleLogout = () => {
     if (confirm("Deseja realmente sair do sistema?")) {
-      logout();
       logout();
       navigate("/login");
     }

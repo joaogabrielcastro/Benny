@@ -8,9 +8,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [mostrarSenha, setMostrarSenha] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
   const { login, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -160,46 +158,20 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* E-mail */}
-          {/* Erro global */}
-          {erro && (
-            <div className="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-              <svg
-                className="h-5 w-5 flex-shrink-0 mt-0.5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>{erro}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* E-mail */}
             <div>
               <label
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-1.5"
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
               >
-                E-mail
                 E-mail
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <svg
                     className="h-5 w-5 text-gray-400"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                     <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                   </svg>
@@ -209,14 +181,7 @@ export default function Login() {
                   id="email"
                   name="email"
                   value={formData.email}
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
                   onChange={handleChange}
-                  autoComplete="email"
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
-                  placeholder="seu@email.com"
                   autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
                   placeholder="seu@email.com"
@@ -227,17 +192,14 @@ export default function Login() {
             </div>
 
             {/* Senha */}
-            {/* Senha */}
             <div>
               <label
                 htmlFor="senha"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
                 className="block text-sm font-medium text-gray-700 mb-1.5"
               >
                 Senha
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <svg
                     className="h-5 w-5 text-gray-400"
@@ -253,7 +215,6 @@ export default function Login() {
                 </div>
                 <input
                   type={mostrarSenha ? "text" : "password"}
-                  type={mostrarSenha ? "text" : "password"}
                   id="senha"
                   name="senha"
                   value={formData.senha}
@@ -261,10 +222,8 @@ export default function Login() {
                   autoComplete="current-password"
                   className="w-full pl-10 pr-12 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
                   placeholder="••••••••"
-                  autoComplete="current-password"
-                  className="w-full pl-10 pr-12 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
-                  placeholder="••••••••"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -302,20 +261,16 @@ export default function Login() {
                 </button>
               </div>
             </div>
-            </div>
 
-            {/* Botão */}
             {/* Botão */}
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
             >
               {loading ? (
                 <>
                   <svg
-                    className="animate-spin h-5 w-5"
                     className="animate-spin h-5 w-5"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -329,12 +284,10 @@ export default function Login() {
                       stroke="currentColor"
                       strokeWidth="4"
                     />
-                    />
                     <path
                       className="opacity-75"
                       fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
                     />
                   </svg>
                   Entrando...
@@ -342,16 +295,13 @@ export default function Login() {
               ) : (
                 <>
                   Entrar
-                  Entrar
                   <svg
-                    className="h-5 w-5"
                     className="h-5 w-5"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
                     <path
                       fillRule="evenodd"
-                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
                       d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
                       clipRule="evenodd"
                     />
