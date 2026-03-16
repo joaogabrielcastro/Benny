@@ -36,7 +36,7 @@ const pool = new Pool({
 
 // Testar conexão
 pool.on("connect", () => {
-  console.log("✓ Conectado ao banco de dados PostgreSQL (Neon)");
+  console.log("✓ Conectado ao banco de dados");
 });
 
 // Função para inicializar o banco de dados

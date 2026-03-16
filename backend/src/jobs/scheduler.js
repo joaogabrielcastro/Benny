@@ -164,9 +164,10 @@ async function gerarContasRecorrentes(pool) {
 
         while (currentDue <= hoje) {
           const insertRes = await pool.query(
-            `INSERT INTO contas_pagar (descricao, categoria, valor, data_vencimento, fornecedor, forma_pagamento, observacoes, recorrente, recorrencia_origem_id)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,false,$8) RETURNING *`,
+            `INSERT INTO contas_pagar (tenant_id, descricao, categoria, valor, data_vencimento, fornecedor, forma_pagamento, observacoes, recorrente, recorrencia_origem_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,$9) RETURNING *`,
             [
+              tpl.tenant_id,
               tpl.descricao,
               tpl.categoria,
               tpl.valor,

@@ -42,7 +42,7 @@ const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
   let query = `
     SELECT os.*,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
-           v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+           v.modelo as veiculo_modelo, v.placa as veiculo_placa,
            v.cor as veiculo_cor, v.ano as veiculo_ano
     FROM ordens_servico os
     LEFT JOIN clientes c ON os.cliente_id = c.id
@@ -71,7 +71,7 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
     pool.query(
       `SELECT os.*,
               c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
-              v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+              v.modelo as veiculo_modelo, v.placa as veiculo_placa,
               v.cor as veiculo_cor, v.ano as veiculo_ano
        FROM ordens_servico os
        LEFT JOIN clientes c ON os.cliente_id = c.id

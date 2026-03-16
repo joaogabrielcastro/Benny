@@ -1,68 +1,7 @@
-import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import authService from "../services/authService.js";
 import logger from "../config/logger.js";
 
 class AuthController {
-  /**
-   * POST /api/auth/usuarios
-   * Criar novo usuário (apenas admin)
-   */
-  async criarUsuario(req, res) {
-    try {
-      const dados = req.body;
-
-      if (!dados.nome || !dados.email || !dados.senha) {
-        return res.status(400).json({
-          error: "Dados incompletos",
-          message: "Nome, email e senha são obrigatórios",
-        });
-      }
-
-      const usuario = await authService.criarUsuario(
-        SINGLE_TENANT_ID,
-        dados,
-        req.userId,
-      );
-
-      res.status(201).json({
-        message: "Usuário criado com sucesso",
-        usuario,
-      });
-    } catch (error) {
-      console.error("Erro ao criar usuário:", error);
-      res.status(500).json({
-        error: "Erro ao criar usuário",
-        message: error.message,
-      });
-    }
-  }
-
-  /**
-   * GET /api/auth/usuarios
-   * Listar usuários do tenant (apenas admin)
-   */
-  async listarUsuarios(req, res) {
-    try {
-      const usuarios = await authService.listarUsuarios(SINGLE_TENANT_ID);
-
-      res.json({
-        total: usuarios.length,
-        usuarios,
-      });
-    } catch (error) {
-      logger.error("Erro ao registrar:", error);
-      if (error.code === "SLUG_TAKEN")
-        return res.status(409).json({ error: error.message });
-      if (error.code === "EMAIL_TAKEN")
-        return res.status(409).json({ error: error.message });
-      if (error.code === "23505")
-        return res
-          .status(409)
-          .json({ error: "Identificador ou e-mail já em uso" });
-      res.status(500).json({ error: "Erro ao criar conta" });
-    }
-  }
-
   async login(req, res) {
     try {
       const { email, senha } = req.body;
