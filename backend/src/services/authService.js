@@ -19,24 +19,7 @@ const findUserByEmail = async (email) => {
       return { user: result.rows[0], tableName: "usuarios" };
     }
   } catch (error) {
-    if (error.code !== "42P01") throw error;
-  }
-
-  try {
-    const result = await pool.query(
-      `SELECT id, nome, email, senha_hash, role, ativo
-       FROM users
-       WHERE email = $1`,
-      [email],
-    );
-
-    if (result.rows[0]) {
-      return {
-        user: { ...result.rows[0], tenant_id: DEFAULT_TENANT_ID },
-        tableName: "users",
-      };
-    }
-  } catch (error) {
+    // 42P01 é o erro de 'tabela não existe' no Postgres
     if (error.code !== "42P01") throw error;
   }
 
@@ -60,34 +43,18 @@ const gerarToken = (user, tenantId) =>
 const login = async ({ email, senha }) => {
   const { user, tableName } = await findUserByEmail(email);
 
-  // Debug: Verificando se o usuário foi encontrado
-  if (!user) {
-    console.log(`[DEBUG LOGIN] Usuário não encontrado para o email: ${email}`);
+  // Validação básica de existência e status
+  if (!user || !user.ativo) {
     throw new Error("Credenciais inválidas");
   }
 
-  if (!user.ativo) {
-    console.log(`[DEBUG LOGIN] Usuário encontrado mas está inativo: ${email}`);
-    throw new Error("Credenciais inválidas");
-  }
-
-  // --- BLOCO DE DEBUG DA SENHA ---
-  console.log('--- [INICIO DEBUG LOGIN] ---');
-  console.log('Tabela utilizada:', tableName);
-  console.log('Email:', email);
-  console.log('Senha vinda do Front:', `"${senha}"`); // Aspas ajudam a ver espaços
-  console.log('Tamanho da senha do Front:', senha?.length);
-  console.log('Hash vindo do Banco:', `"${user.senha_hash}"`);
-  console.log('Tamanho do Hash do Banco:', user.senha_hash?.length);
-  
+  // Comparação segura de hash
   const senhaValida = await bcrypt.compare(senha, user.senha_hash);
-  
-  console.log('Resultado da comparação Bcrypt:', senhaValida);
-  console.log('--- [FIM DEBUG LOGIN] ---');
-  // -------------------------------
+  if (!senhaValida) {
+    throw new Error("Credenciais inválidas");
+  }
 
-  if (!senhaValida) throw new Error("Credenciais inválidas");
-
+  // Registra o timestamp do último acesso
   await pool.query(
     `UPDATE ${tableName} SET ultimo_login = CURRENT_TIMESTAMP WHERE id = $1`,
     [user.id],
