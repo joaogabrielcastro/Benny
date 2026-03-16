@@ -134,7 +134,30 @@ class AuthController {
       res.json(result);
     } catch (error) {
       logger.error("Erro ao fazer login:", error);
-      // Sempre 401 para não revelar se conta existe
+
+      const infraErrorCodes = new Set([
+        "28P01", // invalid_password
+        "3D000", // invalid_catalog_name
+        "53300", // too_many_connections
+        "57P03", // cannot_connect_now
+        "ECONNREFUSED",
+        "ENOTFOUND",
+        "ETIMEDOUT",
+      ]);
+
+      const isInfraError =
+        infraErrorCodes.has(error.code) ||
+        /password authentication failed|database|db|connect/i.test(
+          error.message || "",
+        );
+
+      if (isInfraError) {
+        return res.status(503).json({
+          error: "Serviço de autenticação indisponível no momento",
+        });
+      }
+
+      // 401 para credenciais inválidas
       res.status(401).json({ error: error.message || "Credenciais inválidas" });
     }
   }
