@@ -4,9 +4,6 @@ import { requireAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// POST /api/auth/registrar — cria nova oficina + admin
-router.post("/registrar", (req, res) => authController.registrar(req, res));
-
 // POST /api/auth/login — autentica usuário existente
 router.post("/login", (req, res) => authController.login(req, res));
 

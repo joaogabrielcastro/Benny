@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -310,17 +310,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          {/* Link para cadastro */}
-          <p className="mt-6 text-center text-sm text-gray-500">
-            Primeira vez aqui?{" "}
-            <Link
-              to="/cadastro"
-              className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition"
-            >
-              Criar uma conta
-            </Link>
-          </p>
         </div>
       </div>
     </div>

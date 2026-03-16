@@ -37,20 +37,6 @@ export function AuthProvider({ children }) {
     return auth;
   }, []);
 
-  const registrar = useCallback(async (dados) => {
-    const { data } = await api.post("/auth/registrar", dados);
-    const auth = normalizeAuthPayload(data);
-
-    if (!auth.token || !auth.user) {
-      throw new Error("Resposta de autenticação inválida");
-    }
-
-    localStorage.setItem("auth_token", auth.token);
-    localStorage.setItem("auth_user", JSON.stringify(auth.user));
-    setUser(auth.user);
-    return auth;
-  }, []);
-
   const logout = useCallback(() => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
@@ -62,7 +48,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated, login, registrar, logout }}
+      value={{ user, isAuthenticated, login, logout }}
     >
       {children}
     </AuthContext.Provider>

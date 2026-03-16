@@ -1,65 +1,8 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import authService from "../services/authService.js";
 import logger from "../config/logger.js";
 
 class AuthController {
-  async registrar(req, res) {
-    try {
-      const { email, senha } = req.body;
-
-      if (!email || !senha) {
-        return res.status(400).json({
-          error: "Dados incompletos",
-          message: "Email e senha são obrigatórios",
-        });
-      }
-
-      const { token, user } = await authService.login(email, senha);
-
-      res.json({
-        message: "Login realizado com sucesso",
-        token,
-        user,
-      });
-    } catch (error) {
-      console.error("Erro no login:", error);
-
-      // Não expor detalhes do erro (segurança)
-      res.status(401).json({
-        error: "Falha no login",
-        message: error.message,
-      });
-    }
-  }
-
-  /**
-   * GET /api/auth/me
-   * Retorna dados do usuário autenticado
-   */
-  async me(req, res) {
-    try {
-      res.json({
-        user: {
-          id: req.user.id,
-          nome: req.user.nome,
-          email: req.user.email,
-          role: req.user.role,
-        },
-        tenant: {
-          id: req.tenant.id,
-          nome: req.tenant.nome,
-          slug: req.tenant.slug,
-          plano: req.tenant.plano,
-          status: req.tenant.status,
-        },
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: "Erro ao buscar dados",
-        message: error.message,
-      });
-    }
-  }
-
   /**
    * POST /api/auth/usuarios
    * Criar novo usuário (apenas admin)
@@ -76,7 +19,7 @@ class AuthController {
       }
 
       const usuario = await authService.criarUsuario(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         dados,
         req.userId,
       );
@@ -100,7 +43,7 @@ class AuthController {
    */
   async listarUsuarios(req, res) {
     try {
-      const usuarios = await authService.listarUsuarios(req.tenantId);
+      const usuarios = await authService.listarUsuarios(SINGLE_TENANT_ID);
 
       res.json({
         total: usuarios.length,
@@ -162,9 +105,9 @@ class AuthController {
     }
   }
 
-  // Retorna dados do usuário logado (o token já foi validado pelo middleware)
+  // Retorna dados do usuário logado (modo single-tenant)
   me(req, res) {
-    res.json({ user: req.user, tenantId: req.tenantId });
+    res.json({ user: req.user });
   }
 }
 

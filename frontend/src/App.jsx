@@ -21,7 +21,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // Lazy loading das páginas
 const Login = lazy(() => import("./pages/Login"));
-const Cadastro = lazy(() => import("./pages/Cadastro"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
@@ -71,7 +70,6 @@ function App() {
                 <Suspense fallback={<LoadingSpinner size="xl" />}>
                   <Routes>
                     <Route path="/login" element={<Login />} />
-                    <Route path="/cadastro" element={<Cadastro />} />
                     <Route path="/v/:id" element={<OrcamentoPublico />} />
 
                     {/* Rotas Protegidas */}
@@ -190,8 +188,7 @@ function ConditionalNavigation() {
   // Não mostrar navegação na página pública ou login
   if (
     location.pathname.startsWith("/v") ||
-    location.pathname === "/login" ||
-    location.pathname === "/cadastro"
+    location.pathname === "/login"
   ) {
     return null;
   }
@@ -205,8 +202,7 @@ function ConditionalNotifications() {
   // Não mostrar notificações na página pública ou login
   if (
     location.pathname.startsWith("/v") ||
-    location.pathname === "/login" ||
-    location.pathname === "/cadastro"
+    location.pathname === "/login"
   ) {
     return null;
   }
