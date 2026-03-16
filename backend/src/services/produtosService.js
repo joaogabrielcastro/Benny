@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId, { limit = 20, offset = 0 }) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, { limit = 20, offset = 0 }) => {
   const [result, countResult] = await Promise.all([
     pool.query(
       "SELECT * FROM produtos WHERE tenant_id = $1 ORDER BY nome LIMIT $2 OFFSET $3",
@@ -13,7 +14,7 @@ const listar = async (tenantId, { limit = 20, offset = 0 }) => {
   return { rows: result.rows, total: parseInt(countResult.rows[0].count) };
 };
 
-const estoqueBaixo = async (tenantId) => {
+const estoqueBaixo = async (tenantId = SINGLE_TENANT_ID) => {
   const result = await pool.query(
     "SELECT * FROM produtos WHERE tenant_id = $1 AND quantidade <= estoque_minimo ORDER BY quantidade",
     [tenantId],
@@ -21,7 +22,7 @@ const estoqueBaixo = async (tenantId) => {
   return result.rows;
 };
 
-const diagnostico = async (tenantId) => {
+const diagnostico = async (tenantId = SINGLE_TENANT_ID) => {
   const result = await pool.query(
     `SELECT id, codigo, nome,
             CASE WHEN descricao IS NULL THEN 'NULL' ELSE 'OK' END as descricao_status,
@@ -43,7 +44,7 @@ const diagnostico = async (tenantId) => {
   };
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     `SELECT id,
             COALESCE(codigo, '') as codigo,
@@ -144,7 +145,7 @@ const atualizar = async (
   return result.rows[0] || null;
 };
 
-const deletar = async (tenantId, id) => {
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
   await pool.query("DELETE FROM produtos WHERE id = $1 AND tenant_id = $2", [
     id,
     tenantId,

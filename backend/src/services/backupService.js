@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 import fs from "fs";
 import path from "path";
@@ -7,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const BACKUP_DIR = path.join(__dirname, "../../backups");
 
-const realizar = async (tenantId) => {
+const realizar = async (tenantId = SINGLE_TENANT_ID) => {
   if (!fs.existsSync(BACKUP_DIR)) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
   }

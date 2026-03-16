@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import { randomBytes } from "crypto";
 import pool from "../../database.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
@@ -103,7 +104,7 @@ async function darBaixaEstoque(client, orcamento_id) {
 
 // ─── Operações públicas ───────────────────────────────────────────────────────
 
-const listar = async (tenantId, { status, busca } = {}) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
   let query = `
     SELECT o.*,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
@@ -130,7 +131,7 @@ const listar = async (tenantId, { status, busca } = {}) => {
   return result.rows;
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const [orc, produtos, servicos] = await Promise.all([
     pool.query(
       `SELECT o.*,
@@ -367,7 +368,7 @@ const reprovarPorToken = async (token) => {
   return result.rows[0] || null;
 };
 
-const converterEmOS = async (tenantId, id) => {
+const converterEmOS = async (tenantId = SINGLE_TENANT_ID, id) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

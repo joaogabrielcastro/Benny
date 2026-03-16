@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import produtosService from "../services/produtosService.js";
 import logger from "../config/logger.js";
 import { paginate } from "../middleware/paginate.js";
@@ -5,7 +6,7 @@ import { paginate } from "../middleware/paginate.js";
 class ProdutosController {
   async listar(req, res) {
     try {
-      const tenantId = req.tenantId;
+      const tenantId = SINGLE_TENANT_ID;
       const { limit, offset, page } = req.pagination;
       const { rows, total } = await produtosService.listar(tenantId, {
         limit,
@@ -23,7 +24,7 @@ class ProdutosController {
 
   async estoqueBaixo(req, res) {
     try {
-      const rows = await produtosService.estoqueBaixo(req.tenantId);
+      const rows = await produtosService.estoqueBaixo(SINGLE_TENANT_ID);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao buscar estoque baixo:", error);
@@ -33,7 +34,7 @@ class ProdutosController {
 
   async diagnostico(req, res) {
     try {
-      const data = await produtosService.diagnostico(req.tenantId);
+      const data = await produtosService.diagnostico(SINGLE_TENANT_ID);
       res.json(data);
     } catch (error) {
       logger.error("Erro no diagnóstico:", error);
@@ -46,7 +47,7 @@ class ProdutosController {
       const { id } = req.params;
       if (isNaN(id)) return res.status(400).json({ error: "ID inválido" });
 
-      const produto = await produtosService.buscarPorId(req.tenantId, id);
+      const produto = await produtosService.buscarPorId(SINGLE_TENANT_ID, id);
       if (!produto)
         return res.status(404).json({ error: "Produto não encontrado" });
 
@@ -59,7 +60,7 @@ class ProdutosController {
 
   async criar(req, res) {
     try {
-      const produto = await produtosService.criar(req.tenantId, req.body);
+      const produto = await produtosService.criar(SINGLE_TENANT_ID, req.body);
       res
         .status(201)
         .json({
@@ -76,7 +77,7 @@ class ProdutosController {
   async atualizar(req, res) {
     try {
       const produto = await produtosService.atualizar(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
         req.body,
       );
@@ -91,7 +92,7 @@ class ProdutosController {
 
   async deletar(req, res) {
     try {
-      await produtosService.deletar(req.tenantId, req.params.id);
+      await produtosService.deletar(SINGLE_TENANT_ID, req.params.id);
       res.json({ message: "Produto deletado com sucesso" });
     } catch (error) {
       logger.error(`Erro ao deletar produto ${req.params.id}:`, error);

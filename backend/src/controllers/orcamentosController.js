@@ -1,10 +1,11 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import orcamentosService from "../services/orcamentosService.js";
 import logger from "../config/logger.js";
 
 class OrcamentosController {
   async listar(req, res) {
     try {
-      const rows = await orcamentosService.listar(req.tenantId, req.query);
+      const rows = await orcamentosService.listar(SINGLE_TENANT_ID, req.query);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar orçamentos:", error);
@@ -15,7 +16,7 @@ class OrcamentosController {
   async buscar(req, res) {
     try {
       const orc = await orcamentosService.buscarPorId(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
       );
       if (!orc)
@@ -44,7 +45,7 @@ class OrcamentosController {
 
   async criar(req, res) {
     try {
-      const result = await orcamentosService.criar(req.tenantId, req.body);
+      const result = await orcamentosService.criar(SINGLE_TENANT_ID, req.body);
       res
         .status(201)
         .json({ ...result, message: "Orçamento criado com sucesso" });
@@ -57,7 +58,7 @@ class OrcamentosController {
   async atualizar(req, res) {
     try {
       const result = await orcamentosService.atualizar(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
         req.body,
       );
@@ -97,7 +98,7 @@ class OrcamentosController {
   async converterEmOS(req, res) {
     try {
       const result = await orcamentosService.converterEmOS(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
       );
       if (!result)

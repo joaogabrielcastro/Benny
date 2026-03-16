@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId, filtros) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   const { data_inicio, data_fim, status, cliente_id } = filtros;
 
   let query = `
@@ -45,7 +46,7 @@ const listar = async (tenantId, filtros) => {
   return result.rows;
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     `SELECT a.*, 
             c.nome as cliente_nome, c.telefone as cliente_telefone,
@@ -60,7 +61,7 @@ const buscarPorId = async (tenantId, id) => {
   return result.rows[0];
 };
 
-const criar = async (tenantId, dados) => {
+const criar = async (tenantId = SINGLE_TENANT_ID, dados) => {
   const {
     cliente_id,
     veiculo_id,
@@ -114,7 +115,7 @@ const criar = async (tenantId, dados) => {
   return result.rows[0];
 };
 
-const atualizar = async (tenantId, id, dados) => {
+const atualizar = async (tenantId = SINGLE_TENANT_ID, id, dados) => {
   const {
     status,
     data_agendamento,
@@ -156,7 +157,7 @@ const atualizar = async (tenantId, id, dados) => {
   return result.rows[0];
 };
 
-const deletar = async (tenantId, id) => {
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
   await pool.query(
     "DELETE FROM agendamentos WHERE id = $1 AND tenant_id = $2",
     [id, tenantId],
@@ -168,7 +169,7 @@ const deletar = async (tenantId, id) => {
   return true;
 };
 
-const hojeLista = async (tenantId) => {
+const hojeLista = async (tenantId = SINGLE_TENANT_ID) => {
   const hoje = new Date().toISOString().split("T")[0];
 
   const result = await pool.query(

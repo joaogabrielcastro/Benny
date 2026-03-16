@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId, busca) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, busca) => {
   let query = "SELECT * FROM clientes WHERE tenant_id = $1";
   const params = [tenantId];
 
@@ -15,7 +16,7 @@ const listar = async (tenantId, busca) => {
   return result.rows;
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     "SELECT * FROM clientes WHERE id = $1 AND tenant_id = $2",
     [id, tenantId],

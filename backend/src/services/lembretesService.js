@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId, filtros) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   const { tipo, enviado } = filtros;
 
   let query = "SELECT * FROM lembretes WHERE tenant_id = $1";
@@ -25,7 +26,7 @@ const listar = async (tenantId, filtros) => {
   return result.rows;
 };
 
-const hoje = async (tenantId) => {
+const hoje = async (tenantId = SINGLE_TENANT_ID) => {
   const hojeDate = new Date();
   hojeDate.setHours(0, 0, 0, 0);
   const amanha = new Date(hojeDate);
@@ -60,7 +61,7 @@ const marcarEnviado = async (id) => {
   return result.rows[0];
 };
 
-const criar = async (tenantId, dados) => {
+const criar = async (tenantId = SINGLE_TENANT_ID, dados) => {
   const { tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade } =
     dados;
   const result = await pool.query(

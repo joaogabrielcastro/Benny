@@ -1,10 +1,11 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import clientesService from "../services/clientesService.js";
 import logger from "../config/logger.js";
 
 class ClientesController {
   async listar(req, res) {
     try {
-      const rows = await clientesService.listar(req.tenantId, req.query.busca);
+      const rows = await clientesService.listar(SINGLE_TENANT_ID, req.query.busca);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar clientes:", error);
@@ -15,7 +16,7 @@ class ClientesController {
   async buscar(req, res) {
     try {
       const cliente = await clientesService.buscarPorId(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
       );
       if (!cliente)
@@ -29,7 +30,7 @@ class ClientesController {
 
   async criar(req, res) {
     try {
-      const cliente = await clientesService.criar(req.tenantId, req.body);
+      const cliente = await clientesService.criar(SINGLE_TENANT_ID, req.body);
       res
         .status(201)
         .json({ id: cliente.id, message: "Cliente criado com sucesso" });
@@ -41,7 +42,7 @@ class ClientesController {
 
   async atualizar(req, res) {
     try {
-      await clientesService.atualizar(req.tenantId, req.params.id, req.body);
+      await clientesService.atualizar(SINGLE_TENANT_ID, req.params.id, req.body);
       res.json({ message: "Cliente atualizado com sucesso" });
     } catch (error) {
       logger.error(`Erro ao atualizar cliente ${req.params.id}:`, error);

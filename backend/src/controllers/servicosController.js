@@ -1,10 +1,11 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import servicosService from "../services/servicosService.js";
 import logger from "../config/logger.js";
 
 class ServicosController {
   async listar(req, res) {
     try {
-      const rows = await servicosService.listar(req.tenantId);
+      const rows = await servicosService.listar(SINGLE_TENANT_ID);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar serviços:", error);
@@ -15,7 +16,7 @@ class ServicosController {
   async buscar(req, res) {
     try {
       const servico = await servicosService.buscarPorId(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
       );
       if (!servico)
@@ -29,7 +30,7 @@ class ServicosController {
 
   async criar(req, res) {
     try {
-      const servico = await servicosService.criar(req.tenantId, req.body);
+      const servico = await servicosService.criar(SINGLE_TENANT_ID, req.body);
       res.status(201).json({ servico, message: "Serviço criado" });
     } catch (error) {
       logger.error("Erro ao criar serviço:", error);
@@ -40,7 +41,7 @@ class ServicosController {
   async atualizar(req, res) {
     try {
       const servico = await servicosService.atualizar(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.id,
         req.body,
       );
@@ -55,7 +56,7 @@ class ServicosController {
 
   async deletar(req, res) {
     try {
-      await servicosService.deletar(req.tenantId, req.params.id);
+      await servicosService.deletar(SINGLE_TENANT_ID, req.params.id);
       res.json({ message: "Serviço deletado com sucesso" });
     } catch (error) {
       logger.error(`Erro ao deletar serviço ${req.params.id}:`, error);

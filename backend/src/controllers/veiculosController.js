@@ -1,10 +1,11 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import veiculosService from "../services/veiculosService.js";
 import logger from "../config/logger.js";
 
 class VeiculosController {
   async listar(req, res) {
     try {
-      const rows = await veiculosService.listar(req.tenantId);
+      const rows = await veiculosService.listar(SINGLE_TENANT_ID);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar veículos:", error);
@@ -15,7 +16,7 @@ class VeiculosController {
   async listarPorCliente(req, res) {
     try {
       const rows = await veiculosService.listarPorCliente(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         req.params.clienteId,
       );
       res.json(rows);
@@ -30,7 +31,7 @@ class VeiculosController {
 
   async criar(req, res) {
     try {
-      const veiculo = await veiculosService.criar(req.tenantId, req.body);
+      const veiculo = await veiculosService.criar(SINGLE_TENANT_ID, req.body);
       res
         .status(201)
         .json({ id: veiculo.id, message: "Veículo criado com sucesso" });

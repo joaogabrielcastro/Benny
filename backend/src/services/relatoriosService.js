@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const dashboard = async (tenantId) => {
+const dashboard = async (tenantId = SINGLE_TENANT_ID) => {
   const [
     faturamentoMes,
     ticketMedio,
@@ -73,7 +74,7 @@ const dashboard = async (tenantId) => {
   };
 };
 
-const vendas = async (tenantId, dataInicio, dataFim) => {
+const vendas = async (tenantId = SINGLE_TENANT_ID, dataInicio, dataFim) => {
   let query = `
     SELECT os.id, os.numero, os.criado_em, os.valor_total, os.status,
            c.nome as cliente_nome,

@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId) => {
+const listar = async (tenantId = SINGLE_TENANT_ID) => {
   const result = await pool.query(
     "SELECT * FROM servicos WHERE tenant_id = $1 ORDER BY nome",
     [tenantId],
@@ -8,7 +9,7 @@ const listar = async (tenantId) => {
   return result.rows;
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     "SELECT * FROM servicos WHERE id = $1 AND tenant_id = $2",
     [id, tenantId],
@@ -16,7 +17,7 @@ const buscarPorId = async (tenantId, id) => {
   return result.rows[0] || null;
 };
 
-const criar = async (tenantId, { codigo, nome, descricao, valor_unitario }) => {
+const criar = async (tenantId = SINGLE_TENANT_ID, { codigo, nome, descricao, valor_unitario }) => {
   let result;
   if (codigo && codigo.toString().trim() !== "") {
     result = await pool.query(
@@ -52,7 +53,7 @@ const atualizar = async (
   return result.rows[0] || null;
 };
 
-const deletar = async (tenantId, id) => {
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
   await pool.query("DELETE FROM servicos WHERE id = $1 AND tenant_id = $2", [
     id,
     tenantId,

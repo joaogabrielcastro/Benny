@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId, filtros) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   const { status, data_inicio, data_fim, categoria } = filtros;
 
   let query = "SELECT * FROM contas_pagar WHERE tenant_id = $1";
@@ -37,7 +38,7 @@ const listar = async (tenantId, filtros) => {
   return result.rows;
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     "SELECT * FROM contas_pagar WHERE id = $1 AND tenant_id = $2",
     [id, tenantId],
@@ -45,7 +46,7 @@ const buscarPorId = async (tenantId, id) => {
   return result.rows[0];
 };
 
-const criar = async (tenantId, dados) => {
+const criar = async (tenantId = SINGLE_TENANT_ID, dados) => {
   const {
     descricao,
     categoria,
@@ -86,7 +87,7 @@ const criar = async (tenantId, dados) => {
   return result.rows[0];
 };
 
-const atualizar = async (tenantId, id, dados) => {
+const atualizar = async (tenantId = SINGLE_TENANT_ID, id, dados) => {
   const {
     descricao,
     categoria,
@@ -147,7 +148,7 @@ const atualizar = async (tenantId, id, dados) => {
   return result.rows[0];
 };
 
-const deletar = async (tenantId, id) => {
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
   await pool.query(
     "DELETE FROM contas_pagar WHERE id = $1 AND tenant_id = $2",
     [id, tenantId],
@@ -159,7 +160,7 @@ const deletar = async (tenantId, id) => {
   return true;
 };
 
-const alertasResumo = async (tenantId) => {
+const alertasResumo = async (tenantId = SINGLE_TENANT_ID) => {
   const hoje = new Date().toISOString().split("T")[0];
 
   const [vencidas, aVencer] = await Promise.all([

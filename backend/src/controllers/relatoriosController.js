@@ -1,10 +1,11 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import relatoriosService from "../services/relatoriosService.js";
 import logger from "../config/logger.js";
 
 class RelatoriosController {
   async dashboard(req, res) {
     try {
-      const data = await relatoriosService.dashboard(req.tenantId);
+      const data = await relatoriosService.dashboard(SINGLE_TENANT_ID);
       res.json(data);
     } catch (error) {
       logger.error("Erro ao gerar dashboard:", error);
@@ -16,7 +17,7 @@ class RelatoriosController {
     try {
       const { dataInicio, dataFim } = req.query;
       const data = await relatoriosService.vendas(
-        req.tenantId,
+        SINGLE_TENANT_ID,
         dataInicio,
         dataFim,
       );

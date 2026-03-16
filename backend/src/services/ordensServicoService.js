@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
 
@@ -37,7 +38,7 @@ async function deducaoEstoque(client, os_id, produtos = []) {
 
 // ─── Listagem ─────────────────────────────────────────────────────────────────
 
-const listar = async (tenantId, { status, busca } = {}) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
   let query = `
     SELECT os.*,
            c.nome as cliente_nome, c.telefone as cliente_telefone,
@@ -65,7 +66,7 @@ const listar = async (tenantId, { status, busca } = {}) => {
   return result.rows;
 };
 
-const buscarPorId = async (tenantId, id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const [os, produtos, servicos] = await Promise.all([
     pool.query(
       `SELECT os.*,
