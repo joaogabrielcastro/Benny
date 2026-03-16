@@ -22,9 +22,10 @@ const gerarToken = (user, tenantId) =>
   );
 
 const obterOuCriarTenantPadrao = async (client, emailFallback) => {
-  const existente = await client.query("SELECT id FROM tenants WHERE slug = $1", [
-    DEFAULT_TENANT_SLUG,
-  ]);
+  const existente = await client.query(
+    "SELECT id FROM tenants WHERE slug = $1",
+    [DEFAULT_TENANT_SLUG],
+  );
 
   if (existente.rows.length > 0) return existente.rows[0];
 
