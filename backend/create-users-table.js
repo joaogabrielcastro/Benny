@@ -9,6 +9,31 @@ async function createUsersTable() {
   try {
     console.log('🔨 Garantindo tabela de usuários...');
 
+    // Garantir estrutura mínima de tenant para evitar inconsistências de FK
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        slug VARCHAR(100) UNIQUE NOT NULL,
+        nome VARCHAR(255) NOT NULL,
+        cnpj VARCHAR(20) UNIQUE,
+        email VARCHAR(255) NOT NULL,
+        telefone VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'active',
+        plano VARCHAR(50) DEFAULT 'basic',
+        data_expiracao DATE,
+        max_usuarios INTEGER DEFAULT 5,
+        configuracoes JSONB DEFAULT '{}',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      INSERT INTO tenants (id, slug, nome, email, status, plano)
+      VALUES (1, 'default', 'Tenant Padrão', 'admin@local.test', 'active', 'basic')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
     // Criar tabela usuarios usada pela autenticação atual
     await pool.query(`
       CREATE TABLE IF NOT EXISTS usuarios (

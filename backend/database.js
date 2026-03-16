@@ -64,6 +64,13 @@ async function initDatabase() {
       )
     `);
 
+    // Garante tenant padrão para o modo single-tenant legado
+    await client.query(`
+      INSERT INTO tenants (id, slug, nome, email, status, plano)
+      VALUES (1, 'default', 'Tenant Padrão', 'admin@local.test', 'active', 'basic')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id SERIAL PRIMARY KEY,

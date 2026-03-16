@@ -9,6 +9,13 @@ async function createTestUser() {
   try {
     console.log('🔨 Criando usuário de teste...');
 
+    // Garante tenant padrão para satisfazer FK de usuarios.tenant_id
+    await pool.query(`
+      INSERT INTO tenants (id, slug, nome, email, status, plano)
+      VALUES (1, 'default', 'Tenant Padrão', 'admin@local.test', 'active', 'basic')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
     // Dados do usuário
     const nome = 'Admin Sistema';
     const email = 'admin@oficina.com';
