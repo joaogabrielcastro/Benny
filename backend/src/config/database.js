@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const { Pool, types } = pkg;
-const databaseUrl = process.env.DATABASE_URL || "";
 
 // Configurar pg para retornar valores numéricos como números (não strings)
 types.setTypeParser(1700, function (val) {
@@ -13,10 +12,10 @@ types.setTypeParser(1700, function (val) {
 
 // Configurar pool de conexões PostgreSQL
 const pool = new Pool({
-  connectionString: databaseUrl,
-  ssl: databaseUrl.includes("sslmode=disable")
-    ? false
-    : { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Testar conexão

@@ -11,8 +11,7 @@ import { initScheduler } from "./src/jobs/scheduler.js";
 dotenv.config();
 
 const app = express();
-app.set("trust proxy", 1);
-const PORT = process.env.PORT || 3011;
+const PORT = process.env.PORT || 3000;
 
 // ─── Middlewares ──────────────────────────────────────────────────────────────
 
@@ -22,9 +21,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "http://localhost:3011",
-      "https://benny.jwsoftware.com.br",
-      "https://api-benny.jwsoftware.com.br",
+      "https://benny-theta.vercel.app",
+      /\.vercel\.app$/,
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
