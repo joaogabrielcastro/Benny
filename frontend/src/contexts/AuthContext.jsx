@@ -3,6 +3,13 @@ import api from "../services/api";
 
 const AuthContext = createContext(null);
 
+function normalizeAuthPayload(payload) {
+  return {
+    token: payload?.token || payload?.accessToken || null,
+    user: payload?.user || payload?.usuario || null,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
@@ -18,18 +25,30 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, senha) => {
     const { data } = await api.post("/auth/login", { email, senha });
-    localStorage.setItem("auth_token", data.token);
-    localStorage.setItem("auth_user", JSON.stringify(data.user));
-    setUser(data.user);
-    return data;
+    const auth = normalizeAuthPayload(data);
+
+    if (!auth.token || !auth.user) {
+      throw new Error("Resposta de autenticação inválida");
+    }
+
+    localStorage.setItem("auth_token", auth.token);
+    localStorage.setItem("auth_user", JSON.stringify(auth.user));
+    setUser(auth.user);
+    return auth;
   }, []);
 
   const registrar = useCallback(async (dados) => {
     const { data } = await api.post("/auth/registrar", dados);
-    localStorage.setItem("auth_token", data.token);
-    localStorage.setItem("auth_user", JSON.stringify(data.user));
-    setUser(data.user);
-    return data;
+    const auth = normalizeAuthPayload(data);
+
+    if (!auth.token || !auth.user) {
+      throw new Error("Resposta de autenticação inválida");
+    }
+
+    localStorage.setItem("auth_token", auth.token);
+    localStorage.setItem("auth_user", JSON.stringify(auth.user));
+    setUser(auth.user);
+    return auth;
   }, []);
 
   const logout = useCallback(() => {
