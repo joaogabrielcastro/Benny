@@ -61,4 +61,7 @@ DROP INDEX IF EXISTS idx_usuarios_email_tenant;
 ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_tenant_id_email_key;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email_unique ON usuarios(email);
 
+-- 5) Adiciona coluna marca em veiculos
+ALTER TABLE veiculos ADD COLUMN IF NOT EXISTS marca VARCHAR(100);
+
 COMMIT;

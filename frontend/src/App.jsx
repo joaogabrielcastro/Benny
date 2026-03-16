@@ -32,7 +32,6 @@ const OSForm = lazy(() => import("./pages/OSForm"));
 const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
 const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
-const GatewayConfigs = lazy(() => import("./pages/GatewayConfigs"));
 
 function App() {
   return (
@@ -169,7 +168,6 @@ function App() {
                         </ProtectedRoute>
                       }
                     />
-                    {/* <Route path="/gateway-configs" element={<ProtectedRoute><GatewayConfigs /></ProtectedRoute>} /> */}
                   </Routes>
                 </Suspense>
               </main>
@@ -257,9 +255,6 @@ function Navigation() {
             <NavLink to="/contas-pagar" active={isActive("/contas-pagar")}>
               Contas
             </NavLink>
-            {/* <NavLink to="/gateway-configs" active={isActive("/gateway-configs")}> 
-              Gateways
-            </NavLink> */}
             <NavLink to="/estoque" active={isActive("/estoque")}>
               Estoque
             </NavLink>

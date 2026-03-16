@@ -6,8 +6,6 @@ import { requireAuth } from "../middleware/authMiddleware.js";
 
 // Utilitários e infraestrutura
 import cepRoutes from "./cepRoutes.js";
-import nfRoutes from "./nfRoutes.js";
-import empresasRoutes from "./empresasRoutes.js";
 
 // Recursos do sistema
 import produtosRoutes from "./produtosRoutes.js";
@@ -44,9 +42,5 @@ router.use("/lembretes", requireAuth, lembretesRoutes);
 router.use("/relatorios", requireAuth, relatoriosRoutes);
 router.use("/auditoria", requireAuth, auditoriaRoutes);
 router.use("/backup", requireAuth, backupRoutes);
-
-// ── NF e Empresas ─────────────────────────────────────────────────────────────
-router.use("/notas-fiscais", requireAuth, nfRoutes);
-router.use("/empresas", requireAuth, empresasRoutes);
 
 export default router;

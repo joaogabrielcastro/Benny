@@ -157,6 +157,7 @@ async function initDatabase() {
         cor VARCHAR(50),
         placa VARCHAR(20) NOT NULL,
         ano VARCHAR(10),
+          marca VARCHAR(100),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clientes(id)
       )
