@@ -186,10 +186,7 @@ function ConditionalNavigation() {
   const location = useLocation();
 
   // Não mostrar navegação na página pública ou login
-  if (
-    location.pathname.startsWith("/v") ||
-    location.pathname === "/login"
-  ) {
+  if (location.pathname.startsWith("/v") || location.pathname === "/login") {
     return null;
   }
 
@@ -200,10 +197,7 @@ function ConditionalNotifications() {
   const location = useLocation();
 
   // Não mostrar notificações na página pública ou login
-  if (
-    location.pathname.startsWith("/v") ||
-    location.pathname === "/login"
-  ) {
+  if (location.pathname.startsWith("/v") || location.pathname === "/login") {
     return null;
   }
 
