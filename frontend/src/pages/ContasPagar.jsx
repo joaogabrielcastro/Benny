@@ -156,16 +156,16 @@ export default function ContasPagar() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Contas a Pagar
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Controle de despesas e pagamentos
           </p>
         </div>
-        <Button onClick={abrirModalNovo} icon={FiPlus}>
+        <Button onClick={abrirModalNovo} icon={FiPlus} className="w-full sm:w-auto">
           Nova Conta
         </Button>
       </div>
@@ -178,7 +178,7 @@ export default function ContasPagar() {
               <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
                 Total
               </p>
-              <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+              <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
                 {formatarMoeda(totais.total)}
               </p>
             </div>
@@ -192,7 +192,7 @@ export default function ContasPagar() {
               <p className="text-sm text-green-600 dark:text-green-400 font-medium">
                 Pagas
               </p>
-              <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+              <p className="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
                 {formatarMoeda(totais.pagas)}
               </p>
             </div>
@@ -206,7 +206,7 @@ export default function ContasPagar() {
               <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
                 Pendentes
               </p>
-              <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+              <p className="text-xl sm:text-2xl font-bold text-yellow-700 dark:text-yellow-300">
                 {formatarMoeda(totais.pendentes)}
               </p>
             </div>
@@ -220,7 +220,7 @@ export default function ContasPagar() {
               <p className="text-sm text-red-600 dark:text-red-400 font-medium">
                 Vencidas
               </p>
-              <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+              <p className="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">
                 {alertas.vencidas.length}
               </p>
             </div>
@@ -333,101 +333,103 @@ export default function ContasPagar() {
             const venceEmBreve = conta.status === "Pendente" && vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000;
             
             return (
-              <Card 
-                key={conta.id} 
+              <Card
+                key={conta.id}
                 className={`hover:shadow-lg transition-all ${
-                  estaVencida 
-                    ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10 dark:border-red-600' 
-                    : venceEmBreve 
-                    ? 'border-yellow-400 bg-yellow-50/30 dark:bg-yellow-900/10 dark:border-yellow-600'
-                    : ''
+                  estaVencida
+                    ? "border-red-400 bg-red-50/50 dark:bg-red-900/10 dark:border-red-600"
+                    : venceEmBreve
+                      ? "border-yellow-400 bg-yellow-50/30 dark:bg-yellow-900/10 dark:border-yellow-600"
+                      : ""
                 }`}
               >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {conta.descricao}
-                    </h3>
-                    <Badge variant={getStatusBadgeVariant(conta)}>
-                      {getStatusTexto(conta)}
-                    </Badge>
-                  </div>
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        {conta.descricao}
+                      </h3>
+                      <Badge variant={getStatusBadgeVariant(conta)}>
+                        {getStatusTexto(conta)}
+                      </Badge>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm text-gray-600 dark:text-gray-400">
-                    <div>
-                      <strong className="text-gray-700 dark:text-gray-300">
-                        Categoria:
-                      </strong>{" "}
-                      {conta.categoria}
-                    </div>
-                    <div>
-                      <strong className="text-gray-700 dark:text-gray-300">
-                        Valor:
-                      </strong>{" "}
-                      <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {formatarMoeda(conta.valor)}
-                      </span>
-                    </div>
-                    <div>
-                      <strong className="text-gray-700 dark:text-gray-300">
-                        Vencimento:
-                      </strong>{" "}
-                      {formatarData(conta.data_vencimento)}
-                    </div>
-                    {conta.data_pagamento && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600 dark:text-gray-400">
                       <div>
                         <strong className="text-gray-700 dark:text-gray-300">
-                          Pago em:
+                          Categoria:
                         </strong>{" "}
-                        {formatarData(conta.data_pagamento)}
+                        {conta.categoria}
                       </div>
+                      <div>
+                        <strong className="text-gray-700 dark:text-gray-300">
+                          Valor:
+                        </strong>{" "}
+                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
+                          {formatarMoeda(conta.valor)}
+                        </span>
+                      </div>
+                      <div>
+                        <strong className="text-gray-700 dark:text-gray-300">
+                          Vencimento:
+                        </strong>{" "}
+                        {formatarData(conta.data_vencimento)}
+                      </div>
+                      {conta.data_pagamento && (
+                        <div>
+                          <strong className="text-gray-700 dark:text-gray-300">
+                            Pago em:
+                          </strong>{" "}
+                          {formatarData(conta.data_pagamento)}
+                        </div>
+                      )}
+                    </div>
+
+                    {conta.fornecedor && (
+                      <p className="text-sm mt-2">
+                        <strong className="text-gray-700 dark:text-gray-300">
+                          Fornecedor:
+                        </strong>{" "}
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {conta.fornecedor}
+                        </span>
+                      </p>
+                    )}
+
+                    {conta.observacoes && (
+                      <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
+                        {conta.observacoes}
+                      </p>
                     )}
                   </div>
 
-                  {conta.fornecedor && (
-                    <p className="text-sm mt-2">
-                      <strong className="text-gray-700 dark:text-gray-300">
-                        Fornecedor:
-                      </strong>{" "}
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {conta.fornecedor}
-                      </span>
-                    </p>
-                  )}
-
-                  {conta.observacoes && (
-                    <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
-                      {conta.observacoes}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex gap-2 ml-4">
-                  {conta.status === "Pendente" && (
+                  <div className="flex flex-wrap gap-2 w-full md:w-auto md:ml-4">
+                    {conta.status === "Pendente" && (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => handleMarcarPago(conta)}
+                        icon={FiCheck}
+                        title="Marcar como Pago"
+                      />
+                    )}
                     <Button
                       size="sm"
-                      variant="success"
-                      onClick={() => handleMarcarPago(conta)}
-                      icon={FiCheck}
-                      title="Marcar como Pago"
+                      variant="outline"
+                      onClick={() => abrirModalEditar(conta)}
+                      icon={FiEdit2}
+                      className="flex-1 md:flex-none"
                     />
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => abrirModalEditar(conta)}
-                    icon={FiEdit2}
-                  />
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleDeletar(conta.id)}
-                    icon={FiTrash2}
-                  />
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeletar(conta.id)}
+                      icon={FiTrash2}
+                      className="flex-1 md:flex-none"
+                    />
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
             );
           })
         )}
@@ -658,11 +660,16 @@ function ContaModal({ conta, onClose, onSalvar }) {
           </div>
         </div>
 
-        <div className="flex gap-3 justify-end pt-4">
-          <Button type="button" variant="outline" onClick={onClose}>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
             Cancelar
           </Button>
-          <Button type="submit" disabled={salvando}>
+          <Button type="submit" disabled={salvando} className="w-full sm:w-auto">
             {salvando ? "Salvando..." : "Salvar"}
           </Button>
         </div>

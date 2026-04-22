@@ -167,19 +167,19 @@ export default function Estoque() {
         message="Deseja realmente deletar este produto? Esta ação não pode ser desfeita."
       />
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">
           Estoque
         </h1>
         <button
           onClick={handleNovo}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="w-full sm:w-auto bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           + Novo Produto
         </button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
             type="text"
@@ -201,7 +201,7 @@ export default function Estoque() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-100 dark:bg-gray-700">
               <tr>
@@ -288,6 +288,86 @@ export default function Estoque() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+          {produtosFiltrados.map((produto) => (
+            <div
+              key={produto.id}
+              className={`p-4 space-y-2 ${
+                produto.quantidade <= produto.estoque_minimo
+                  ? "bg-red-50 dark:bg-red-900/20"
+                  : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Código</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {produto.codigo}
+                  </p>
+                </div>
+                {produto.quantidade <= produto.estoque_minimo && (
+                  <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold">
+                    ESTOQUE BAIXO
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Produto</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {produto.nome}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Qtd</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
+                    {produto.quantidade}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Custo</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
+                    {formatarMoeda(produto.valor_custo)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Venda</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {formatarMoeda(produto.valor_venda)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-1 flex items-center gap-4">
+                <button
+                  onClick={() => handleEditar(produto)}
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() =>
+                    setConfirmDialog({
+                      isOpen: true,
+                      produtoId: produto.id,
+                    })
+                  }
+                  className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium"
+                >
+                  Deletar
+                </button>
+              </div>
+            </div>
+          ))}
+          {produtosFiltrados.length === 0 && (
+            <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+              Nenhum produto encontrado
+            </div>
+          )}
         </div>
       </div>
 

@@ -69,10 +69,20 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
       size="lg"
       footer={
         <>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             Cancelar
           </Button>
-          <Button variant="primary" onClick={handleSubmit} loading={loading}>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            loading={loading}
+            className="w-full sm:w-auto"
+          >
             Cadastrar Veículo
           </Button>
         </>
