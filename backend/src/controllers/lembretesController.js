@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import lembretesService from "../services/lembretesService.js";
 import logger from "../config/logger.js";
 
@@ -5,7 +6,7 @@ class LembretesController {
   async listar(req, res) {
     try {
       const filtros = req.query || {};
-      const rows = await lembretesService.listar(filtros);
+      const rows = await lembretesService.listar(SINGLE_TENANT_ID, filtros);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar lembretes:", error);
@@ -15,7 +16,7 @@ class LembretesController {
 
   async hoje(req, res) {
     try {
-      const rows = await lembretesService.hoje();
+      const rows = await lembretesService.hoje(SINGLE_TENANT_ID);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar lembretes de hoje:", error);

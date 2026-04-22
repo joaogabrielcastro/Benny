@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import contasPagarService from "../services/contasPagarService.js";
 import logger from "../config/logger.js";
 
@@ -5,7 +6,7 @@ class ContasPagarController {
   async listar(req, res) {
     try {
       const filtros = req.query || {};
-      const rows = await contasPagarService.listar(filtros);
+      const rows = await contasPagarService.listar(SINGLE_TENANT_ID, filtros);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar contas:", error);
@@ -15,7 +16,10 @@ class ContasPagarController {
 
   async buscar(req, res) {
     try {
-      const conta = await contasPagarService.buscarPorId(req.params.id);
+      const conta = await contasPagarService.buscarPorId(
+        SINGLE_TENANT_ID,
+        req.params.id,
+      );
       if (!conta)
         return res.status(404).json({ error: "Conta não encontrada" });
       res.json(conta);
@@ -27,7 +31,7 @@ class ContasPagarController {
 
   async criar(req, res) {
     try {
-      const nova = await contasPagarService.criar(req.body);
+      const nova = await contasPagarService.criar(SINGLE_TENANT_ID, req.body);
 
       // criar lembrete automático (3 dias antes)
       try {
@@ -39,7 +43,7 @@ class ContasPagarController {
         const lembretesService = (
           await import("../services/lembretesService.js")
         ).default;
-        await lembretesService.criar({
+        await lembretesService.criar(SINGLE_TENANT_ID, {
           tipo: "conta_pagar",
           referencia_id: nova.id,
           titulo: "Lembrete de Pagamento",
@@ -63,6 +67,7 @@ class ContasPagarController {
   async atualizar(req, res) {
     try {
       const updated = await contasPagarService.atualizar(
+        SINGLE_TENANT_ID,
         req.params.id,
         req.body,
       );
@@ -77,7 +82,7 @@ class ContasPagarController {
 
   async deletar(req, res) {
     try {
-      await contasPagarService.deletar(req.params.id);
+      await contasPagarService.deletar(SINGLE_TENANT_ID, req.params.id);
       res.json({ message: "Conta deletada com sucesso" });
     } catch (error) {
       logger.error("Erro ao deletar conta:", error);
@@ -87,7 +92,7 @@ class ContasPagarController {
 
   async alertasResumo(req, res) {
     try {
-      const resumo = await contasPagarService.alertasResumo();
+      const resumo = await contasPagarService.alertasResumo(SINGLE_TENANT_ID);
       res.json(resumo);
     } catch (error) {
       logger.error("Erro ao obter alertas resumo:", error);

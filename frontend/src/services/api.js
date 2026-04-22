@@ -1,9 +1,10 @@
 import axios from "axios";
 
-const baseURL =
-  import.meta.env.MODE === "development"
-    ? "http://localhost:3000/api"
-    : "https://benny-oh3g.onrender.com/api";
+const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:3011/api";
+const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
+const baseURL = normalizedApiUrl.endsWith("/api")
+  ? normalizedApiUrl
+  : `${normalizedApiUrl}/api`;
 
 const api = axios.create({
   baseURL,
@@ -12,32 +13,26 @@ const api = axios.create({
   },
 });
 
-// Interceptor para adicionar token em todas as requisições
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Injeta o JWT Bearer token em todas as requisições autenticadas
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("auth_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Interceptor para tratar erros de autenticação
+// Redireciona para /login se o token expirar ou for inválido
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token inválido ou expirado
       localStorage.removeItem("auth_token");
       localStorage.removeItem("auth_user");
       window.location.href = "/login";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

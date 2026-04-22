@@ -1,17 +1,44 @@
 /**
- * Script para criar tabela de usuários simples (sem multi-tenant)
+ * Script legado mantido por compatibilidade.
+ * Garante a tabela usuarios usada pelo login atual.
  */
 
-import pool from './database.js';
+import pool from "./database.js";
 
 async function createUsersTable() {
   try {
-    console.log('🔨 Criando tabela de usuários...');
+    console.log("🔨 Garantindo tabela de usuários...");
 
-    // Criar tabela users
+    // Garantir estrutura mínima de tenant para evitar inconsistências de FK
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE IF NOT EXISTS tenants (
         id SERIAL PRIMARY KEY,
+        slug VARCHAR(100) UNIQUE NOT NULL,
+        nome VARCHAR(255) NOT NULL,
+        cnpj VARCHAR(20) UNIQUE,
+        email VARCHAR(255) NOT NULL,
+        telefone VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'active',
+        plano VARCHAR(50) DEFAULT 'basic',
+        data_expiracao DATE,
+        max_usuarios INTEGER DEFAULT 5,
+        configuracoes JSONB DEFAULT '{}',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      INSERT INTO tenants (id, slug, nome, email, status, plano)
+      VALUES (1, 'default', 'Tenant Padrão', 'admin@local.test', 'active', 'basic')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    // Criar tabela usuarios usada pela autenticação atual
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL DEFAULT 1,
         nome VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         senha_hash VARCHAR(255) NOT NULL,
@@ -23,20 +50,19 @@ async function createUsersTable() {
       )
     `);
 
-    console.log('✅ Tabela users criada com sucesso!');
+    console.log("✅ Tabela usuarios criada com sucesso!");
 
     // Criar índice no email
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+      CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)
     `);
 
-    console.log('✅ Índice no email criado!');
+    console.log("✅ Índice no email criado!");
 
-    const result = await pool.query('SELECT COUNT(*) FROM users');
+    const result = await pool.query("SELECT COUNT(*) FROM usuarios");
     console.log(`\n📊 Total de usuários: ${result.rows[0].count}`);
-
   } catch (error) {
-    console.error('❌ Erro:', error.message);
+    console.error("❌ Erro:", error.message);
     throw error;
   } finally {
     await pool.end();

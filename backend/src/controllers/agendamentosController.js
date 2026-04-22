@@ -1,3 +1,4 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import agendamentosService from "../services/agendamentosService.js";
 import lembretesService from "../services/lembretesService.js";
 import logger from "../config/logger.js";
@@ -6,7 +7,7 @@ class AgendamentosController {
   async listar(req, res) {
     try {
       const filtros = req.query || {};
-      const rows = await agendamentosService.listar(filtros);
+      const rows = await agendamentosService.listar(SINGLE_TENANT_ID, filtros);
       res.json(rows);
     } catch (error) {
       logger.error("Erro ao listar agendamentos:", error);
@@ -16,7 +17,10 @@ class AgendamentosController {
 
   async buscar(req, res) {
     try {
-      const ag = await agendamentosService.buscarPorId(req.params.id);
+      const ag = await agendamentosService.buscarPorId(
+        SINGLE_TENANT_ID,
+        req.params.id,
+      );
       if (!ag)
         return res.status(404).json({ error: "Agendamento não encontrado" });
       res.json(ag);
@@ -28,7 +32,7 @@ class AgendamentosController {
 
   async criar(req, res) {
     try {
-      const novo = await agendamentosService.criar(req.body);
+      const novo = await agendamentosService.criar(SINGLE_TENANT_ID, req.body);
 
       // Criar lembrete automático
       const dataLembrete = new Date(novo.data_agendamento);
@@ -36,7 +40,7 @@ class AgendamentosController {
       dataLembrete.setHours(9, 0, 0, 0);
 
       try {
-        await lembretesService.criar({
+        await lembretesService.criar(SINGLE_TENANT_ID, {
           tipo: "agendamento",
           referencia_id: novo.id,
           titulo: "Lembrete de Agendamento",
@@ -62,6 +66,7 @@ class AgendamentosController {
   async atualizar(req, res) {
     try {
       const atualizado = await agendamentosService.atualizar(
+        SINGLE_TENANT_ID,
         req.params.id,
         req.body,
       );
@@ -79,7 +84,7 @@ class AgendamentosController {
 
   async deletar(req, res) {
     try {
-      await agendamentosService.deletar(req.params.id);
+      await agendamentosService.deletar(SINGLE_TENANT_ID, req.params.id);
       res.json({ message: "Agendamento deletado com sucesso" });
     } catch (error) {
       logger.error("Erro ao deletar agendamento:", error);
@@ -89,7 +94,7 @@ class AgendamentosController {
 
   async hojeLista(req, res) {
     try {
-      const lista = await agendamentosService.hojeLista();
+      const lista = await agendamentosService.hojeLista(SINGLE_TENANT_ID);
       res.json(lista);
     } catch (error) {
       logger.error("Erro ao listar agendamentos do dia:", error);

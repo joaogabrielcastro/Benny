@@ -1,11 +1,12 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (filtros) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   const { status, data_inicio, data_fim, categoria } = filtros;
 
-  let query = "SELECT * FROM contas_pagar WHERE 1=1";
-  const params = [];
-  let paramIndex = 1;
+  let query = "SELECT * FROM contas_pagar WHERE tenant_id = $1";
+  const params = [tenantId];
+  let paramIndex = 2;
 
   if (status) {
     query += ` AND status = $${paramIndex}`;
@@ -37,14 +38,15 @@ const listar = async (filtros) => {
   return result.rows;
 };
 
-const buscarPorId = async (id) => {
-  const result = await pool.query("SELECT * FROM contas_pagar WHERE id = $1", [
-    id,
-  ]);
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
+  const result = await pool.query(
+    "SELECT * FROM contas_pagar WHERE id = $1 AND tenant_id = $2",
+    [id, tenantId],
+  );
   return result.rows[0];
 };
 
-const criar = async (dados) => {
+const criar = async (tenantId = SINGLE_TENANT_ID, dados) => {
   const {
     descricao,
     categoria,
@@ -60,8 +62,8 @@ const criar = async (dados) => {
 
   const result = await pool.query(
     `INSERT INTO contas_pagar 
-     (descricao, categoria, valor, data_vencimento, fornecedor, observacoes, recorrente, frequencia, intervalo, data_termino)
-     VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, false), $8, COALESCE($9,1), $10)
+     (descricao, categoria, valor, data_vencimento, fornecedor, observacoes, recorrente, frequencia, intervalo, data_termino, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, false), $8, COALESCE($9,1), $10, $11)
      RETURNING *`,
     [
       descricao,
@@ -78,13 +80,14 @@ const criar = async (dados) => {
       frequencia || null,
       intervalo || 1,
       data_termino || null,
+      tenantId,
     ],
   );
 
   return result.rows[0];
 };
 
-const atualizar = async (id, dados) => {
+const atualizar = async (tenantId = SINGLE_TENANT_ID, id, dados) => {
   const {
     descricao,
     categoria,
@@ -117,7 +120,7 @@ const atualizar = async (id, dados) => {
          intervalo = COALESCE($12, intervalo),
          data_termino = COALESCE($13, data_termino),
          atualizado_em = CURRENT_TIMESTAMP
-     WHERE id = $14
+     WHERE id = $14 AND tenant_id = $15
      RETURNING *`,
     [
       descricao,
@@ -138,14 +141,18 @@ const atualizar = async (id, dados) => {
       intervalo || null,
       data_termino || null,
       id,
+      tenantId,
     ],
   );
 
   return result.rows[0];
 };
 
-const deletar = async (id) => {
-  await pool.query("DELETE FROM contas_pagar WHERE id = $1", [id]);
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  await pool.query(
+    "DELETE FROM contas_pagar WHERE id = $1 AND tenant_id = $2",
+    [id, tenantId],
+  );
   await pool.query(
     "DELETE FROM lembretes WHERE tipo = 'conta_pagar' AND referencia_id = $1",
     [id],
@@ -153,17 +160,18 @@ const deletar = async (id) => {
   return true;
 };
 
-const alertasResumo = async () => {
+const alertasResumo = async (tenantId = SINGLE_TENANT_ID) => {
   const hoje = new Date().toISOString().split("T")[0];
 
   const [vencidas, aVencer] = await Promise.all([
     pool.query(
-      "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento < $1 ORDER BY data_vencimento",
-      [hoje],
+      "SELECT * FROM contas_pagar WHERE tenant_id = $1 AND status = 'Pendente' AND data_vencimento < $2 ORDER BY data_vencimento",
+      [tenantId, hoje],
     ),
     pool.query(
-      "SELECT * FROM contas_pagar WHERE status = 'Pendente' AND data_vencimento >= $1 AND data_vencimento <= $2 ORDER BY data_vencimento",
+      "SELECT * FROM contas_pagar WHERE tenant_id = $1 AND status = 'Pendente' AND data_vencimento >= $2 AND data_vencimento <= $3 ORDER BY data_vencimento",
       [
+        tenantId,
         hoje,
         new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
           .toISOString()

@@ -3,6 +3,13 @@ import api from "../services/api";
 
 const AuthContext = createContext(null);
 
+function normalizeAuthPayload(payload) {
+  return {
+    token: payload?.token || payload?.accessToken || null,
+    user: payload?.user || payload?.usuario || null,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
@@ -13,56 +20,34 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const isAuthenticated = !!user;
+  const token = localStorage.getItem("auth_token");
+  const isAuthenticated = !!token && !!user;
 
-  // Login real com API
   const login = useCallback(async (email, senha) => {
-    try {
-      const { data } = await api.post("/auth/login", { email, senha });
-      
-      // Salvar token e usuário
-      localStorage.setItem("auth_token", data.token);
-      localStorage.setItem("auth_user", JSON.stringify(data.user));
-      
-      // Configurar token no header da API
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-      
-      setUser(data.user);
-      return data;
-    } catch (error) {
-      console.error("Erro no login:", error);
-      throw error;
-    }
-  }, []);
+    const { data } = await api.post("/auth/login", { email, senha });
+    const auth = normalizeAuthPayload(data);
 
-  const registrar = useCallback(async (dados) => {
-    try {
-      const { data } = await api.post("/auth/registrar", dados);
-      
-      localStorage.setItem("auth_token", data.token);
-      localStorage.setItem("auth_user", JSON.stringify(data.user));
-      
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-      
-      setUser(data.user);
-      return data;
-    } catch (error) {
-      console.error("Erro no registro:", error);
-      throw error;
+    if (!auth.token || !auth.user) {
+      throw new Error("Resposta de autenticação inválida");
     }
+
+    localStorage.setItem("auth_token", auth.token);
+    localStorage.setItem("auth_user", JSON.stringify(auth.user));
+    setUser(auth.user);
+    return auth;
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
-    delete api.defaults.headers.common["Authorization"];
+    // Compatibilidade com código legado
+    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("usuario");
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, isAuthenticated, login, registrar, logout }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
 import Logo from "../components/Logo";
-import toast from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    email: "",
-    senha: "",
-  });
+  const [formData, setFormData] = useState({ email: "", senha: "" });
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -16,45 +12,28 @@ export default function Login() {
   const { login, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard");
-    }
+    if (isAuthenticated) navigate("/dashboard");
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErro("");
     setLoading(true);
-
     try {
-      if (!formData.email || !formData.senha) {
-        setErro("Por favor, preencha todos os campos");
-        setLoading(false);
-        return;
-      }
-
       await login(formData.email, formData.senha);
-      toast.success("Login realizado com sucesso!");
       navigate("/dashboard");
     } catch (error) {
-      console.error("Erro no login:", error);
-      const mensagem = error.response?.data?.message || "Email ou senha incorretos";
-      setErro(mensagem);
-      toast.error(mensagem);
+      setErro(error.response?.data?.error || "E-mail ou senha incorretos");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="min-h-screen flex">
       {/* ── Painel esquerdo — Identidade da marca ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-gray-900 via-blue-950 to-gray-900 flex-col items-center justify-center p-12">
         {/* Decoração geométrica de fundo */}
@@ -136,7 +115,7 @@ export default function Login() {
       </div>
 
       {/* ── Painel direito — Formulário ── */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 px-6 py-8 overflow-y-auto">
+      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 px-6 py-12">
         {/* Logo mobile (visível só em telas pequenas) */}
         <div className="lg:hidden mb-8 text-center">
           <div className="flex justify-center mb-3">
@@ -248,7 +227,7 @@ export default function Login() {
                 />
                 <button
                   type="button"
-                  onClick={() => setMostrarSenha(!mostrarSenha)}
+                  onClick={() => setMostrarSenha((v) => !v)}
                   className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition"
                   tabIndex={-1}
                 >

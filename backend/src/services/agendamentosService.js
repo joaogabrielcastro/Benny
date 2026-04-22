@@ -1,6 +1,7 @@
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (filtros) => {
+const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   const { data_inicio, data_fim, status, cliente_id } = filtros;
 
   let query = `
@@ -10,10 +11,10 @@ const listar = async (filtros) => {
     FROM agendamentos a
     LEFT JOIN clientes c ON a.cliente_id = c.id
     LEFT JOIN veiculos v ON a.veiculo_id = v.id
-    WHERE 1=1
+    WHERE a.tenant_id = $1
   `;
-  const params = [];
-  let paramIndex = 1;
+  const params = [tenantId];
+  let paramIndex = 2;
 
   if (data_inicio) {
     query += ` AND a.data_agendamento >= $${paramIndex}`;
@@ -45,7 +46,7 @@ const listar = async (filtros) => {
   return result.rows;
 };
 
-const buscarPorId = async (id) => {
+const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     `SELECT a.*, 
             c.nome as cliente_nome, c.telefone as cliente_telefone,
@@ -53,14 +54,14 @@ const buscarPorId = async (id) => {
      FROM agendamentos a
      LEFT JOIN clientes c ON a.cliente_id = c.id
      LEFT JOIN veiculos v ON a.veiculo_id = v.id
-     WHERE a.id = $1`,
-    [id],
+     WHERE a.id = $1 AND a.tenant_id = $2`,
+    [id, tenantId],
   );
 
   return result.rows[0];
 };
 
-const criar = async (dados) => {
+const criar = async (tenantId = SINGLE_TENANT_ID, dados) => {
   const {
     cliente_id,
     veiculo_id,
@@ -75,14 +76,14 @@ const criar = async (dados) => {
 
   const conflito = await pool.query(
     `SELECT id FROM agendamentos 
-     WHERE data_agendamento = $1 
+     WHERE data_agendamento = $1 AND tenant_id = $4
      AND status NOT IN ('Cancelado', 'Concluído')
      AND (
        (hora_inicio <= $2 AND hora_fim >= $2) OR
        (hora_inicio <= $3 AND hora_fim >= $3) OR
        (hora_inicio >= $2 AND hora_fim <= $3)
      )`,
-    [data_agendamento, hora_inicio, hora_fim || hora_inicio],
+    [data_agendamento, hora_inicio, hora_fim || hora_inicio, tenantId],
   );
 
   if (conflito.rows.length > 0) {
@@ -94,8 +95,8 @@ const criar = async (dados) => {
   const result = await pool.query(
     `INSERT INTO agendamentos 
      (cliente_id, veiculo_id, data_agendamento, hora_inicio, hora_fim, 
-      tipo_servico, observacoes, valor_estimado, mecanico_responsavel)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+      tipo_servico, observacoes, valor_estimado, mecanico_responsavel, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
      RETURNING *`,
     [
       cliente_id,
@@ -107,13 +108,14 @@ const criar = async (dados) => {
       observacoes || null,
       valor_estimado || null,
       mecanico_responsavel || null,
+      tenantId,
     ],
   );
 
   return result.rows[0];
 };
 
-const atualizar = async (id, dados) => {
+const atualizar = async (tenantId = SINGLE_TENANT_ID, id, dados) => {
   const {
     status,
     data_agendamento,
@@ -136,7 +138,7 @@ const atualizar = async (id, dados) => {
          valor_estimado = COALESCE($7, valor_estimado),
          mecanico_responsavel = COALESCE($8, mecanico_responsavel),
          atualizado_em = CURRENT_TIMESTAMP
-     WHERE id = $9
+     WHERE id = $9 AND tenant_id = $10
      RETURNING *`,
     [
       status,
@@ -148,14 +150,18 @@ const atualizar = async (id, dados) => {
       valor_estimado,
       mecanico_responsavel,
       id,
+      tenantId,
     ],
   );
 
   return result.rows[0];
 };
 
-const deletar = async (id) => {
-  await pool.query("DELETE FROM agendamentos WHERE id = $1", [id]);
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  await pool.query(
+    "DELETE FROM agendamentos WHERE id = $1 AND tenant_id = $2",
+    [id, tenantId],
+  );
   await pool.query(
     "DELETE FROM lembretes WHERE tipo = 'agendamento' AND referencia_id = $1",
     [id],
@@ -163,7 +169,7 @@ const deletar = async (id) => {
   return true;
 };
 
-const hojeLista = async () => {
+const hojeLista = async (tenantId = SINGLE_TENANT_ID) => {
   const hoje = new Date().toISOString().split("T")[0];
 
   const result = await pool.query(
@@ -173,9 +179,9 @@ const hojeLista = async () => {
      FROM agendamentos a
      LEFT JOIN clientes c ON a.cliente_id = c.id
      LEFT JOIN veiculos v ON a.veiculo_id = v.id
-     WHERE a.data_agendamento = $1
+     WHERE a.data_agendamento = $1 AND a.tenant_id = $2
      ORDER BY a.hora_inicio ASC`,
-    [hoje],
+    [hoje, tenantId],
   );
 
   return result.rows;

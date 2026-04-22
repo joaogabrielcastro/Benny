@@ -46,7 +46,7 @@ export default defineConfig({
     port: 5177, // Mudei para 5175 para evitar cache
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://localhost:3011",
         changeOrigin: true,
       },
     },
