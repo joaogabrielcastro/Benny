@@ -29,6 +29,7 @@ export default function ProdutoFormModal({
   isOpen = true,
   onClose,
   onSaved,
+  produtosExistentes = [],
 }) {
   const [formData, setFormData] = useState(
     produto || {
@@ -61,6 +62,22 @@ export default function ProdutoFormModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const codigoInformado = (formData.codigo || "").trim();
+    if (codigoInformado) {
+      const codigoNormalizado = codigoInformado.toUpperCase();
+      const codigoDuplicado = produtosExistentes.some((item) => {
+        if (!item || item.id === produto?.id) return false;
+        return (item.codigo || "").trim().toUpperCase() === codigoNormalizado;
+      });
+
+      if (codigoDuplicado) {
+        toast.error(
+          "Codigo ja cadastrado. Use outro codigo ou deixe em branco para gerar automaticamente.",
+        );
+        return;
+      }
+    }
+
     try {
       let res;
       if (produto && produto.id) {

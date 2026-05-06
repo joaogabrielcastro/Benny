@@ -374,6 +374,7 @@ export default function Estoque() {
       {mostrarForm && (
         <ProdutoFormModal
           produto={produtoEditando}
+          produtosExistentes={produtos}
           onClose={handleFecharForm}
         />
       )}
