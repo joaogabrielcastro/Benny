@@ -1,6 +1,11 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
+const isUniqueCodigoError = (error) =>
+  error?.code === "23505" &&
+  typeof error?.constraint === "string" &&
+  error.constraint.includes("produtos_codigo");
+
 const listar = async (tenantId = SINGLE_TENANT_ID, { limit = 20, offset = 0 }) => {
   const [result, countResult] = await Promise.all([
     pool.query(
@@ -90,24 +95,36 @@ const criar = async (
       ],
     );
   } else {
-    result = await pool.query(
-      `WITH next_num AS (
-         SELECT COALESCE(MAX((regexp_replace(codigo, '\\D', '', 'g'))::int), 0) + 1 AS n FROM produtos WHERE tenant_id = $7
-       )
-       INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
-       SELECT ('P-' || lpad(next_num.n::text, 4, '0')), $1, $2, $3, $4, $5, $6, $7
-       FROM next_num
-       RETURNING *`,
-      [
-        nome,
-        descricao,
-        quantidade || 0,
-        valor_custo || 0,
-        valor_venda || 0,
-        estoque_minimo || 5,
-        tenantId,
-      ],
-    );
+    const params = [
+      nome,
+      descricao,
+      quantidade || 0,
+      valor_custo || 0,
+      valor_venda || 0,
+      estoque_minimo || 5,
+      tenantId,
+    ];
+
+    // Retry curto para evitar colisao de codigo gerado em criacoes concorrentes.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        result = await pool.query(
+          `WITH next_num AS (
+             SELECT COALESCE(MAX((regexp_replace(codigo, '\\D', '', 'g'))::int), 0) + 1 AS n FROM produtos WHERE tenant_id = $7
+           )
+           INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
+           SELECT ('P-' || lpad(next_num.n::text, 4, '0')), $1, $2, $3, $4, $5, $6, $7
+           FROM next_num
+           RETURNING *`,
+          params,
+        );
+        break;
+      } catch (error) {
+        if (!isUniqueCodigoError(error) || attempt === 4) {
+          throw error;
+        }
+      }
+    }
   }
   return result.rows[0];
 };

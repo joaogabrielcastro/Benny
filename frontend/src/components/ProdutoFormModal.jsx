@@ -3,6 +3,27 @@ import api from "../services/api";
 import toast from "react-hot-toast";
 import Modal from "./Modal";
 
+const getProdutoSaveErrorMessage = (error) => {
+  const status = error?.response?.status;
+  const backendMessage = error?.response?.data?.error;
+
+  if (status === 409) {
+    return backendMessage || "Codigo de produto ja cadastrado.";
+  }
+
+  if (typeof backendMessage === "string") {
+    if (
+      backendMessage.includes("duplicate key value") ||
+      backendMessage.includes("produtos_codigo_key")
+    ) {
+      return "Codigo de produto ja cadastrado. Use outro codigo ou deixe em branco para gerar automaticamente.";
+    }
+    return backendMessage;
+  }
+
+  return error.message || "Nao foi possivel salvar o produto.";
+};
+
 export default function ProdutoFormModal({
   produto,
   isOpen = true,
@@ -52,10 +73,7 @@ export default function ProdutoFormModal({
       onSaved && onSaved(res.data.produto || res.data);
       onClose && onClose();
     } catch (error) {
-      toast.error(
-        "Erro ao salvar produto: " +
-          (error.response?.data?.error || error.message),
-      );
+      toast.error(`Erro ao salvar produto: ${getProdutoSaveErrorMessage(error)}`);
     }
   };
 

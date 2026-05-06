@@ -3,6 +3,11 @@ import produtosService from "../services/produtosService.js";
 import logger from "../config/logger.js";
 import { paginate } from "../middleware/paginate.js";
 
+const isCodigoDuplicado = (error) =>
+  error?.code === "23505" &&
+  typeof error?.constraint === "string" &&
+  error.constraint.includes("produtos_codigo");
+
 class ProdutosController {
   async listar(req, res) {
     try {
@@ -70,6 +75,12 @@ class ProdutosController {
         });
     } catch (error) {
       logger.error("Erro ao criar produto:", error);
+      if (isCodigoDuplicado(error)) {
+        return res.status(409).json({
+          error:
+            "Ja existe um produto com este codigo. Informe outro codigo ou deixe em branco para gerar automaticamente.",
+        });
+      }
       res.status(500).json({ error: error.message });
     }
   }
@@ -86,6 +97,11 @@ class ProdutosController {
       res.json({ message: "Produto atualizado com sucesso", produto });
     } catch (error) {
       logger.error(`Erro ao atualizar produto ${req.params.id}:`, error);
+      if (isCodigoDuplicado(error)) {
+        return res.status(409).json({
+          error: "Ja existe um produto com este codigo. Use um codigo diferente.",
+        });
+      }
       res.status(500).json({ error: error.message });
     }
   }
