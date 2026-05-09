@@ -95,7 +95,10 @@ export default function Estoque() {
   const carregarProdutos = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/produtos");
+      // A API pagina com limite 20 por padrão; a busca no cliente precisa de todos os itens
+      const response = await api.get("/produtos", {
+        params: { limit: 50000 },
+      });
       // A API agora retorna { data: [...], pagination: {...} }
       setProdutos(
         Array.isArray(response.data) ? response.data : response.data.data || [],
@@ -111,11 +114,12 @@ export default function Estoque() {
     let resultado = produtos;
 
     if (busca) {
-      resultado = resultado.filter(
-        (p) =>
-          p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-          p.codigo.toLowerCase().includes(busca.toLowerCase()),
-      );
+      const q = busca.toLowerCase();
+      resultado = resultado.filter((p) => {
+        const nome = String(p.nome ?? "").toLowerCase();
+        const codigo = String(p.codigo ?? "").toLowerCase();
+        return nome.includes(q) || codigo.includes(q);
+      });
     }
 
     if (filtroEstoque === "baixo") {

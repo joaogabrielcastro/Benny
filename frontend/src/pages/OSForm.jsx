@@ -62,7 +62,9 @@ export default function OSForm() {
 
   const carregarProdutos = async () => {
     try {
-      const response = await api.get("/produtos");
+      const response = await api.get("/produtos", {
+        params: { limit: 50000 },
+      });
       // A API agora retorna { data: [...], pagination: {...} }
       setProdutos(
         Array.isArray(response.data) ? response.data : response.data.data || []

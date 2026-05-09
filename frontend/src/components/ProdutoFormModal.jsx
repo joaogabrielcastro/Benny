@@ -96,7 +96,9 @@ export default function ProdutoFormModal({
       const codigoNormalizado = codigoInformado.toUpperCase();
       const codigoDuplicado = produtosExistentes.some((item) => {
         if (!item || item.id === produto?.id) return false;
-        return (item.codigo || "").trim().toUpperCase() === codigoNormalizado;
+        return (
+          String(item.codigo ?? "").trim().toUpperCase() === codigoNormalizado
+        );
       });
 
       if (codigoDuplicado) {
