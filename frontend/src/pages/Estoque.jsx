@@ -6,6 +6,13 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import ProdutoFormModal from "../components/ProdutoFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
+/** Busca ignora acentos (ex.: "ret" encontra "RETÍFICA"). */
+const normalizarBusca = (s) =>
+  String(s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
 export default function Estoque() {
   const [produtos, setProdutos] = useState([]);
   const [produtosFiltrados, setProdutosFiltrados] = useState([]);
@@ -113,11 +120,12 @@ export default function Estoque() {
   const filtrarProdutos = () => {
     let resultado = produtos;
 
-    if (busca) {
-      const q = busca.toLowerCase();
+    const termo = busca.trim();
+    if (termo) {
+      const q = normalizarBusca(termo);
       resultado = resultado.filter((p) => {
-        const nome = String(p.nome ?? "").toLowerCase();
-        const codigo = String(p.codigo ?? "").toLowerCase();
+        const nome = normalizarBusca(p.nome);
+        const codigo = normalizarBusca(p.codigo);
         return nome.includes(q) || codigo.includes(q);
       });
     }
@@ -160,6 +168,11 @@ export default function Estoque() {
   };
 
   if (loading) return <LoadingSpinner size="xl" />;
+
+  const mensagemListaVazia =
+    produtos.length === 0
+      ? "Nenhum produto cadastrado."
+      : "Nenhum produto corresponde à busca ou ao filtro selecionado.";
 
   return (
     <div>
@@ -286,7 +299,7 @@ export default function Estoque() {
                     colSpan="6"
                     className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
-                    Nenhum produto encontrado
+                    {mensagemListaVazia}
                   </td>
                 </tr>
               )}
@@ -369,7 +382,7 @@ export default function Estoque() {
           ))}
           {produtosFiltrados.length === 0 && (
             <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-              Nenhum produto encontrado
+              {mensagemListaVazia}
             </div>
           )}
         </div>
