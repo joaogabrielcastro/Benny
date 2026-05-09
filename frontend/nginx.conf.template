@@ -1,16 +1,14 @@
 server {
-    listen 80;
-    listen [::]:80;
+    # Só IPv4 — [::] pode falhar em redes Docker sem IPv6 e derruba o nginx
+    listen __LISTEN_PORT__;
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
     charset utf-8;
 
-    # Compactação — menos bytes quando o proxy comprime de novo (menos timeouts esporádicos)
     gzip on;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;
 
-    # Use no Coolify como caminho de health check (porta interna 80)
     location = /health {
         access_log off;
         default_type text/plain;

@@ -1,0 +1,2 @@
+# Scripts no Linux (Coolify/Docker) precisam de LF — CRLF quebra shebang → container reinicia → 502
+*.sh text eol=lf

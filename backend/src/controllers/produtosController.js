@@ -17,6 +17,10 @@ class ProdutosController {
         limit,
         offset,
       });
+      res.set(
+        "Cache-Control",
+        "private, no-store, no-cache, must-revalidate",
+      );
       res.json({
         data: rows,
         pagination: { page, limit, total, pages: Math.ceil(total / limit) },
