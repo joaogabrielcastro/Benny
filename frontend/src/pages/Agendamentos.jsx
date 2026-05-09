@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -10,7 +9,7 @@ import Modal from "../components/Modal";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
-import { formatarData, formatarHora } from "../utils/formatters";
+import { formatarData } from "../utils/formatters";
 import {
   FiCalendar,
   FiClock,
@@ -18,7 +17,6 @@ import {
   FiEdit2,
   FiTrash2,
   FiCheck,
-  FiX,
 } from "react-icons/fi";
 
 export default function Agendamentos() {
@@ -122,16 +120,16 @@ export default function Agendamentos() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Agendamentos
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Gerencie os agendamentos da oficina
           </p>
         </div>
-        <Button onClick={abrirModalNovo} icon={FiPlus}>
+        <Button onClick={abrirModalNovo} icon={FiPlus} className="w-full sm:w-auto">
           Novo Agendamento
         </Button>
       </div>
@@ -175,7 +173,7 @@ export default function Agendamentos() {
                   visualizacao === "lista" ? "calendario" : "lista"
                 )
               }
-              className="flex-1"
+              className="flex-1 w-full"
             >
               {visualizacao === "lista" ? "Ver Calendário" : "Ver Lista"}
             </Button>
@@ -208,10 +206,10 @@ export default function Agendamentos() {
               key={agendamento.id}
               className="hover:shadow-lg transition-shadow"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
                       {agendamento.cliente_nome}
                     </h3>
                     <Badge variant={getStatusBadgeVariant(agendamento.status)}>
@@ -219,7 +217,7 @@ export default function Agendamentos() {
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
                       <FiCalendar className="text-blue-500" />
                       <span>{formatarData(agendamento.data_agendamento)}</span>
@@ -267,7 +265,7 @@ export default function Agendamentos() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 ml-4">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto md:ml-4">
                   {agendamento.status === "Agendado" && (
                     <Button
                       size="sm"
@@ -307,12 +305,14 @@ export default function Agendamentos() {
                     variant="outline"
                     onClick={() => abrirModalEditar(agendamento)}
                     icon={FiEdit2}
+                    className="flex-1 md:flex-none"
                   />
                   <Button
                     size="sm"
                     variant="danger"
                     onClick={() => handleDeletar(agendamento.id)}
                     icon={FiTrash2}
+                    className="flex-1 md:flex-none"
                   />
                 </div>
               </div>
@@ -491,11 +491,16 @@ function AgendamentoModal({ agendamento, onClose, onSalvar }) {
           />
         </div>
 
-        <div className="flex gap-3 justify-end pt-4">
-          <Button type="button" variant="outline" onClick={onClose}>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
             Cancelar
           </Button>
-          <Button type="submit" disabled={salvando}>
+          <Button type="submit" disabled={salvando} className="w-full sm:w-auto">
             {salvando ? "Salvando..." : "Salvar"}
           </Button>
         </div>

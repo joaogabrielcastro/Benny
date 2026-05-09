@@ -95,20 +95,20 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
           Dashboard
         </h1>
         <button
           onClick={handleExportPDF}
-          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+          className="w-full sm:w-auto bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
         >
           📄 Exportar PDF
         </button>
       </div>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard
           title="OS Abertas"
           value={stats.osAbertas}
@@ -137,80 +137,86 @@ export default function Dashboard() {
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Gráfico de OS por Status */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
             Ordens de Serviço
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={chartData.osStatus}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {chartData.osStatus.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="h-[240px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData.osStatus}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: ${value}`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {chartData.osStatus.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Gráfico de Faturamento */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
             Faturamento (Últimos 6 meses)
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData.faturamentoMensal}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip formatter={(value) => formatarMoeda(value)} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="valor"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                name="Faturamento"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="h-[240px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData.faturamentoMensal}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="mes" />
+                <YAxis />
+                <Tooltip formatter={(value) => formatarMoeda(value)} />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="valor"
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  name="Faturamento"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Produtos Mais Vendidos */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 lg:col-span-2">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 lg:col-span-2">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
             Produtos Mais Vendidos
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData.produtosMaisVendidos}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nome" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar
-                dataKey="quantidade"
-                fill="#8B5CF6"
-                name="Quantidade Vendida"
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-[240px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData.produtosMaisVendidos}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nome" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar
+                  dataKey="quantidade"
+                  fill="#8B5CF6"
+                  name="Quantidade Vendida"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Links Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <Link
           to="/ordens-servico"
           className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
@@ -259,14 +265,14 @@ function StatCard({ title, value, total, icon, color }) {
 
   return (
     <div
-      className={`bg-gradient-to-br ${colors[color]} rounded-lg shadow-lg p-6 text-white`}
+      className={`bg-gradient-to-br ${colors[color]} rounded-lg shadow-lg p-4 sm:p-6 text-white`}
     >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-3xl">{icon}</span>
+        <span className="text-2xl sm:text-3xl">{icon}</span>
         {total && <span className="text-sm opacity-80">de {total}</span>}
       </div>
-      <h3 className="text-lg font-semibold mb-1">{title}</h3>
-      <p className="text-3xl font-bold">{value}</p>
+      <h3 className="text-base sm:text-lg font-semibold mb-1">{title}</h3>
+      <p className="text-2xl sm:text-3xl font-bold">{value}</p>
     </div>
   );
 }

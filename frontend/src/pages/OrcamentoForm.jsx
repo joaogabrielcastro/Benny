@@ -717,6 +717,7 @@ export default function OrcamentoForm() {
 
       <ProdutoFormModal
         isOpen={mostrarProdutoModal}
+        produtosExistentes={produtos}
         onClose={() => setMostrarProdutoModal(false)}
         onSaved={(p) => {
           handleProdutoCriado(p);

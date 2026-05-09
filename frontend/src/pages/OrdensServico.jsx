@@ -154,14 +154,14 @@ export default function OrdensServico() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">
           Ordens de Serviço
         </h1>
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full sm:w-auto">
           <Link
             to="/orcamentos/novo"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto text-center bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             + Nova OS
           </Link>
@@ -170,7 +170,7 @@ export default function OrdensServico() {
 
       <AdvancedFilters onFilter={handleAdvancedFilter} clientes={clientes} />
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SearchBar
             onSearch={handleSearch}
@@ -191,7 +191,7 @@ export default function OrdensServico() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-100 dark:bg-gray-700">
               <tr>
@@ -285,6 +285,69 @@ export default function OrdensServico() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
+          {currentItems.map((os) => (
+            <div key={os.id} className="p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Número</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {os.numero}
+                  </p>
+                </div>
+                <span
+                  className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                    os.status,
+                  )}`}
+                >
+                  {os.status}
+                </span>
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Cliente</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {os.cliente_nome}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Veículo</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">
+                  {os.veiculo_modelo} - {os.veiculo_placa}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Valor</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {formatarMoeda(os.valor_total)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Data</p>
+                  <p className="text-xs text-gray-700 dark:text-gray-300">
+                    {formatarData(os.criado_em)}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to={`/ordens-servico/${os.id}`}
+                className="inline-block text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              >
+                Ver Detalhes
+              </Link>
+            </div>
+          ))}
+          {currentItems.length === 0 && (
+            <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+              Nenhuma ordem de serviço encontrada
+            </div>
+          )}
         </div>
 
         <Pagination
