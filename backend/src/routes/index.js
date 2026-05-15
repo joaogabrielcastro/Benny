@@ -20,6 +20,7 @@ import lembretesRoutes from "./lembretesRoutes.js";
 import relatoriosRoutes from "./relatoriosRoutes.js";
 import auditoriaRoutes from "./auditoriaRoutes.js";
 import backupRoutes from "./backupRoutes.js";
+import notasFiscaisRoutes from "./notasFiscaisRoutes.js";
 
 const router = express.Router();
 
@@ -42,5 +43,6 @@ router.use("/lembretes", requireAuth, lembretesRoutes);
 router.use("/relatorios", requireAuth, relatoriosRoutes);
 router.use("/auditoria", requireAuth, auditoriaRoutes);
 router.use("/backup", requireAuth, backupRoutes);
+router.use("/notas-fiscais", requireAuth, notasFiscaisRoutes);
 
 export default router;

@@ -21,11 +21,14 @@ const listarPorCliente = async (tenantId = SINGLE_TENANT_ID, clienteId) => {
   return result.rows;
 };
 
-const criar = async (tenantId = SINGLE_TENANT_ID, { cliente_id, modelo, cor, placa, ano }) => {
+const criar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { cliente_id, modelo, marca, cor, placa, ano },
+) => {
   const result = await pool.query(
-    `INSERT INTO veiculos (cliente_id, modelo, cor, placa, ano, tenant_id)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-    [cliente_id, modelo, cor, placa, ano, tenantId],
+    `INSERT INTO veiculos (cliente_id, modelo, marca, cor, placa, ano, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+    [cliente_id, modelo, marca || null, cor, placa, ano, tenantId],
   );
   return result.rows[0];
 };

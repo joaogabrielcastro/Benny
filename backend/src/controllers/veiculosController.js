@@ -1,5 +1,6 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import veiculosService from "../services/veiculosService.js";
+import { consultarVeiculoPorPlaca } from "../services/placaLookupService.js";
 import logger from "../config/logger.js";
 
 class VeiculosController {
@@ -38,6 +39,20 @@ class VeiculosController {
     } catch (error) {
       logger.error("Erro ao criar veículo:", error);
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  async consultarPlaca(req, res) {
+    try {
+      const resultado = await consultarVeiculoPorPlaca(req.params.placa);
+      if (!resultado.ok) {
+        return res.status(400).json({ erro: resultado.erro });
+      }
+      const { ok: _ok, ...dados } = resultado;
+      res.json(dados);
+    } catch (error) {
+      logger.error("Erro ao consultar placa:", error);
+      res.status(500).json({ erro: error.message });
     }
   }
 }

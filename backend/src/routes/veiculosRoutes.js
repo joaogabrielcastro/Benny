@@ -3,6 +3,10 @@ import veiculosController from "../controllers/veiculosController.js";
 
 const router = express.Router();
 
+router.get(
+  "/consulta-placa/:placa",
+  veiculosController.consultarPlaca.bind(veiculosController),
+);
 router.get("/", veiculosController.listar.bind(veiculosController));
 router.get(
   "/cliente/:clienteId",

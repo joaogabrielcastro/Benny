@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
+import BuscaPlacaVeiculoButton from "../components/BuscaPlacaVeiculoButton";
+import { mascaraPlaca } from "../utils/masks";
+import { validarPlaca } from "../utils/validators";
+import toast from "react-hot-toast";
 
 export default function OSForm() {
   const navigate = useNavigate();
@@ -848,6 +852,7 @@ function ClienteFormModal({ onClose }) {
 function VeiculoFormModal({ clienteId, onClose }) {
   const [formData, setFormData] = useState({
     cliente_id: clienteId,
+    marca: "",
     modelo: "",
     cor: "",
     placa: "",
@@ -856,12 +861,20 @@ function VeiculoFormModal({ clienteId, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validarPlaca(formData.placa.replace(/[^A-Z0-9]/gi, ""))) {
+      toast.error("Placa inválida.");
+      return;
+    }
     try {
-      const response = await api.post("/veiculos", formData);
-      alert("Veículo criado com sucesso!");
+      const payload = {
+        ...formData,
+        placa: formData.placa.replace(/[^A-Z0-9]/g, "").toUpperCase(),
+      };
+      const response = await api.post("/veiculos", payload);
+      toast.success("Veículo criado com sucesso!");
       onClose(response.data.id);
     } catch (error) {
-      alert("Erro ao criar veículo");
+      toast.error(error.response?.data?.error || "Erro ao criar veículo");
     }
   };
 
@@ -873,19 +886,35 @@ function VeiculoFormModal({ clienteId, onClose }) {
             Novo Veículo
           </h2>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Modelo *
-              </label>
-              <input
-                type="text"
-                value={formData.modelo}
-                onChange={(e) =>
-                  setFormData({ ...formData, modelo: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Marca *
+                </label>
+                <input
+                  type="text"
+                  value={formData.marca}
+                  onChange={(e) =>
+                    setFormData({ ...formData, marca: e.target.value })
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Modelo *
+                </label>
+                <input
+                  type="text"
+                  value={formData.modelo}
+                  onChange={(e) =>
+                    setFormData({ ...formData, modelo: e.target.value })
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -915,18 +944,35 @@ function VeiculoFormModal({ clienteId, onClose }) {
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Placa *
-              </label>
-              <input
-                type="text"
-                value={formData.placa}
-                onChange={(e) =>
-                  setFormData({ ...formData, placa: e.target.value })
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Placa *
+                </label>
+                <input
+                  type="text"
+                  value={formData.placa}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      placa: mascaraPlaca(e.target.value),
+                    })
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <BuscaPlacaVeiculoButton
+                placa={formData.placa}
+                onDados={(d) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    marca: d.marca || prev.marca,
+                    modelo: d.modelo || prev.modelo,
+                    ano: d.ano || prev.ano,
+                    cor: d.cor || prev.cor,
+                  }))
                 }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex justify-end space-x-3 pt-4">

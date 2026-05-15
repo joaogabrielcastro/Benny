@@ -63,7 +63,7 @@ export default function OSDetalhes() {
       return;
     }
 
-    if (notaFiscal) {
+    if (notaFiscal?.status_nf === "autorizada") {
       toast.info("Esta OS já possui uma Nota Fiscal emitida");
       setShowNFModal(true);
       return;
@@ -134,21 +134,26 @@ export default function OSDetalhes() {
                 ✏️ Editar
               </Link>
             )}
-            {os.status === "Finalizada" && !notaFiscal && (
-              <button
-                onClick={handleGerarNF}
-                disabled={gerandoNF}
-                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
-              >
-                {gerandoNF ? "⏳ Gerando..." : "📄 Gerar NF"}
-              </button>
-            )}
+            {os.status === "Finalizada" &&
+              (!notaFiscal || notaFiscal.status_nf !== "autorizada") && (
+                <button
+                  onClick={handleGerarNF}
+                  disabled={gerandoNF}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
+                >
+                  {gerandoNF
+                    ? "⏳ Processando..."
+                    : notaFiscal
+                      ? "📄 Reprocessar NF"
+                      : "📄 Gerar NF"}
+                </button>
+              )}
             {notaFiscal && (
               <button
                 onClick={() => setShowNFModal(true)}
                 className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2"
               >
-                📄 Ver NF #{notaFiscal.numero}
+                📄 Ver NF ({notaFiscal.numero})
               </button>
             )}
             {os.status === "Aberta" && (
@@ -602,23 +607,76 @@ export default function OSDetalhes() {
             )}
 
             {/* Status da NF */}
-            <div className="flex items-center justify-center gap-2 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <span className="text-2xl">✓</span>
-              <span className="font-bold text-green-700 dark:text-green-400">
-                Nota Fiscal Emitida com Sucesso
+            <div
+              className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg ${
+                notaFiscal.status_nf === "autorizada"
+                  ? "bg-green-100 dark:bg-green-900/30"
+                  : notaFiscal.status_nf === "erro_autenticacao" ||
+                      notaFiscal.status_nf === "rejeitada"
+                    ? "bg-red-100 dark:bg-red-900/30"
+                    : notaFiscal.status_nf === "cancelada" ||
+                        notaFiscal.status_nf === "substituida"
+                      ? "bg-gray-200 dark:bg-gray-700/50"
+                      : "bg-amber-100 dark:bg-amber-900/20"
+              }`}
+            >
+              <span className="text-2xl">
+                {notaFiscal.status_nf === "autorizada"
+                  ? "✓"
+                  : notaFiscal.status_nf === "erro_autenticacao" ||
+                      notaFiscal.status_nf === "rejeitada"
+                    ? "✕"
+                    : notaFiscal.status_nf === "cancelada" ||
+                        notaFiscal.status_nf === "substituida"
+                      ? "—"
+                      : "⏳"}
+              </span>
+              <span
+                className={`font-bold text-center ${
+                  notaFiscal.status_nf === "autorizada"
+                    ? "text-green-700 dark:text-green-400"
+                    : notaFiscal.status_nf === "erro_autenticacao" ||
+                        notaFiscal.status_nf === "rejeitada"
+                      ? "text-red-700 dark:text-red-400"
+                      : notaFiscal.status_nf === "cancelada" ||
+                          notaFiscal.status_nf === "substituida"
+                        ? "text-gray-700 dark:text-gray-300"
+                        : "text-amber-800 dark:text-amber-200"
+                }`}
+              >
+                {notaFiscal.status_nf === "autorizada"
+                  ? "Nota fiscal autorizada"
+                  : notaFiscal.status_nf === "configuracao_pendente"
+                    ? "Integração Nuvem Fiscal: configure as variáveis no servidor e use Reprocessar NF."
+                    : notaFiscal.status_nf === "processamento"
+                      ? "Em processamento na Nuvem Fiscal — acompanhe no painel ou reprocessar mais tarde."
+                      : notaFiscal.status_nf === "erro_autenticacao"
+                        ? "Falha na autenticação com a Nuvem Fiscal. Verifique CLIENT_ID / SECRET."
+                        : notaFiscal.status_nf === "rejeitada"
+                          ? "Emissão rejeitada ou com erro. Veja a mensagem acima (detalhes da API)."
+                          : notaFiscal.status_nf === "cancelada"
+                            ? "NFS-e cancelada na Nuvem Fiscal."
+                            : notaFiscal.status_nf === "substituida"
+                              ? "NFS-e substituída na Nuvem Fiscal."
+                              : `Status: ${notaFiscal.status_nf || "desconhecido"}`}
               </span>
             </div>
 
             {/* Botões de Ação */}
             <div className="flex gap-3 pt-4">
-              {notaFiscal.pdf_path && (
+              {(notaFiscal.link_pdf || notaFiscal.pdf_path) && (
                 <a
-                  href={`/api/storage/${notaFiscal.pdf_path.replace("storage/", "")}`}
+                  href={(() => {
+                    const raw = notaFiscal.link_pdf || notaFiscal.pdf_path;
+                    if (!raw) return "#";
+                    if (/^https?:\/\//i.test(raw)) return raw;
+                    return `/api/storage/${raw.replace(/^storage\//, "")}`;
+                  })()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl hover:shadow-lg transition-all font-semibold text-center"
                 >
-                  🔗 Abrir Resumo (Manual)
+                  🔗 Abrir PDF
                 </a>
               )}
               <button

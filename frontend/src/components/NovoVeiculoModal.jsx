@@ -7,6 +7,7 @@ import { validarPlaca, validarObrigatorio } from "../utils/validators";
 import { mascaraPlaca } from "../utils/masks";
 import { showSuccess, showError } from "../utils/toast.jsx";
 import api from "../services/api";
+import BuscaPlacaVeiculoButton from "./BuscaPlacaVeiculoButton";
 
 const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
   const [loading, setLoading] = useState(false);
@@ -115,39 +116,61 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Ano */}
-          <Select
-            label="Ano"
-            value={formData.ano}
-            onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
-            options={[
-              { value: "", label: "Selecione o ano" },
-              ...anosDisponiveis.map((ano) => ({ value: ano, label: ano })),
-            ]}
-            required
-          />
-
-          {/* Placa */}
-          <Input
-            label="Placa"
-            value={formData.placa}
-            onChange={(e) =>
-              setFormData({ ...formData, placa: e.target.value.toUpperCase() })
-            }
-            mask={mascaraPlaca}
-            validator={validarPlaca}
-            placeholder="ABC-1234"
-            required
-          />
-
-          {/* Cor */}
-          <Input
-            label="Cor"
-            value={formData.cor}
-            onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-            placeholder="Ex: Prata, Preto, Branco"
-          />
+        <div className="flex flex-col lg:flex-row gap-4 lg:items-end">
+          <div className="w-full lg:w-44 shrink-0">
+            <Select
+              label="Ano"
+              value={formData.ano}
+              onChange={(e) =>
+                setFormData({ ...formData, ano: e.target.value })
+              }
+              options={[
+                { value: "", label: "Selecione o ano" },
+                ...anosDisponiveis.map((ano) => ({ value: ano, label: ano })),
+              ]}
+              required
+            />
+          </div>
+          <div className="flex-1 flex flex-col sm:flex-row gap-2 sm:items-end min-w-0">
+            <div className="flex-1 min-w-[160px]">
+              <Input
+                label="Placa"
+                value={formData.placa}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    placa: e.target.value.toUpperCase(),
+                  })
+                }
+                mask={mascaraPlaca}
+                validator={validarPlaca}
+                placeholder="ABC-1234"
+                required
+              />
+            </div>
+            <BuscaPlacaVeiculoButton
+              placa={formData.placa}
+              onDados={(d) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  marca: d.marca || prev.marca,
+                  modelo: d.modelo || prev.modelo,
+                  ano: d.ano || prev.ano,
+                  cor: d.cor || prev.cor,
+                }))
+              }
+            />
+          </div>
+          <div className="w-full lg:w-48 shrink-0">
+            <Input
+              label="Cor"
+              value={formData.cor}
+              onChange={(e) =>
+                setFormData({ ...formData, cor: e.target.value })
+              }
+              placeholder="Ex: Prata, Preto, Branco"
+            />
+          </div>
         </div>
       </form>
     </Modal>
