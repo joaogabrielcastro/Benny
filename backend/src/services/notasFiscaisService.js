@@ -230,9 +230,9 @@ const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
 
   const clienteRes = await pool.query(
 
-    `SELECT * FROM clientes WHERE id = $1`,
+    `SELECT * FROM clientes WHERE id = $1 AND tenant_id = $2`,
 
-    [osCompleta.cliente_id],
+    [osCompleta.cliente_id, tenantId],
 
   );
 

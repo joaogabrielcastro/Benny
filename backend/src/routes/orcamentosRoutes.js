@@ -44,5 +44,10 @@ router.post(
   requireAuth,
   orcamentosController.converterEmOS.bind(orcamentosController),
 );
+router.delete(
+  "/:id",
+  requireAuth,
+  orcamentosController.deletar.bind(orcamentosController),
+);
 
 export default router;

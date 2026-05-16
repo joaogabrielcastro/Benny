@@ -5,8 +5,20 @@ import { FiSearch } from "react-icons/fi";
 import api from "../services/api";
 import toast from "react-hot-toast";
 
-export default function BuscaCEP({ onEnderecoEncontrado }) {
-  const [cep, setCep] = useState("");
+export default function BuscaCEP({
+  onEnderecoEncontrado,
+  value,
+  onChange,
+}) {
+  const [cepLocal, setCepLocal] = useState("");
+  const controlled = typeof onChange === "function";
+  const cep = controlled ? (value ?? "") : cepLocal;
+
+  const setCep = (v) => {
+    if (controlled) onChange(v);
+    else setCepLocal(v);
+  };
+
   const [buscando, setBuscando] = useState(false);
 
   const buscarCEP = async () => {

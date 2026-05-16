@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 import api from "../services/api";
 import OSImpressao from "../components/OSImpressao";
 import Modal from "../components/Modal";
+import BuscaCEP from "../components/BuscaCEP";
+import { mascaraCEP, removerMascara } from "../utils/masks";
 
 export default function OSDetalhes() {
   const { id } = useParams();
@@ -14,11 +16,21 @@ export default function OSDetalhes() {
   const [notaFiscal, setNotaFiscal] = useState(null);
   const [showNFModal, setShowNFModal] = useState(false);
   const [gerandoNF, setGerandoNF] = useState(false);
+  const [cepClienteEdicao, setCepClienteEdicao] = useState("");
+  const [salvandoCepCliente, setSalvandoCepCliente] = useState(false);
   const componentRef = useRef();
 
   useEffect(() => {
     carregarOS();
   }, [id]);
+
+  useEffect(() => {
+    if (os?.cliente_cep != null && os.cliente_cep !== "") {
+      setCepClienteEdicao(mascaraCEP(os.cliente_cep));
+    } else {
+      setCepClienteEdicao("");
+    }
+  }, [os?.id, os?.cliente_cep]);
 
   const carregarOS = async () => {
     try {
@@ -35,6 +47,8 @@ export default function OSDetalhes() {
         } catch (error) {
           console.error("Erro ao carregar nota fiscal:", error);
         }
+      } else {
+        setNotaFiscal(null);
       }
 
       setLoading(false);
@@ -103,6 +117,48 @@ export default function OSDetalhes() {
       );
     } finally {
       setGerandoNF(false);
+    }
+  };
+
+  const clienteCepValidoParaNfse =
+    String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
+
+  const salvarCepCliente = async () => {
+    const d = removerMascara(cepClienteEdicao);
+    if (d.length !== 8) {
+      toast.error("Informe um CEP com 8 dígitos.");
+      return;
+    }
+    if (!os?.cliente_id) {
+      toast.error("OS sem cliente vinculado.");
+      return;
+    }
+    try {
+      setSalvandoCepCliente(true);
+      const { data: c } = await api.get(`/clientes/${os.cliente_id}`);
+      await api.put(`/clientes/${os.cliente_id}`, {
+        nome: c.nome,
+        telefone: c.telefone,
+        cpf_cnpj: c.cpf_cnpj,
+        email: c.email ?? "",
+        endereco: c.endereco ?? "",
+        cep: d,
+        numero: c.numero ?? "",
+        complemento: c.complemento ?? "",
+        bairro: c.bairro ?? "",
+        cidade: c.cidade ?? "",
+        estado: c.estado ?? "",
+      });
+      toast.success("CEP do cliente atualizado.");
+      await carregarOS();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Erro ao salvar CEP",
+      );
+    } finally {
+      setSalvandoCepCliente(false);
     }
   };
 
@@ -213,6 +269,40 @@ export default function OSDetalhes() {
           </div>
         </div>
       </div>
+
+      {os.status === "Finalizada" && !clienteCepValidoParaNfse && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 sm:p-5 shadow-sm">
+          <p className="text-sm text-amber-950 dark:text-amber-100 font-medium">
+            Para emitir NFS-e na Nuvem Fiscal é obrigatório o CEP do tomador (8
+            dígitos) no cadastro do cliente{" "}
+            <span className="font-semibold">{os.cliente_nome}</span>. Em
+            homologação você pode definir{" "}
+            <code className="text-xs bg-amber-100 dark:bg-amber-900/50 px-1 rounded">
+              NUVEM_FISCAL_TOMADOR_CEP
+            </code>{" "}
+            no servidor como alternativa.
+          </p>
+          <div className="mt-4 flex flex-col lg:flex-row lg:items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <BuscaCEP
+                value={cepClienteEdicao}
+                onChange={setCepClienteEdicao}
+                onEnderecoEncontrado={(end) => {
+                  setCepClienteEdicao(mascaraCEP(end.cep || ""));
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={salvarCepCliente}
+              disabled={salvandoCepCliente}
+              className="shrink-0 px-5 py-2.5 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {salvandoCepCliente ? "Salvando…" : "Salvar CEP no cliente"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Badge de Status */}
       <div className="flex items-center gap-3">

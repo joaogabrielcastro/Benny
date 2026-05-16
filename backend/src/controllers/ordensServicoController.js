@@ -51,6 +51,20 @@ class OrdensServicoController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  async deletar(req, res) {
+    try {
+      const ok = await ordensServicoService.deletar(
+        SINGLE_TENANT_ID,
+        req.params.id,
+      );
+      if (!ok) return res.status(404).json({ error: "OS não encontrada" });
+      res.json({ message: "Ordem de serviço excluída com sucesso" });
+    } catch (error) {
+      logger.error(`Erro ao excluir OS ${req.params.id}:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
 
 export default new OrdensServicoController();

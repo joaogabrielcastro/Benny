@@ -471,6 +471,84 @@ const converterEmOS = async (tenantId = SINGLE_TENANT_ID, id) => {
   }
 };
 
+async function reverterMovimentacoesEstoquePorOrcamento(client, orcamentoId) {
+  const { rows } = await client.query(
+    "SELECT produto_id, tipo, quantidade FROM movimentacoes_estoque WHERE orcamento_id = $1",
+    [orcamentoId],
+  );
+  for (const m of rows) {
+    if (m.tipo === "SAIDA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    } else if (m.tipo === "ENTRADA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    }
+  }
+  await client.query(
+    "DELETE FROM movimentacoes_estoque WHERE orcamento_id = $1",
+    [orcamentoId],
+  );
+}
+
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const prev = await client.query(
+      "SELECT * FROM orcamentos WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    if (!prev.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const osVinc = await client.query(
+      "SELECT id, numero FROM ordens_servico WHERE orcamento_id = $1 LIMIT 1",
+      [id],
+    );
+    if (osVinc.rows.length > 0) {
+      await client.query("ROLLBACK");
+      const err = new Error(
+        `Este orçamento possui OS vinculada (${osVinc.rows[0].numero}). Exclua a OS antes de excluir o orçamento.`,
+      );
+      err.code = "OS_VINCULADA";
+      throw err;
+    }
+
+    await reverterMovimentacoesEstoquePorOrcamento(client, id);
+
+    await registrarAuditoria(
+      "orcamentos",
+      id,
+      "DELETE",
+      prev.rows[0],
+      null,
+      "sistema",
+      client,
+    );
+
+    await client.query(
+      "DELETE FROM orcamentos WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 export default {
   listar,
   buscarPorId,
@@ -480,4 +558,5 @@ export default {
   aprovarPorToken,
   reprovarPorToken,
   converterEmOS,
+  deletar,
 };

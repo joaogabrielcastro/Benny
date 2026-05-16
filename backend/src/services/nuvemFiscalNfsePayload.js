@@ -78,7 +78,7 @@ export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
     return {
       ok: false,
       erro:
-        "CEP do cliente inválido ou ausente. Informe CEP no cadastro ou NUVEM_FISCAL_TOMADOR_CEP (8 dígitos).",
+        "CEP do tomador (cliente) inválido ou ausente. Cadastre o CEP com 8 dígitos no cliente, atualize-o na OS abaixo ou defina NUVEM_FISCAL_TOMADOR_CEP no servidor (ex.: homologação).",
     };
   }
   const doc = resolveDocTomador(cliente, cfg);

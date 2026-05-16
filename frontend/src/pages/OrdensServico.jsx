@@ -50,6 +50,22 @@ export default function OrdensServico() {
     }
   };
 
+  const handleExcluirOs = async (os) => {
+    const msg = `Excluir a ordem ${os.numero}?\n\nSerão removidos itens, nota fiscal vinculada (se houver) e movimentações de estoque desta OS serão desfeitas no cadastro de produtos.`;
+    if (!window.confirm(msg)) return;
+    try {
+      await api.delete(`/ordens-servico/${os.id}`);
+      toast.success("Ordem de serviço excluída.");
+      carregarDados();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.erro ||
+          "Erro ao excluir OS",
+      );
+    }
+  };
+
   const aplicarFiltros = () => {
     let resultado = ordens;
 
@@ -264,12 +280,21 @@ export default function OrdensServico() {
                     {formatarData(os.criado_em)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Link
-                      to={`/ordens-servico/${os.id}`}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                    >
-                      Ver Detalhes
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link
+                        to={`/ordens-servico/${os.id}`}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                      >
+                        Ver Detalhes
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirOs(os)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-medium"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -335,12 +360,21 @@ export default function OrdensServico() {
                 </div>
               </div>
 
-              <Link
-                to={`/ordens-servico/${os.id}`}
-                className="inline-block text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-              >
-                Ver Detalhes
-              </Link>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <Link
+                  to={`/ordens-servico/${os.id}`}
+                  className="inline-block text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                >
+                  Ver Detalhes
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => handleExcluirOs(os)}
+                  className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                >
+                  Excluir
+                </button>
+              </div>
             </div>
           ))}
           {currentItems.length === 0 && (

@@ -36,6 +36,30 @@ async function deducaoEstoque(client, os_id, produtos = []) {
   }
 }
 
+/** Desfaz movimentações de estoque ligadas à OS antes de excluir o registro. */
+async function reverterMovimentacoesEstoquePorOs(client, osId) {
+  const { rows } = await client.query(
+    "SELECT produto_id, tipo, quantidade FROM movimentacoes_estoque WHERE os_id = $1",
+    [osId],
+  );
+  for (const m of rows) {
+    if (m.tipo === "SAIDA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    } else if (m.tipo === "ENTRADA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    }
+  }
+  await client.query("DELETE FROM movimentacoes_estoque WHERE os_id = $1", [
+    osId,
+  ]);
+}
+
 // ─── Listagem ─────────────────────────────────────────────────────────────────
 
 const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
@@ -71,6 +95,7 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
     pool.query(
       `SELECT os.*,
               c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
+              c.cep as cliente_cep,
               v.modelo as veiculo_modelo, v.placa as veiculo_placa,
               v.cor as veiculo_cor, v.ano as veiculo_ano
        FROM ordens_servico os
@@ -296,4 +321,45 @@ const atualizar = async (
   }
 };
 
-export default { listar, buscarPorId, criar, atualizar };
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const prev = await client.query(
+      "SELECT * FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    if (!prev.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await reverterMovimentacoesEstoquePorOs(client, id);
+
+    await registrarAuditoria(
+      "ordens_servico",
+      id,
+      "DELETE",
+      prev.rows[0],
+      null,
+      "sistema",
+      client,
+    );
+
+    await client.query(
+      "DELETE FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+export default { listar, buscarPorId, criar, atualizar, deletar };

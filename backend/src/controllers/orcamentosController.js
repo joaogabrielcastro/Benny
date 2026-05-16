@@ -114,6 +114,24 @@ class OrcamentosController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  async deletar(req, res) {
+    try {
+      const ok = await orcamentosService.deletar(
+        SINGLE_TENANT_ID,
+        req.params.id,
+      );
+      if (!ok)
+        return res.status(404).json({ error: "Orçamento não encontrado" });
+      res.json({ message: "Orçamento excluído com sucesso" });
+    } catch (error) {
+      if (error.code === "OS_VINCULADA") {
+        return res.status(409).json({ error: error.message });
+      }
+      logger.error(`Erro ao excluir orçamento ${req.params.id}:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
 
 export default new OrcamentosController();

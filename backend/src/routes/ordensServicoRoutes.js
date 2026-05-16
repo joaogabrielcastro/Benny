@@ -13,5 +13,9 @@ router.put(
   "/:id",
   ordensServicoController.atualizar.bind(ordensServicoController),
 );
+router.delete(
+  "/:id",
+  ordensServicoController.deletar.bind(ordensServicoController),
+);
 
 export default router;

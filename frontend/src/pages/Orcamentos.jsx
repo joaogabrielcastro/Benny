@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import api from "../services/api";
 import { formatarMoeda } from "../utils/formatters";
 
@@ -27,7 +28,23 @@ export default function Orcamentos() {
       const response = await api.get("/orcamentos", { params });
       setOrcamentos(response.data);
     } catch (error) {
-      alert("Erro ao carregar orçamentos");
+      toast.error("Erro ao carregar orçamentos");
+    }
+  };
+
+  const handleExcluirOrcamento = async (orc) => {
+    const msg = `Excluir o orçamento ${orc.numero}?\n\nSe houver OS gerada a partir dele, será preciso excluir a OS primeiro. Movimentações de estoque do orçamento aprovado serão desfeitas.`;
+    if (!window.confirm(msg)) return;
+    try {
+      await api.delete(`/orcamentos/${orc.id}`);
+      toast.success("Orçamento excluído.");
+      carregarOrcamentos();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.erro ||
+          "Erro ao excluir orçamento",
+      );
     }
   };
 
@@ -139,12 +156,21 @@ export default function Orcamentos() {
                     {formatarData(orc.criado_em)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Link
-                      to={`/orcamentos/${orc.id}`}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      Ver Detalhes
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link
+                        to={`/orcamentos/${orc.id}`}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        Ver Detalhes
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirOrcamento(orc)}
+                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -210,12 +236,21 @@ export default function Orcamentos() {
                 </div>
               </div>
 
-              <Link
-                to={`/orcamentos/${orc.id}`}
-                className="inline-block text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Ver Detalhes
-              </Link>
+              <div className="flex flex-wrap gap-3 pt-1">
+                <Link
+                  to={`/orcamentos/${orc.id}`}
+                  className="inline-block text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Ver Detalhes
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => handleExcluirOrcamento(orc)}
+                  className="text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  Excluir
+                </button>
+              </div>
             </div>
           ))}
           {orcamentos.length === 0 && (

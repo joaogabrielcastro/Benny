@@ -59,6 +59,13 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
       cep: removerMascara(formData.cep),
     };
 
+    if (dadosLimpos.cep.length !== 8) {
+      showError(
+        "Informe um CEP com 8 dígitos no campo CEP (obrigatório para NFS-e). Use Buscar para preencher o endereço.",
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await api.post("/clientes", dadosLimpos);
@@ -217,7 +224,11 @@ const NovoClienteModal = ({ isOpen, onClose, onClienteCriado }) => {
         </div>
 
         {/* Busca de CEP */}
-        <BuscaCEP onEnderecoEncontrado={handleEnderecoEncontrado} />
+        <BuscaCEP
+          value={formData.cep}
+          onChange={(cep) => setFormData({ ...formData, cep })}
+          onEnderecoEncontrado={handleEnderecoEncontrado}
+        />
 
         {/* Endereço */}
         <Input
