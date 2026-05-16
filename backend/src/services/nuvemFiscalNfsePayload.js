@@ -143,9 +143,8 @@ export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
             tribISSQN: 1,
             tpRetISSQN: 1,
           },
+          // Layout Nacional: totTrib é choice — enviar só vTotTrib (valores por esfera)
           totTrib: {
-            indTotTrib: 0,
-            pTotTribSN: 0,
             vTotTrib: {
               vTotTribFed: 0,
               vTotTribEst: 0,
