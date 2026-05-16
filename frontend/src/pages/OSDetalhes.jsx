@@ -75,7 +75,25 @@ export default function OSDetalhes() {
       const { message, nf } = response.data;
       setNotaFiscal(nf);
       setShowNFModal(true);
-      toast.success(message || "Nota Fiscal gerada com sucesso!");
+      const st = nf?.status_nf;
+      if (st === "autorizada") {
+        toast.success(message || "Nota fiscal autorizada na Nuvem Fiscal.");
+      } else if (st === "configuracao_pendente") {
+        toast.error(
+          message ||
+            "Nuvem Fiscal não configurada neste servidor. Defina as variáveis no ambiente de produção.",
+          { duration: 8000 },
+        );
+      } else if (st === "erro_autenticacao" || st === "rejeitada") {
+        toast.error(message || "Falha ao emitir na Nuvem Fiscal.");
+      } else if (st === "processamento") {
+        toast(message || "NFS-e em processamento na Nuvem Fiscal.", {
+          icon: "⏳",
+          duration: 6000,
+        });
+      } else {
+        toast(message || "Registro de NF atualizado.", { duration: 5000 });
+      }
       carregarOS(); // Recarregar para atualizar o nf_id
     } catch (error) {
       toast.error(
