@@ -30,26 +30,21 @@ export async function obterAccessToken() {
   }
 
   const cfg = getNuvemFiscalConfig();
-  const basic = Buffer.from(
-    `${cfg.clientId}:${cfg.clientSecret}`,
-    "utf8",
-  ).toString("base64");
+  /** Formato recomendado na doc: client_id e client_secret no corpo (evita falhas de parse do Basic). */
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    scope: cfg.scope,
+  }).toString();
 
   try {
-    const { data } = await axios.post(
-      cfg.authUrl,
-      new URLSearchParams({
-        grant_type: "client_credentials",
-        scope: cfg.scope,
-      }).toString(),
-      {
-        headers: {
-          Authorization: `Basic ${basic}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        timeout: 25_000,
+    const { data } = await axios.post(cfg.authUrl, body, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-    );
+      timeout: 25_000,
+    });
 
     const token = data?.access_token;
     const expiresIn = Number(data?.expires_in || 3600);
@@ -76,8 +71,12 @@ export async function testarConexao() {
   if (!isNuvemFiscalConfigured()) {
     return { ok: false, motivo: "variáveis de ambiente incompletas" };
   }
-  await obterAccessToken();
-  return { ok: true };
+  try {
+    await obterAccessToken();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, motivo: e.message || "falha na autenticação" };
+  }
 }
 
 function formatarErroApi(err) {

@@ -183,20 +183,25 @@ export default function OSForm() {
       }
     }
 
-    if (campo === "quantidade" || campo === "valor_unitario") {
-      novosProdutos[index].valor_total =
-        novosProdutos[index].quantidade * novosProdutos[index].valor_unitario;
+    const recalcularTotalLinhaProduto =
+      campo === "quantidade" ||
+      campo === "valor_unitario" ||
+      (campo === "produto_id" && valor);
+    if (recalcularTotalLinhaProduto) {
+      const q = Number(novosProdutos[index].quantidade) || 0;
+      const vu = Number(novosProdutos[index].valor_unitario) || 0;
+      novosProdutos[index].valor_total = q * vu;
+    }
 
-      // Verificar estoque ao alterar quantidade
-      if (campo === "quantidade" && novosProdutos[index].produto_id) {
-        const produto = produtos.find(
-          (p) => p.id == novosProdutos[index].produto_id
+    // Verificar estoque ao alterar quantidade
+    if (campo === "quantidade" && novosProdutos[index].produto_id) {
+      const produto = produtos.find(
+        (p) => p.id == novosProdutos[index].produto_id
+      );
+      if (produto && produto.quantidade < novosProdutos[index].quantidade) {
+        alert(
+          `ATENÇÃO: Produto ${produto.nome} tem apenas ${produto.quantidade} unidades em estoque!`
         );
-        if (produto && produto.quantidade < novosProdutos[index].quantidade) {
-          alert(
-            `ATENÇÃO: Produto ${produto.nome} tem apenas ${produto.quantidade} unidades em estoque!`
-          );
-        }
       }
     }
 
@@ -208,8 +213,9 @@ export default function OSForm() {
     novosServicos[index][campo] = valor;
 
     if (campo === "quantidade" || campo === "valor_unitario") {
-      novosServicos[index].valor_total =
-        novosServicos[index].quantidade * novosServicos[index].valor_unitario;
+      const q = Number(novosServicos[index].quantidade) || 0;
+      const vu = Number(novosServicos[index].valor_unitario) || 0;
+      novosServicos[index].valor_total = q * vu;
     }
 
     setItensServicos(novosServicos);
@@ -217,11 +223,11 @@ export default function OSForm() {
 
   const calcularTotal = () => {
     const totalProdutos = itensProdutos.reduce(
-      (sum, item) => sum + item.valor_total,
+      (sum, item) => sum + (Number(item.valor_total) || 0),
       0
     );
     const totalServicos = itensServicos.reduce(
-      (sum, item) => sum + item.valor_total,
+      (sum, item) => sum + (Number(item.valor_total) || 0),
       0
     );
     return totalProdutos + totalServicos;

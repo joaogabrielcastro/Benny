@@ -151,9 +151,14 @@ export default function OrcamentoForm() {
       }
     }
 
-    if (campo === "quantidade" || campo === "valor_unitario") {
-      novosProdutos[index].valor_total =
-        novosProdutos[index].quantidade * novosProdutos[index].valor_unitario;
+    const recalcularTotalLinhaProduto =
+      campo === "quantidade" ||
+      campo === "valor_unitario" ||
+      (campo === "produto_id" && valor && valor !== "__add_new__");
+    if (recalcularTotalLinhaProduto) {
+      const q = Number(novosProdutos[index].quantidade) || 0;
+      const vu = Number(novosProdutos[index].valor_unitario) || 0;
+      novosProdutos[index].valor_total = q * vu;
     }
 
     setItensProdutos(novosProdutos);
@@ -168,8 +173,9 @@ export default function OrcamentoForm() {
       novos[idx].codigo = novoProduto.codigo || "";
       novos[idx].descricao = novoProduto.nome || "";
       novos[idx].valor_unitario = novoProduto.valor_venda || 0;
-      novos[idx].valor_total =
-        novos[idx].quantidade * novos[idx].valor_unitario;
+      const q = Number(novos[idx].quantidade) || 0;
+      const vu = Number(novos[idx].valor_unitario) || 0;
+      novos[idx].valor_total = q * vu;
       setItensProdutos(novos);
       setProdutoModalIndex(null);
     }
@@ -180,8 +186,9 @@ export default function OrcamentoForm() {
     novosServicos[index][campo] = valor;
 
     if (campo === "quantidade" || campo === "valor_unitario") {
-      novosServicos[index].valor_total =
-        novosServicos[index].quantidade * novosServicos[index].valor_unitario;
+      const q = Number(novosServicos[index].quantidade) || 0;
+      const vu = Number(novosServicos[index].valor_unitario) || 0;
+      novosServicos[index].valor_total = q * vu;
     }
 
     setItensServicos(novosServicos);
@@ -200,8 +207,9 @@ export default function OrcamentoForm() {
       novos[index].descricao = servico.nome;
       novos[index].valor_unitario = servico.valor_unitario || 0;
       novos[index].servico_id = servico.id;
-      novos[index].valor_total =
-        novos[index].quantidade * novos[index].valor_unitario;
+      const q = Number(novos[index].quantidade) || 0;
+      const vu = Number(novos[index].valor_unitario) || 0;
+      novos[index].valor_total = q * vu;
       setItensServicos(novos);
     }
   };
@@ -215,8 +223,9 @@ export default function OrcamentoForm() {
       novos[idx].descricao = novoServico.nome || "";
       novos[idx].valor_unitario = novoServico.valor_unitario || 0;
       novos[idx].servico_id = novoServico.id;
-      novos[idx].valor_total =
-        novos[idx].quantidade * novos[idx].valor_unitario;
+      const q = Number(novos[idx].quantidade) || 0;
+      const vu = Number(novos[idx].valor_unitario) || 0;
+      novos[idx].valor_total = q * vu;
       setItensServicos(novos);
       setServicoModalIndex(null);
     }
@@ -224,11 +233,11 @@ export default function OrcamentoForm() {
 
   const calcularTotal = () => {
     const totalProdutos = itensProdutos.reduce(
-      (sum, item) => sum + item.valor_total,
+      (sum, item) => sum + (Number(item.valor_total) || 0),
       0,
     );
     const totalServicos = itensServicos.reduce(
-      (sum, item) => sum + item.valor_total,
+      (sum, item) => sum + (Number(item.valor_total) || 0),
       0,
     );
     return totalProdutos + totalServicos;
