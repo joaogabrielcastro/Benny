@@ -142,6 +142,20 @@ export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
             tribISSQN: 1,
             tpRetISSQN: 1,
           },
+          totTrib: {
+            vTotTrib: {
+              vTotTribFed: 0,
+              vTotTribEst: 0,
+              vTotTribMun: 0,
+            },
+            pTotTrib: {
+              pTotTribFed: 0,
+              pTotTribEst: 0,
+              pTotTribMun: 0,
+            },
+            indTotTrib: 0,
+            pTotTribSN: 0,
+          },
         },
       },
     },
