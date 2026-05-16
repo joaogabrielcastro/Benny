@@ -28,6 +28,7 @@ console.log("  Provedor DPS:", cfg.provedor);
 console.log("  CNPJ emitente:", cnpjMask);
 console.log("  IBGE (prestação):", cfg.codigoMunicipioIbge || "(vazio)");
 console.log("  cTribNac:", cfg.cTribNac);
+console.log("  cNBS:", cfg.cNbs);
 console.log("  Auth URL:", cfg.authUrl);
 console.log("  API base:", cfg.apiBaseUrl);
 

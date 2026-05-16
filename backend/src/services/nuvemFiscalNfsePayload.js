@@ -132,6 +132,7 @@ export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
         locPrest: { cLocPrestacao: cMun },
         cServ: {
           cTribNac: cfg.cTribNac,
+          cNBS: cfg.cNbs,
           xDescServ: buildDescricaoServico(os, produtos, servicos),
         },
       },
@@ -143,18 +144,13 @@ export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
             tpRetISSQN: 1,
           },
           totTrib: {
+            indTotTrib: 0,
+            pTotTribSN: 0,
             vTotTrib: {
               vTotTribFed: 0,
               vTotTribEst: 0,
               vTotTribMun: 0,
             },
-            pTotTrib: {
-              pTotTribFed: 0,
-              pTotTribEst: 0,
-              pTotTribMun: 0,
-            },
-            indTotTrib: 0,
-            pTotTribSN: 0,
           },
         },
       },
