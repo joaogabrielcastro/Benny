@@ -151,7 +151,8 @@ async function initDatabase() {
         bairro VARCHAR(100),
         cidade VARCHAR(100),
         estado VARCHAR(2),
-        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -441,6 +442,11 @@ async function initDatabase() {
       ADD COLUMN IF NOT EXISTS bairro VARCHAR(100),
       ADD COLUMN IF NOT EXISTS cidade VARCHAR(100),
       ADD COLUMN IF NOT EXISTS estado VARCHAR(2);
+    `);
+
+    await client.query(`
+      ALTER TABLE clientes
+      ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     `);
 
     await client.query(`
