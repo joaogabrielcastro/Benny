@@ -59,11 +59,27 @@ function logradouroCliente(cliente) {
   return "NAO INFORMADO";
 }
 
+/** Referência única por tentativa (Nuvem Fiscal não permite reutilizar). Máx. 50 caracteres. */
+export function gerarReferenciaNfse(osId, nfRegistroId = null) {
+  const sufixo = Date.now().toString(36);
+  const base = nfRegistroId
+    ? `benny-os-${osId}-nf${nfRegistroId}-${sufixo}`
+    : `benny-os-${osId}-${sufixo}`;
+  return trunc(base, 50);
+}
+
 /**
  * Monta o corpo JSON do POST /nfse/dps (NfseDpsPedidoEmissao).
+ * @param {{ referencia?: string }} [opcoes] — referencia única; se omitida, é gerada automaticamente
  * @returns {{ ok: true, body: object } | { ok: false, erro: string }}
  */
-export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
+export function montarCorpoEmissaoNfseDps(
+  os,
+  cliente,
+  produtos,
+  servicos,
+  opcoes = {},
+) {
   const cfg = getNuvemFiscalConfig();
   const cMun = resolveMunicipioIbge(cfg);
   if (!cMun) {
@@ -117,7 +133,8 @@ export function montarCorpoEmissaoNfseDps(os, cliente, produtos, servicos) {
   const body = {
     provedor: cfg.provedor,
     ambiente: cfg.ambiente,
-    referencia: trunc(`benny-os-${os.id}`, 50),
+    referencia:
+      opcoes.referencia || gerarReferenciaNfse(os.id, opcoes.nfRegistroId),
     infDPS: {
       tpAmb,
       dhEmi,

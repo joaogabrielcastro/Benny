@@ -6,7 +6,10 @@ import { isNuvemFiscalConfigured } from "../config/nuvemFiscal.js";
 
 import { emitirNfseDps } from "./nuvemFiscalClient.js";
 
-import { montarCorpoEmissaoNfseDps } from "./nuvemFiscalNfsePayload.js";
+import {
+  gerarReferenciaNfse,
+  montarCorpoEmissaoNfseDps,
+} from "./nuvemFiscalNfsePayload.js";
 
 import ordensServicoService from "./ordensServicoService.js";
 
@@ -260,6 +263,8 @@ const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
 
   }
 
+  const nfRegistroExistente = existenteCheck.rows[0]?.id ?? null;
+
 
 
   let status = "configuracao_pendente";
@@ -298,6 +303,8 @@ const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
 
   if (isNuvemFiscalConfigured()) {
 
+    const referenciaNfse = gerarReferenciaNfse(osId, nfRegistroExistente);
+
     const montagem = montarCorpoEmissaoNfseDps(
 
       osCompleta,
@@ -307,6 +314,8 @@ const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
       osCompleta.produtos,
 
       osCompleta.servicos,
+
+      { referencia: referenciaNfse, nfRegistroId: nfRegistroExistente },
 
     );
 
