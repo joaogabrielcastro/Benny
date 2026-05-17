@@ -7,6 +7,10 @@ router.post(
   "/gerar/:osId",
   notasFiscaisController.gerar.bind(notasFiscaisController),
 );
+router.post(
+  "/sincronizar/os/:osId",
+  notasFiscaisController.sincronizarPorOs.bind(notasFiscaisController),
+);
 router.get("/", notasFiscaisController.listar.bind(notasFiscaisController));
 router.get("/:id", notasFiscaisController.buscar.bind(notasFiscaisController));
 router.put(

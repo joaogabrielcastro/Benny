@@ -27,11 +27,33 @@ class NotasFiscaisController {
     }
   }
 
+  async sincronizarPorOs(req, res) {
+    try {
+      const result = await notasFiscaisService.sincronizarPorOs(
+        SINGLE_TENANT_ID,
+        req.params.osId,
+      );
+      if (result.erro) {
+        return res.status(400).json({ erro: result.erro });
+      }
+      res.json({
+        message: result.message,
+        nf: result.nf,
+      });
+    } catch (error) {
+      logger.error(`Erro ao sincronizar NF da OS ${req.params.osId}:`, error);
+      res.status(500).json({ erro: error.message });
+    }
+  }
+
   async gerar(req, res) {
     try {
+      const forcarNovaEmissao =
+        req.query.forcar === "1" || req.query.forcar === "true";
       const result = await notasFiscaisService.gerarParaOs(
         SINGLE_TENANT_ID,
         req.params.osId,
+        { forcarNovaEmissao },
       );
       if (result.erro) {
         return res.status(400).json({ erro: result.erro });

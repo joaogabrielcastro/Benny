@@ -4,7 +4,11 @@ import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 
 import { isNuvemFiscalConfigured } from "../config/nuvemFiscal.js";
 
-import { emitirNfseDps } from "./nuvemFiscalClient.js";
+import {
+  consultarNfse,
+  emitirNfseDps,
+  sincronizarNfseNaPrefeitura,
+} from "./nuvemFiscalClient.js";
 
 import {
   gerarReferenciaNfse,
@@ -38,23 +42,163 @@ function tributosPadraoDaOs(valorTotal) {
 
 
 function mapStatusApiNuvemParaInterno(apiStatus) {
-
   if (!apiStatus) return "processamento";
 
-  const s = String(apiStatus).toLowerCase();
+  const s = String(apiStatus).toLowerCase().trim();
 
-  if (s === "autorizada") return "autorizada";
+  if (
+    s === "autorizada" ||
+    s === "autorizado" ||
+    s === "emitida" ||
+    s === "concluida" ||
+    s === "concluído" ||
+    s === "concluido" ||
+    s === "sucesso" ||
+    s === "aprovada"
+  )
+    return "autorizada";
 
-  if (s === "processando") return "processamento";
+  if (s === "processando" || s === "processamento" || s === "pendente")
+    return "processamento";
 
-  if (s === "negada" || s === "erro") return "rejeitada";
+  if (
+    s === "negada" ||
+    s === "erro" ||
+    s === "rejeitada" ||
+    s === "denegada" ||
+    s === "falha" ||
+    s === "reprovada"
+  )
+    return "rejeitada";
 
   if (s === "cancelada") return "cancelada";
 
-  if (s === "substituida") return "substituida";
+  if (s === "substituida" || s === "substituída") return "substituida";
 
   return "processamento";
+}
 
+/** Lê status em vários campos possíveis do JSON da Nuvem Fiscal. */
+function extrairStatusBrutoNuvem(data) {
+  if (!data || typeof data !== "object") return null;
+  const candidatos = [
+    data.status,
+    data.situacao,
+    data.status_nfse,
+    data.situacao_nfse,
+    data.status_sefaz,
+    data.autorizacao?.status,
+    data.DPS?.status,
+    data.nfse?.status,
+  ];
+  for (const c of candidatos) {
+    if (c != null && String(c).trim() !== "") return String(c).trim();
+  }
+  return null;
+}
+
+function nfPareceAutorizada(data) {
+  if (!data || typeof data !== "object") return false;
+  const num = data.numero ?? data.nNFSe ?? data.nfse?.numero;
+  const chave =
+    data.chave ?? data.chave_acesso ?? data.DPS?.chave ?? data.nfse?.chave;
+  const link = data.link_url ?? data.url ?? data.link_pdf;
+  return Boolean(num && (chave || link));
+}
+
+function resolverStatusNuvem(data) {
+  const bruto = extrairStatusBrutoNuvem(data);
+  let interno = mapStatusApiNuvemParaInterno(bruto);
+
+  if (interno === "processamento" && nfPareceAutorizada(data)) {
+    interno = "autorizada";
+  }
+
+  const msgs = data?.mensagens;
+  if (
+    interno === "processamento" &&
+    Array.isArray(msgs) &&
+    msgs.some((m) => {
+      const t = String(m?.tipo || m?.type || "").toLowerCase();
+      return t.includes("erro") || t.includes("rejei");
+    })
+  ) {
+    interno = "rejeitada";
+  }
+
+  return { interno, bruto };
+}
+
+function mensagemPadraoPorStatus(status, msgApi) {
+  if (msgApi) return msgApi;
+  if (status === "autorizada") return "NFS-e autorizada na Nuvem Fiscal.";
+  if (status === "rejeitada")
+    return "NFS-e rejeitada na Nuvem Fiscal. Veja as observações.";
+  if (status === "processamento")
+    return "NFS-e ainda em processamento na Nuvem Fiscal. Aguarde alguns minutos e use Atualizar status.";
+  return "Status atualizado na Nuvem Fiscal.";
+}
+
+function camposFromRespostaNuvem(data) {
+  const { interno: status, bruto: statusBruto } = resolverStatusNuvem(data);
+  const msgApi = resumoMensagensApi(data);
+  const hora = new Date().toLocaleString("pt-BR");
+  let mensagem = mensagemPadraoPorStatus(status, msgApi);
+  if (statusBruto) {
+    mensagem += ` (Nuvem: ${statusBruto} — consulta ${hora})`;
+  } else if (status === "processamento") {
+    mensagem += ` (consulta ${hora}: sem status final na Nuvem ainda)`;
+  }
+  return {
+    status,
+    statusBruto,
+    idProvedor: data?.id || null,
+    numeroNf:
+      data?.numero ?? data?.nNFSe ?? data?.nfse?.numero ?? null,
+    linkPdf: data?.link_url ?? data?.url ?? data?.link_pdf ?? null,
+    dataEmissao: data?.data_emissao ? new Date(data.data_emissao) : null,
+    chaveAcesso:
+      data?.DPS?.chave ?? data?.chave ?? data?.chave_acesso ?? data?.nfse?.chave ?? null,
+    mensagem,
+    dadosResposta: data,
+  };
+}
+
+async function persistirAtualizacaoNf(nfId, tenantId, osId, campos) {
+  const r = await pool.query(
+    `UPDATE notas_fiscais SET
+       status = COALESCE($1, status),
+       id_provedor = COALESCE($2, id_provedor),
+       numero = COALESCE($3, numero),
+       chave_acesso = COALESCE($4, chave_acesso),
+       link_pdf = COALESCE($5, link_pdf),
+       mensagem_status = $6,
+       dados_resposta = COALESCE($7::jsonb, dados_resposta),
+       data_emissao = COALESCE($8, data_emissao),
+       atualizado_em = NOW()
+     WHERE id = $9 AND tenant_id = $10
+     RETURNING *`,
+    [
+      campos.status,
+      campos.idProvedor,
+      campos.numeroNf,
+      campos.chaveAcesso,
+      campos.linkPdf,
+      campos.mensagem,
+      campos.dadosResposta ? JSON.stringify(campos.dadosResposta) : null,
+      campos.dataEmissao,
+      nfId,
+      tenantId,
+    ],
+  );
+  if (r.rows[0]) {
+    await pool.query(
+      `UPDATE ordens_servico SET nf_id = $1, atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $2 AND tenant_id = $3`,
+      [nfId, osId, tenantId],
+    );
+  }
+  return r.rows[0] || null;
 }
 
 
@@ -92,6 +236,21 @@ export function mapNfParaRespostaApi(row) {
       : {};
 
   const emissao = row.data_emissao || row.criado_em;
+
+  const dr =
+    typeof row.dados_resposta === "object" && row.dados_resposta !== null
+      ? row.dados_resposta
+      : typeof row.dados_resposta === "string"
+        ? (() => {
+            try {
+              return JSON.parse(row.dados_resposta);
+            } catch {
+              return {};
+            }
+          })()
+        : {};
+
+  const statusProvedor = extrairStatusBrutoNuvem(dr);
 
   let numero = row.numero;
 
@@ -159,6 +318,10 @@ export function mapNfParaRespostaApi(row) {
 
     chave_acesso: row.chave_acesso || null,
 
+    status_provedor: statusProvedor,
+
+    atualizado_em_nf: row.atualizado_em || null,
+
   };
 
 }
@@ -213,7 +376,65 @@ const buscarPorOsId = async (tenantId = SINGLE_TENANT_ID, osId) => {
 
 
 
-const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
+/** Consulta (e, se necessário, sincroniza) NFS-e já enviada — sem nova emissão. */
+const sincronizarPorOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
+  const nf = await buscarPorOsId(tenantId, osId);
+  if (!nf) return { erro: "Nenhuma nota fiscal registrada para esta OS" };
+  if (nf.status === "autorizada") {
+    return {
+      nf: mapNfParaRespostaApi(nf),
+      message: "NFS-e já está autorizada.",
+    };
+  }
+  if (!isNuvemFiscalConfigured()) {
+    return {
+      nf: mapNfParaRespostaApi(nf),
+      message: nf.mensagem_status || "Nuvem Fiscal não configurada no servidor.",
+    };
+  }
+  if (!nf.id_provedor) {
+    return {
+      erro:
+        "Esta NF ainda não tem ID na Nuvem Fiscal. Use Gerar NF para enviar.",
+    };
+  }
+
+  let consulta = await consultarNfse(nf.id_provedor);
+  if (!consulta.ok) {
+    return { erro: consulta.mensagem || "Falha ao consultar NFS-e na Nuvem Fiscal" };
+  }
+
+  let campos = camposFromRespostaNuvem(consulta.data);
+
+  if (campos.status === "processamento") {
+    const sync = await sincronizarNfseNaPrefeitura(nf.id_provedor);
+    if (sync.ok && sync.data) {
+      consulta = { ok: true, data: sync.data };
+    } else if (sync.ok) {
+      consulta = await consultarNfse(nf.id_provedor);
+    }
+    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data);
+    else if (!sync.ok && sync.mensagem) {
+      return { erro: sync.mensagem };
+    }
+  }
+
+  const atualizada = await persistirAtualizacaoNf(nf.id, tenantId, osId, {
+    ...campos,
+    idProvedor: campos.idProvedor || nf.id_provedor,
+  });
+
+  return {
+    nf: mapNfParaRespostaApi(atualizada),
+    message: campos.mensagem,
+  };
+};
+
+const gerarParaOs = async (
+  tenantId = SINGLE_TENANT_ID,
+  osId,
+  { forcarNovaEmissao = false } = {},
+) => {
 
   const osCompleta = await ordensServicoService.buscarPorId(tenantId, osId);
 
@@ -249,21 +470,24 @@ const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
 
 
 
-  const existenteCheck = await pool.query(
+  const nfExistente = await buscarPorOsId(tenantId, osId);
 
-    `SELECT id, status FROM notas_fiscais WHERE ordem_servico_id = $1 AND tenant_id = $2`,
-
-    [osId, tenantId],
-
-  );
-
-  if (existenteCheck.rows[0]?.status === "autorizada") {
+  if (nfExistente?.status === "autorizada") {
 
     return { erro: "Esta OS já possui nota fiscal autorizada" };
 
   }
 
-  const nfRegistroExistente = existenteCheck.rows[0]?.id ?? null;
+  if (
+    !forcarNovaEmissao &&
+    nfExistente?.status === "processamento" &&
+    nfExistente?.id_provedor &&
+    isNuvemFiscalConfigured()
+  ) {
+    return sincronizarPorOs(tenantId, osId);
+  }
+
+  const nfRegistroExistente = nfExistente?.id ?? null;
 
 
 
@@ -373,41 +597,23 @@ const gerarParaOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
 
         } else {
 
-          const data = api.data;
+          const parsed = camposFromRespostaNuvem(api.data);
 
-          dadosResposta = data;
+          dadosResposta = parsed.dadosResposta;
 
-          status = mapStatusApiNuvemParaInterno(data?.status);
+          status = parsed.status;
 
-          idProvedor = data?.id || null;
+          idProvedor = parsed.idProvedor;
 
-          numeroNf = data?.numero || null;
+          numeroNf = parsed.numeroNf;
 
-          linkPdf = data?.link_url || null;
+          linkPdf = parsed.linkPdf;
 
-          dataEmissao = data?.data_emissao
+          dataEmissao = parsed.dataEmissao;
 
-            ? new Date(data.data_emissao)
+          chaveAcesso = parsed.chaveAcesso;
 
-            : null;
-
-          chaveAcesso = data?.DPS?.chave || data?.chave || null;
-
-          const msgApi = resumoMensagensApi(data);
-
-          mensagem =
-
-            msgApi ||
-
-            (status === "autorizada"
-
-              ? "NFS-e autorizada na Nuvem Fiscal."
-
-              : status === "processamento"
-
-                ? "NFS-e em processamento na Nuvem Fiscal. Consulte o painel ou reprocessar mais tarde."
-
-                : "Resposta recebida da Nuvem Fiscal.");
+          mensagem = parsed.mensagem;
 
         }
 
@@ -574,6 +780,8 @@ export default {
   buscarPorOsId,
 
   gerarParaOs,
+
+  sincronizarPorOs,
 
   mapNfParaRespostaApi,
 

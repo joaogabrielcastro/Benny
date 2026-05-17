@@ -97,7 +97,7 @@ function formatarErroApi(err) {
  * @param {object} body — corpo NfseDpsPedidoEmissao (provedor, ambiente, referencia, infDPS)
  * @returns {Promise<{ ok: true, data: object, statusCode: number } | { ok: false, mensagem: string, statusCode?: number, detalhe?: unknown }>}
  */
-export async function emitirNfseDps(body) {
+async function requestNuvemFiscal(method, path, body) {
   if (!isNuvemFiscalConfigured()) {
     return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
   }
@@ -114,7 +114,11 @@ export async function emitirNfseDps(body) {
   try {
     const cfg = getNuvemFiscalConfig();
     const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
-    const { data, status } = await axios.post(`${base}/nfse/dps`, body, {
+    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+    const { data, status } = await axios({
+      method,
+      url,
+      data: body,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -124,7 +128,7 @@ export async function emitirNfseDps(body) {
     return { ok: true, data, statusCode: status };
   } catch (err) {
     logger.error(
-      "Nuvem Fiscal: POST /nfse/dps falhou",
+      `Nuvem Fiscal: ${method} ${path} falhou`,
       err.response?.data || err.message,
     );
     return {
@@ -132,6 +136,31 @@ export async function emitirNfseDps(body) {
       mensagem: formatarErroApi(err),
       statusCode: err.response?.status,
       detalhe: err.response?.data,
+      authError: err.response?.status === 401,
     };
   }
+}
+
+/** GET /nfse/{id} — consulta status da NFS-e na Nuvem Fiscal */
+export async function consultarNfse(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscal("GET", `/nfse/${encodeURIComponent(id)}`);
+}
+
+/** POST /nfse/{id}/sincronizar — força sincronização com a prefeitura/ADN */
+export async function sincronizarNfseNaPrefeitura(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscal(
+    "POST",
+    `/nfse/${encodeURIComponent(id)}/sincronizar`,
+  );
+}
+
+export async function emitirNfseDps(body) {
+  if (!isNuvemFiscalConfigured()) {
+    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+  }
+  return requestNuvemFiscal("POST", "/nfse/dps", body);
 }

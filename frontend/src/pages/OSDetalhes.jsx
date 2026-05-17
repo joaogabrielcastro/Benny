@@ -71,6 +71,42 @@ export default function OSDetalhes() {
     }
   };
 
+  const feedbackNotaFiscal = (message, nf) => {
+    const st = nf?.status_nf;
+    if (st === "autorizada") {
+      toast.success(message || "Nota fiscal autorizada na Nuvem Fiscal.");
+    } else if (st === "configuracao_pendente") {
+      toast.error(
+        message ||
+          "Nuvem Fiscal não configurada neste servidor. Defina as variáveis no ambiente de produção.",
+        { duration: 8000 },
+      );
+    } else if (st === "erro_autenticacao" || st === "rejeitada") {
+      toast.error(message || "Falha na NFS-e na Nuvem Fiscal.");
+    } else if (st === "processamento") {
+      toast(message || "NFS-e ainda em processamento. Aguarde ou tente Atualizar status.", {
+        icon: "⏳",
+        duration: 6000,
+      });
+    } else {
+      toast(message || "Registro de NF atualizado.", { duration: 5000 });
+    }
+  };
+
+  const sincronizarNotaFiscal = async ({ silencioso = false } = {}) => {
+    const response = await api.post(`/notas-fiscais/sincronizar/os/${id}`);
+    const { message, nf } = response.data;
+    setNotaFiscal(nf);
+    if (!silencioso) {
+      feedbackNotaFiscal(message, nf);
+      setShowNFModal(true);
+    } else if (nf?.status_nf === "autorizada") {
+      toast.success(message || "NFS-e autorizada!");
+      setShowNFModal(true);
+    }
+    return nf;
+  };
+
   const handleGerarNF = async () => {
     if (os.status !== "Finalizada") {
       toast.error("A OS precisa estar finalizada para gerar a Nota Fiscal");
@@ -85,40 +121,60 @@ export default function OSDetalhes() {
 
     try {
       setGerandoNF(true);
-      const response = await api.post(`/notas-fiscais/gerar/${id}`);
+
+      if (notaFiscal?.status_nf === "processamento") {
+        await sincronizarNotaFiscal();
+        await carregarOS();
+        return;
+      }
+
+      const url =
+        notaFiscal?.status_nf === "rejeitada"
+          ? `/notas-fiscais/gerar/${id}?forcar=1`
+          : `/notas-fiscais/gerar/${id}`;
+      const response = await api.post(url);
       const { message, nf } = response.data;
       setNotaFiscal(nf);
       setShowNFModal(true);
-      const st = nf?.status_nf;
-      if (st === "autorizada") {
-        toast.success(message || "Nota fiscal autorizada na Nuvem Fiscal.");
-      } else if (st === "configuracao_pendente") {
-        toast.error(
-          message ||
-            "Nuvem Fiscal não configurada neste servidor. Defina as variáveis no ambiente de produção.",
-          { duration: 8000 },
-        );
-      } else if (st === "erro_autenticacao" || st === "rejeitada") {
-        toast.error(message || "Falha ao emitir na Nuvem Fiscal.");
-      } else if (st === "processamento") {
-        toast(message || "NFS-e em processamento na Nuvem Fiscal.", {
-          icon: "⏳",
-          duration: 6000,
-        });
-      } else {
-        toast(message || "Registro de NF atualizado.", { duration: 5000 });
-      }
-      carregarOS(); // Recarregar para atualizar o nf_id
+      feedbackNotaFiscal(message, nf);
+      await carregarOS();
     } catch (error) {
       toast.error(
         error.response?.data?.erro ||
           error.response?.data?.message ||
-          "Erro ao gerar Nota Fiscal",
+          "Erro ao processar Nota Fiscal",
       );
     } finally {
       setGerandoNF(false);
     }
   };
+
+  useEffect(() => {
+    if (loading || notaFiscal?.status_nf !== "processamento") return;
+
+    const atualizarStatus = async () => {
+      try {
+        const { data } = await api.post(`/notas-fiscais/sincronizar/os/${id}`);
+        setNotaFiscal((prev) => ({
+          ...data.nf,
+          _syncKey: Date.now(),
+        }));
+        if (data.nf?.status_nf === "autorizada") {
+          toast.success(data.message || "NFS-e autorizada!");
+          setShowNFModal(true);
+        } else if (data.nf?.status_nf === "rejeitada") {
+          toast.error(data.message || "NFS-e rejeitada na Nuvem Fiscal.");
+          setShowNFModal(true);
+        }
+      } catch {
+        /* polling silencioso */
+      }
+    };
+
+    atualizarStatus();
+    const timer = setInterval(atualizarStatus, 20000);
+    return () => clearInterval(timer);
+  }, [id, loading, notaFiscal?.status_nf]);
 
   const clienteCepValidoParaNfse =
     String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
@@ -216,10 +272,12 @@ export default function OSDetalhes() {
                   className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
                 >
                   {gerandoNF
-                    ? "⏳ Processando..."
-                    : notaFiscal
-                      ? "📄 Reprocessar NF"
-                      : "📄 Gerar NF"}
+                    ? "⏳ Aguarde..."
+                    : notaFiscal?.status_nf === "processamento"
+                      ? "🔄 Atualizar status"
+                      : notaFiscal
+                        ? "📄 Reemitir NF"
+                        : "📄 Gerar NF"}
                 </button>
               )}
             {notaFiscal && (
@@ -702,6 +760,29 @@ export default function OSDetalhes() {
               </div>
             </div>
 
+            {(notaFiscal.status_provedor || notaFiscal.id_provedor) && (
+              <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm space-y-1">
+                <p className="text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">Status na Nuvem:</span>{" "}
+                  {notaFiscal.status_provedor || "—"}
+                </p>
+                {notaFiscal.id_provedor && (
+                  <p className="text-gray-600 dark:text-gray-400 break-all">
+                    <span className="font-semibold">ID na Nuvem:</span>{" "}
+                    {notaFiscal.id_provedor}
+                  </p>
+                )}
+                {notaFiscal.atualizado_em_nf && (
+                  <p className="text-gray-500 text-xs">
+                    Última consulta:{" "}
+                    {new Date(notaFiscal.atualizado_em_nf).toLocaleString(
+                      "pt-BR",
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Observações da NF */}
             {notaFiscal.observacoes && (
               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
@@ -757,7 +838,7 @@ export default function OSDetalhes() {
                   : notaFiscal.status_nf === "configuracao_pendente"
                     ? "Integração Nuvem Fiscal: configure as variáveis no servidor e use Reprocessar NF."
                     : notaFiscal.status_nf === "processamento"
-                      ? "Em processamento na Nuvem Fiscal — acompanhe no painel ou reprocessar mais tarde."
+                      ? "Em processamento na Nuvem Fiscal — o status é atualizado automaticamente a cada ~20s ou use Atualizar status."
                       : notaFiscal.status_nf === "erro_autenticacao"
                         ? "Falha na autenticação com a Nuvem Fiscal. Verifique CLIENT_ID / SECRET."
                         : notaFiscal.status_nf === "rejeitada"
