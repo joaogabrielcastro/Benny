@@ -8,14 +8,29 @@ import Modal from "../components/Modal";
 import BuscaCEP from "../components/BuscaCEP";
 import { mascaraCEP, removerMascara } from "../utils/masks";
 
+function rotuloFonteTributo(fonte) {
+  if (fonte === "nuvem") return " · Nuvem Fiscal";
+  if (fonte === "estimativa") return " · estimativa";
+  return "";
+}
+
+function formatarAliquota(p) {
+  if (p == null || p === "") return "";
+  const n = Number(p);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
+}
+
 export default function OSDetalhes() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [os, setOS] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [notaFiscal, setNotaFiscal] = useState(null);
-  const [showNFModal, setShowNFModal] = useState(false);
-  const [gerandoNF, setGerandoNF] = useState(false);
+  const [notaFiscalServico, setNotaFiscalServico] = useState(null);
+  const [notaFiscalPecas, setNotaFiscalPecas] = useState(null);
+  const [showNFModal, setShowNFModal] = useState(null);
+  const [gerandoNfse, setGerandoNfse] = useState(false);
+  const [gerandoNfe, setGerandoNfe] = useState(false);
   const [cepClienteEdicao, setCepClienteEdicao] = useState("");
   const [salvandoCepCliente, setSalvandoCepCliente] = useState(false);
   const componentRef = useRef();
@@ -37,18 +52,29 @@ export default function OSDetalhes() {
       const response = await api.get(`/ordens-servico/${id}`);
       setOS(response.data);
 
-      // Verificar se já existe NF para esta OS
-      if (response.data.nf_id) {
-        try {
-          const nfResponse = await api.get(
-            `/notas-fiscais/${response.data.nf_id}`,
-          );
-          setNotaFiscal(nfResponse.data);
-        } catch (error) {
-          console.error("Erro ao carregar nota fiscal:", error);
+      try {
+        const nfResponse = await api.get(`/notas-fiscais/os/${id}`);
+        const lista = Array.isArray(nfResponse.data) ? nfResponse.data : [];
+        setNotaFiscalServico(
+          lista.find((n) => n.modelo_documento === "NFSE") || null,
+        );
+        setNotaFiscalPecas(
+          lista.find((n) => n.modelo_documento === "NFE") || null,
+        );
+      } catch (error) {
+        if (response.data.nf_id) {
+          try {
+            const legado = await api.get(
+              `/notas-fiscais/${response.data.nf_id}`,
+            );
+            setNotaFiscalServico(legado.data);
+          } catch (e) {
+            console.error("Erro ao carregar nota fiscal:", e);
+          }
+        } else {
+          setNotaFiscalServico(null);
+          setNotaFiscalPecas(null);
         }
-      } else {
-        setNotaFiscal(null);
       }
 
       setLoading(false);
@@ -93,78 +119,123 @@ export default function OSDetalhes() {
     }
   };
 
-  const sincronizarNotaFiscal = async ({ silencioso = false } = {}) => {
-    const response = await api.post(`/notas-fiscais/sincronizar/os/${id}`);
+  const setNotaPorModelo = (modelo, nf) => {
+    if (modelo === "NFE") setNotaFiscalPecas(nf);
+    else setNotaFiscalServico(nf);
+  };
+
+  const notaPorModelo = (modelo) =>
+    modelo === "NFE" ? notaFiscalPecas : notaFiscalServico;
+
+  const sincronizarNotaFiscal = async (
+    modelo = "NFSE",
+    { silencioso = false } = {},
+  ) => {
+    const path =
+      modelo === "NFE"
+        ? `/notas-fiscais/sincronizar/os/${id}/nfe`
+        : `/notas-fiscais/sincronizar/os/${id}/nfse`;
+    const response = await api.post(path);
     const { message, nf } = response.data;
-    setNotaFiscal(nf);
+    setNotaPorModelo(modelo, nf);
     if (!silencioso) {
       feedbackNotaFiscal(message, nf);
-      setShowNFModal(true);
+      setShowNFModal(modelo);
     } else if (nf?.status_nf === "autorizada") {
-      toast.success(message || "NFS-e autorizada!");
-      setShowNFModal(true);
+      toast.success(message || "Nota autorizada!");
+      setShowNFModal(modelo);
     }
     return nf;
   };
 
-  const handleGerarNF = async () => {
+  const handleGerarNF = async (modelo = "NFSE") => {
     if (os.status !== "Finalizada") {
-      toast.error("A OS precisa estar finalizada para gerar a Nota Fiscal");
+      toast.error("A OS precisa estar finalizada para gerar nota fiscal");
       return;
     }
 
-    if (notaFiscal?.status_nf === "autorizada") {
-      toast.info("Esta OS já possui uma Nota Fiscal emitida");
-      setShowNFModal(true);
+    const notaAtual = notaPorModelo(modelo);
+    const valorMinimo =
+      modelo === "NFE" ? Number(os.valor_produtos) : Number(os.valor_servicos);
+    if (valorMinimo <= 0) {
+      toast.error(
+        modelo === "NFE"
+          ? "Esta OS não tem valor de peças para NF-e."
+          : "Esta OS não tem valor de serviços para NFS-e.",
+      );
       return;
     }
+
+    if (notaAtual?.status_nf === "autorizada") {
+      toast.info(
+        modelo === "NFE"
+          ? "NF-e de peças já autorizada."
+          : "NFS-e de serviços já autorizada.",
+      );
+      setShowNFModal(modelo);
+      return;
+    }
+
+    const setGerando = modelo === "NFE" ? setGerandoNfe : setGerandoNfse;
+    const baseUrl =
+      modelo === "NFE"
+        ? `/notas-fiscais/gerar/${id}/nfe`
+        : `/notas-fiscais/gerar/${id}/nfse`;
 
     try {
-      setGerandoNF(true);
+      setGerando(true);
 
-      if (notaFiscal?.status_nf === "processamento") {
-        await sincronizarNotaFiscal();
+      if (notaAtual?.status_nf === "processamento") {
+        await sincronizarNotaFiscal(modelo);
         await carregarOS();
         return;
       }
 
       const url =
-        notaFiscal?.status_nf === "rejeitada"
-          ? `/notas-fiscais/gerar/${id}?forcar=1`
-          : `/notas-fiscais/gerar/${id}`;
+        notaAtual?.status_nf === "rejeitada" ? `${baseUrl}?forcar=1` : baseUrl;
       const response = await api.post(url);
       const { message, nf } = response.data;
-      setNotaFiscal(nf);
-      setShowNFModal(true);
+      setNotaPorModelo(modelo, nf);
+      setShowNFModal(modelo);
       feedbackNotaFiscal(message, nf);
       await carregarOS();
     } catch (error) {
       toast.error(
         error.response?.data?.erro ||
           error.response?.data?.message ||
-          "Erro ao processar Nota Fiscal",
+          "Erro ao processar nota fiscal",
       );
     } finally {
-      setGerandoNF(false);
+      setGerando(false);
     }
   };
 
   useEffect(() => {
-    if (loading || notaFiscal?.status_nf !== "processamento") return;
+    const nfseProc = notaFiscalServico?.status_nf === "processamento";
+    const nfeProc = notaFiscalPecas?.status_nf === "processamento";
+    if (loading || (!nfseProc && !nfeProc)) return;
 
     const atualizarStatus = async () => {
       try {
-        const { data } = await api.post(`/notas-fiscais/sincronizar/os/${id}`);
-        setNotaFiscal((prev) => ({
-          ...data.nf,
-          _syncKey: Date.now(),
-        }));
-        if (data.nf?.status_nf === "autorizada") {
-          toast.success(data.message || "NFS-e autorizada!");
-          setShowNFModal(true);
-        } else if (data.nf?.status_nf === "rejeitada") {
-          toast.error(data.message || "NFS-e rejeitada na Nuvem Fiscal.");
-          setShowNFModal(true);
+        if (nfseProc) {
+          const { data } = await api.post(
+            `/notas-fiscais/sincronizar/os/${id}/nfse`,
+          );
+          setNotaFiscalServico({ ...data.nf, _syncKey: Date.now() });
+          if (data.nf?.status_nf === "autorizada") {
+            toast.success(data.message || "NFS-e autorizada!");
+            setShowNFModal("NFSE");
+          }
+        }
+        if (nfeProc) {
+          const { data } = await api.post(
+            `/notas-fiscais/sincronizar/os/${id}/nfe`,
+          );
+          setNotaFiscalPecas({ ...data.nf, _syncKey: Date.now() });
+          if (data.nf?.status_nf === "autorizada") {
+            toast.success(data.message || "NF-e autorizada!");
+            setShowNFModal("NFE");
+          }
         }
       } catch {
         /* polling silencioso */
@@ -174,7 +245,12 @@ export default function OSDetalhes() {
     atualizarStatus();
     const timer = setInterval(atualizarStatus, 20000);
     return () => clearInterval(timer);
-  }, [id, loading, notaFiscal?.status_nf]);
+  }, [
+    id,
+    loading,
+    notaFiscalServico?.status_nf,
+    notaFiscalPecas?.status_nf,
+  ]);
 
   const clienteCepValidoParaNfse =
     String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
@@ -242,6 +318,10 @@ export default function OSDetalhes() {
     return <div className="text-center py-8">OS não encontrada</div>;
   }
 
+  const notaFiscalModal = showNFModal ? notaPorModelo(showNFModal) : null;
+  const temServicos = Number(os.valor_servicos) > 0;
+  const temPecas = Number(os.valor_produtos) > 0;
+
   return (
     <div className="space-y-6">
       {/* Header com ações */}
@@ -264,28 +344,54 @@ export default function OSDetalhes() {
                 ✏️ Editar
               </Link>
             )}
-            {os.status === "Finalizada" &&
-              (!notaFiscal || notaFiscal.status_nf !== "autorizada") && (
-                <button
-                  onClick={handleGerarNF}
-                  disabled={gerandoNF}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
-                >
-                  {gerandoNF
-                    ? "⏳ Aguarde..."
-                    : notaFiscal?.status_nf === "processamento"
-                      ? "🔄 Atualizar status"
-                      : notaFiscal
-                        ? "📄 Reemitir NF"
-                        : "📄 Gerar NF"}
-                </button>
-              )}
-            {notaFiscal && (
+            {os.status === "Finalizada" && temServicos && (
               <button
-                onClick={() => setShowNFModal(true)}
+                onClick={() => handleGerarNF("NFSE")}
+                disabled={gerandoNfse}
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                {gerandoNfse
+                  ? "⏳ Aguarde..."
+                  : notaFiscalServico?.status_nf === "processamento"
+                    ? "🔄 NFS-e status"
+                    : notaFiscalServico?.status_nf === "autorizada"
+                      ? "✓ NFS-e ok"
+                      : notaFiscalServico
+                        ? "📄 Reemitir NFS-e"
+                        : "📄 NFS-e serviços"}
+              </button>
+            )}
+            {os.status === "Finalizada" && temPecas && (
+              <button
+                onClick={() => handleGerarNF("NFE")}
+                disabled={gerandoNfe}
+                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                {gerandoNfe
+                  ? "⏳ Aguarde..."
+                  : notaFiscalPecas?.status_nf === "processamento"
+                    ? "🔄 NF-e status"
+                    : notaFiscalPecas?.status_nf === "autorizada"
+                      ? "✓ NF-e ok"
+                      : notaFiscalPecas
+                        ? "📄 Reemitir NF-e"
+                        : "📄 NF-e peças"}
+              </button>
+            )}
+            {notaFiscalServico?.status_nf === "autorizada" && (
+              <button
+                onClick={() => setShowNFModal("NFSE")}
                 className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2"
               >
-                📄 Ver NF ({notaFiscal.numero})
+                📄 NFS-e ({notaFiscalServico.numero})
+              </button>
+            )}
+            {notaFiscalPecas?.status_nf === "autorizada" && (
+              <button
+                onClick={() => setShowNFModal("NFE")}
+                className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2"
+              >
+                📄 NF-e ({notaFiscalPecas.numero})
               </button>
             )}
             {os.status === "Aberta" && (
@@ -651,11 +757,11 @@ export default function OSDetalhes() {
       <OSImpressao ref={componentRef} os={os} />
 
       {/* Modal de Nota Fiscal */}
-      {notaFiscal && (
+      {notaFiscalModal && (
         <Modal
-          isOpen={showNFModal}
-          onClose={() => setShowNFModal(false)}
-          title={`Nota Fiscal Nº ${notaFiscal.numero}`}
+          isOpen={!!showNFModal}
+          onClose={() => setShowNFModal(null)}
+          title={`${showNFModal === "NFE" ? "NF-e" : "NFS-e"} Nº ${notaFiscalModal.numero}`}
           size="lg"
         >
           <div className="space-y-6">
@@ -666,7 +772,7 @@ export default function OSDetalhes() {
                   Número NF:
                 </span>
                 <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {notaFiscal.numero}
+                  {notaFiscalModal.numero}
                 </p>
               </div>
               <div>
@@ -674,7 +780,7 @@ export default function OSDetalhes() {
                   Data de Emissão:
                 </span>
                 <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {new Date(notaFiscal.data_emissao).toLocaleDateString(
+                  {new Date(notaFiscalModal.data_emissao).toLocaleDateString(
                     "pt-BR",
                   )}
                 </p>
@@ -700,82 +806,112 @@ export default function OSDetalhes() {
             {/* Valores */}
             <div className="space-y-3">
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                Valores e Tributos
+                {showNFModal === "NFE"
+                  ? "Valores (NF-e peças)"
+                  : "Valores e tributos (NFS-e)"}
               </h3>
+              {showNFModal === "NFSE" && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Tributos da Nuvem Fiscal quando disponíveis; senão, estimativa
+                  com NUVEM_FISCAL_ALIQUOTA_ISS (2% Colombo) no servidor.
+                </p>
+              )}
 
               <div className="space-y-2">
                 <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
                   <span className="text-gray-700 dark:text-gray-300">
-                    Valor Base:
+                    {showNFModal === "NFE"
+                      ? "Valor das peças (base):"
+                      : "Valor dos serviços (base):"}
                   </span>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {formatarMoeda(notaFiscal.valor_base)}
+                    {formatarMoeda(notaFiscalModal.valor_base)}
+                  </span>
+                </div>
+
+                {showNFModal === "NFSE" && (
+                <>
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    ISS
+                    {formatarAliquota(notaFiscalModal.aliquota_iss)
+                      ? ` (${formatarAliquota(notaFiscalModal.aliquota_iss)})`
+                      : ""}
+                    {rotuloFonteTributo(notaFiscalModal.fonte_iss)}:
+                  </span>
+                  <span className="text-amber-700 dark:text-amber-400 font-medium">
+                    {formatarMoeda(notaFiscalModal.valor_iss)}
                   </span>
                 </div>
 
                 <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
                   <span className="text-gray-700 dark:text-gray-300">
-                    ICMS (18%):
+                    PIS
+                    {formatarAliquota(notaFiscalModal.aliquota_pis)
+                      ? ` (${formatarAliquota(notaFiscalModal.aliquota_pis)})`
+                      : ""}
+                    {rotuloFonteTributo(notaFiscalModal.fonte_pis)}:
                   </span>
                   <span className="text-red-600 dark:text-red-400">
-                    {formatarMoeda(notaFiscal.valor_icms)}
+                    {formatarMoeda(notaFiscalModal.valor_pis)}
                   </span>
                 </div>
 
                 <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
                   <span className="text-gray-700 dark:text-gray-300">
-                    ISS (5%):
+                    COFINS
+                    {formatarAliquota(notaFiscalModal.aliquota_cofins)
+                      ? ` (${formatarAliquota(notaFiscalModal.aliquota_cofins)})`
+                      : ""}
+                    {rotuloFonteTributo(notaFiscalModal.fonte_cofins)}:
                   </span>
                   <span className="text-red-600 dark:text-red-400">
-                    {formatarMoeda(notaFiscal.valor_iss)}
+                    {formatarMoeda(notaFiscalModal.valor_cofins)}
                   </span>
                 </div>
 
                 <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
                   <span className="text-gray-700 dark:text-gray-300">
-                    PIS (1.65%):
+                    Valor líquido (base − ISS):
                   </span>
-                  <span className="text-red-600 dark:text-red-400">
-                    {formatarMoeda(notaFiscal.valor_pis)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    COFINS (7.6%):
-                  </span>
-                  <span className="text-red-600 dark:text-red-400">
-                    {formatarMoeda(notaFiscal.valor_cofins)}
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    {formatarMoeda(
+                      notaFiscalModal.valor_liquido ?? notaFiscalModal.valor_total,
+                    )}
                   </span>
                 </div>
+                </>
+                )}
 
                 <div className="flex justify-between py-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg px-3 mt-3">
                   <span className="text-lg font-bold text-gray-900 dark:text-white">
-                    Valor Total da NF:
+                    {showNFModal === "NFE"
+                      ? "Valor total da NF-e:"
+                      : "Valor total da NFS-e:"}
                   </span>
                   <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {formatarMoeda(notaFiscal.valor_total)}
+                    {formatarMoeda(notaFiscalModal.valor_total)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {(notaFiscal.status_provedor || notaFiscal.id_provedor) && (
+            {(notaFiscalModal.status_provedor || notaFiscalModal.id_provedor) && (
               <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm space-y-1">
                 <p className="text-gray-700 dark:text-gray-300">
                   <span className="font-semibold">Status na Nuvem:</span>{" "}
-                  {notaFiscal.status_provedor || "—"}
+                  {notaFiscalModal.status_provedor || "—"}
                 </p>
-                {notaFiscal.id_provedor && (
+                {notaFiscalModal.id_provedor && (
                   <p className="text-gray-600 dark:text-gray-400 break-all">
                     <span className="font-semibold">ID na Nuvem:</span>{" "}
-                    {notaFiscal.id_provedor}
+                    {notaFiscalModal.id_provedor}
                   </p>
                 )}
-                {notaFiscal.atualizado_em_nf && (
+                {notaFiscalModal.atualizado_em_nf && (
                   <p className="text-gray-500 text-xs">
                     Última consulta:{" "}
-                    {new Date(notaFiscal.atualizado_em_nf).toLocaleString(
+                    {new Date(notaFiscalModal.atualizado_em_nf).toLocaleString(
                       "pt-BR",
                     )}
                   </p>
@@ -784,13 +920,13 @@ export default function OSDetalhes() {
             )}
 
             {/* Observações da NF */}
-            {notaFiscal.observacoes && (
+            {notaFiscalModal.observacoes && (
               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                 <h4 className="font-semibold text-gray-800 dark:text-white mb-2">
                   Observações:
                 </h4>
                 <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                  {notaFiscal.observacoes}
+                  {notaFiscalModal.observacoes}
                 </p>
               </div>
             )}
@@ -798,65 +934,65 @@ export default function OSDetalhes() {
             {/* Status da NF */}
             <div
               className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg ${
-                notaFiscal.status_nf === "autorizada"
+                notaFiscalModal.status_nf === "autorizada"
                   ? "bg-green-100 dark:bg-green-900/30"
-                  : notaFiscal.status_nf === "erro_autenticacao" ||
-                      notaFiscal.status_nf === "rejeitada"
+                  : notaFiscalModal.status_nf === "erro_autenticacao" ||
+                      notaFiscalModal.status_nf === "rejeitada"
                     ? "bg-red-100 dark:bg-red-900/30"
-                    : notaFiscal.status_nf === "cancelada" ||
-                        notaFiscal.status_nf === "substituida"
+                    : notaFiscalModal.status_nf === "cancelada" ||
+                        notaFiscalModal.status_nf === "substituida"
                       ? "bg-gray-200 dark:bg-gray-700/50"
                       : "bg-amber-100 dark:bg-amber-900/20"
               }`}
             >
               <span className="text-2xl">
-                {notaFiscal.status_nf === "autorizada"
+                {notaFiscalModal.status_nf === "autorizada"
                   ? "✓"
-                  : notaFiscal.status_nf === "erro_autenticacao" ||
-                      notaFiscal.status_nf === "rejeitada"
+                  : notaFiscalModal.status_nf === "erro_autenticacao" ||
+                      notaFiscalModal.status_nf === "rejeitada"
                     ? "✕"
-                    : notaFiscal.status_nf === "cancelada" ||
-                        notaFiscal.status_nf === "substituida"
+                    : notaFiscalModal.status_nf === "cancelada" ||
+                        notaFiscalModal.status_nf === "substituida"
                       ? "—"
                       : "⏳"}
               </span>
               <span
                 className={`font-bold text-center ${
-                  notaFiscal.status_nf === "autorizada"
+                  notaFiscalModal.status_nf === "autorizada"
                     ? "text-green-700 dark:text-green-400"
-                    : notaFiscal.status_nf === "erro_autenticacao" ||
-                        notaFiscal.status_nf === "rejeitada"
+                    : notaFiscalModal.status_nf === "erro_autenticacao" ||
+                        notaFiscalModal.status_nf === "rejeitada"
                       ? "text-red-700 dark:text-red-400"
-                      : notaFiscal.status_nf === "cancelada" ||
-                          notaFiscal.status_nf === "substituida"
+                      : notaFiscalModal.status_nf === "cancelada" ||
+                          notaFiscalModal.status_nf === "substituida"
                         ? "text-gray-700 dark:text-gray-300"
                         : "text-amber-800 dark:text-amber-200"
                 }`}
               >
-                {notaFiscal.status_nf === "autorizada"
+                {notaFiscalModal.status_nf === "autorizada"
                   ? "Nota fiscal autorizada"
-                  : notaFiscal.status_nf === "configuracao_pendente"
+                  : notaFiscalModal.status_nf === "configuracao_pendente"
                     ? "Integração Nuvem Fiscal: configure as variáveis no servidor e use Reprocessar NF."
-                    : notaFiscal.status_nf === "processamento"
+                    : notaFiscalModal.status_nf === "processamento"
                       ? "Em processamento na Nuvem Fiscal — o status é atualizado automaticamente a cada ~20s ou use Atualizar status."
-                      : notaFiscal.status_nf === "erro_autenticacao"
+                      : notaFiscalModal.status_nf === "erro_autenticacao"
                         ? "Falha na autenticação com a Nuvem Fiscal. Verifique CLIENT_ID / SECRET."
-                        : notaFiscal.status_nf === "rejeitada"
+                        : notaFiscalModal.status_nf === "rejeitada"
                           ? "Emissão rejeitada ou com erro. Veja a mensagem acima (detalhes da API)."
-                          : notaFiscal.status_nf === "cancelada"
+                          : notaFiscalModal.status_nf === "cancelada"
                             ? "NFS-e cancelada na Nuvem Fiscal."
-                            : notaFiscal.status_nf === "substituida"
+                            : notaFiscalModal.status_nf === "substituida"
                               ? "NFS-e substituída na Nuvem Fiscal."
-                              : `Status: ${notaFiscal.status_nf || "desconhecido"}`}
+                              : `Status: ${notaFiscalModal.status_nf || "desconhecido"}`}
               </span>
             </div>
 
             {/* Botões de Ação */}
             <div className="flex gap-3 pt-4">
-              {(notaFiscal.link_pdf || notaFiscal.pdf_path) && (
+              {(notaFiscalModal.link_pdf || notaFiscalModal.pdf_path) && (
                 <a
                   href={(() => {
-                    const raw = notaFiscal.link_pdf || notaFiscal.pdf_path;
+                    const raw = notaFiscalModal.link_pdf || notaFiscalModal.pdf_path;
                     if (!raw) return "#";
                     if (/^https?:\/\//i.test(raw)) return raw;
                     return `/api/storage/${raw.replace(/^storage\//, "")}`;
@@ -875,7 +1011,7 @@ export default function OSDetalhes() {
                 🖨️ Imprimir NF
               </button>
               <button
-                onClick={() => setShowNFModal(false)}
+                onClick={() => setShowNFModal(null)}
                 className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-semibold"
               >
                 Fechar

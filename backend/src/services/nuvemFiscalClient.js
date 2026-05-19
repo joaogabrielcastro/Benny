@@ -164,3 +164,25 @@ export async function emitirNfseDps(body) {
   }
   return requestNuvemFiscal("POST", "/nfse/dps", body);
 }
+
+export async function consultarNfe(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscal("GET", `/nfe/${encodeURIComponent(id)}`);
+}
+
+export async function sincronizarNfeNaSefaz(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscal(
+    "POST",
+    `/nfe/${encodeURIComponent(id)}/sincronizar`,
+  );
+}
+
+export async function emitirNfe(body) {
+  if (!isNuvemFiscalConfigured()) {
+    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+  }
+  return requestNuvemFiscal("POST", "/nfe", body);
+}

@@ -1,4 +1,5 @@
 import { getNuvemFiscalConfig } from "../config/nuvemFiscal.js";
+import { totaisFiscaisOs } from "./osValoresFiscais.js";
 
 function onlyDigits(s) {
   return String(s || "").replace(/\D/g, "");
@@ -37,19 +38,16 @@ function resolveDocTomador(cliente, cfg) {
   return null;
 }
 
-function buildDescricaoServico(os, produtos, servicos) {
+function buildDescricaoServico(os, servicos) {
   const linhas = [];
   if (servicos?.length) {
     for (const s of servicos) {
       linhas.push(`${s.codigo} ${s.descricao} (${s.quantidade}x)`);
     }
   }
-  if (produtos?.length) {
-    for (const p of produtos) {
-      linhas.push(`${p.codigo} ${p.descricao} (${p.quantidade}x)`);
-    }
-  }
-  const bloco = linhas.length ? linhas.join("; ") : "Servicos e pecas conforme OS.";
+  const bloco = linhas.length
+    ? linhas.join("; ")
+    : "Mao de obra conforme ordem de servico.";
   return trunc(`OS ${os.numero} — ${bloco}`, 2000);
 }
 
@@ -60,18 +58,22 @@ function logradouroCliente(cliente) {
 }
 
 /** Referência única por tentativa (Nuvem Fiscal não permite reutilizar). Máx. 50 caracteres. */
-export function gerarReferenciaNfse(osId, nfRegistroId = null) {
+export function gerarReferenciaFiscal(osId, modelo, nfRegistroId = null) {
+  const tag = modelo === "NFE" ? "nfe" : "nfse";
   const sufixo = Date.now().toString(36);
   const base = nfRegistroId
-    ? `benny-os-${osId}-nf${nfRegistroId}-${sufixo}`
-    : `benny-os-${osId}-${sufixo}`;
+    ? `benny-os-${osId}-${tag}-nf${nfRegistroId}-${sufixo}`
+    : `benny-os-${osId}-${tag}-${sufixo}`;
   return trunc(base, 50);
 }
 
+/** @deprecated use gerarReferenciaFiscal */
+export function gerarReferenciaNfse(osId, nfRegistroId = null) {
+  return gerarReferenciaFiscal(osId, "NFSE", nfRegistroId);
+}
+
 /**
- * Monta o corpo JSON do POST /nfse/dps (NfseDpsPedidoEmissao).
- * @param {{ referencia?: string }} [opcoes] — referencia única; se omitida, é gerada automaticamente
- * @returns {{ ok: true, body: object } | { ok: false, erro: string }}
+ * Monta o corpo JSON do POST /nfse/dps (NfseDpsPedidoEmissao) — somente mão de obra.
  */
 export function montarCorpoEmissaoNfseDps(
   os,
@@ -81,6 +83,16 @@ export function montarCorpoEmissaoNfseDps(
   opcoes = {},
 ) {
   const cfg = getNuvemFiscalConfig();
+  const { valor_servicos } = totaisFiscaisOs({ ...os, produtos, servicos });
+
+  if (!servicos?.length || valor_servicos <= 0) {
+    return {
+      ok: false,
+      erro:
+        "Esta OS não possui valor de mão de obra (serviços) para emitir NFS-e.",
+    };
+  }
+
   const cMun = resolveMunicipioIbge(cfg);
   if (!cMun) {
     return {
@@ -94,7 +106,7 @@ export function montarCorpoEmissaoNfseDps(
     return {
       ok: false,
       erro:
-        "CEP do tomador (cliente) inválido ou ausente. Cadastre o CEP com 8 dígitos no cliente, atualize-o na OS abaixo ou defina NUVEM_FISCAL_TOMADOR_CEP no servidor (ex.: homologação).",
+        "CEP do tomador (cliente) inválido ou ausente. Cadastre o CEP com 8 dígitos no cliente.",
     };
   }
   const doc = resolveDocTomador(cliente, cfg);
@@ -106,7 +118,7 @@ export function montarCorpoEmissaoNfseDps(
     };
   }
 
-  const valorServ = Math.max(0, Number(os.valor_total) || 0);
+  const valorServ = valor_servicos;
   const now = new Date();
   const dhEmi = now.toISOString();
   const dCompet = dhEmi.slice(0, 10);
@@ -134,7 +146,8 @@ export function montarCorpoEmissaoNfseDps(
     provedor: cfg.provedor,
     ambiente: cfg.ambiente,
     referencia:
-      opcoes.referencia || gerarReferenciaNfse(os.id, opcoes.nfRegistroId),
+      opcoes.referencia ||
+      gerarReferenciaFiscal(os.id, "NFSE", opcoes.nfRegistroId),
     infDPS: {
       tpAmb,
       dhEmi,
@@ -150,7 +163,7 @@ export function montarCorpoEmissaoNfseDps(
         cServ: {
           cTribNac: cfg.cTribNac,
           cNBS: cfg.cNbs,
-          xDescServ: buildDescricaoServico(os, produtos, servicos),
+          xDescServ: buildDescricaoServico(os, servicos),
         },
       },
       valores: {
@@ -160,7 +173,6 @@ export function montarCorpoEmissaoNfseDps(
             tribISSQN: 1,
             tpRetISSQN: 1,
           },
-          // Layout Nacional: totTrib é choice — enviar só vTotTrib (valores por esfera)
           totTrib: {
             vTotTrib: {
               vTotTribFed: 0,

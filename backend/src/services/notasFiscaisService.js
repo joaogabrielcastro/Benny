@@ -5,39 +5,27 @@ import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import { isNuvemFiscalConfigured } from "../config/nuvemFiscal.js";
 
 import {
+  consultarNfe,
   consultarNfse,
+  emitirNfe,
   emitirNfseDps,
+  sincronizarNfeNaSefaz,
   sincronizarNfseNaPrefeitura,
 } from "./nuvemFiscalClient.js";
 
 import {
-  gerarReferenciaNfse,
+  gerarReferenciaFiscal,
   montarCorpoEmissaoNfseDps,
 } from "./nuvemFiscalNfsePayload.js";
+import { montarCorpoEmissaoNfe } from "./nuvemFiscalNfePayload.js";
+import { totaisFiscaisOs } from "./osValoresFiscais.js";
 
 import ordensServicoService from "./ordensServicoService.js";
 
-
-
-function tributosPadraoDaOs(valorTotal) {
-
-  const v = Number(valorTotal) || 0;
-
-  return {
-
-    valor_base: v,
-
-    valor_icms: 0,
-
-    valor_iss: 0,
-
-    valor_pis: 0,
-
-    valor_cofins: 0,
-
-  };
-
-}
+import {
+  extrairTributosDeRespostaNuvem,
+  tributosEstimadosDaOs,
+} from "./tributosNfse.js";
 
 
 
@@ -139,7 +127,7 @@ function mensagemPadraoPorStatus(status, msgApi) {
   return "Status atualizado na Nuvem Fiscal.";
 }
 
-function camposFromRespostaNuvem(data) {
+function camposFromRespostaNuvem(data, valorTotalOs = 0) {
   const { interno: status, bruto: statusBruto } = resolverStatusNuvem(data);
   const msgApi = resumoMensagensApi(data);
   const hora = new Date().toLocaleString("pt-BR");
@@ -149,22 +137,56 @@ function camposFromRespostaNuvem(data) {
   } else if (status === "processamento") {
     mensagem += ` (consulta ${hora}: sem status final na Nuvem ainda)`;
   }
+  const tributos = extrairTributosDeRespostaNuvem(data, valorTotalOs);
   return {
     status,
     statusBruto,
     idProvedor: data?.id || null,
     numeroNf:
       data?.numero ?? data?.nNFSe ?? data?.nfse?.numero ?? null,
-    linkPdf: data?.link_url ?? data?.url ?? data?.link_pdf ?? null,
+    linkPdf:
+      data?.link_url ??
+      data?.url ??
+      data?.link_pdf ??
+      data?.link_danfe ??
+      null,
     dataEmissao: data?.data_emissao ? new Date(data.data_emissao) : null,
     chaveAcesso:
       data?.DPS?.chave ?? data?.chave ?? data?.chave_acesso ?? data?.nfse?.chave ?? null,
     mensagem,
     dadosResposta: data,
+    tributos,
   };
 }
 
-async function persistirAtualizacaoNf(nfId, tenantId, osId, campos) {
+function colunaVinculoOs(modeloDocumento) {
+  return modeloDocumento === "NFE" ? "nf_nfe_id" : "nf_id";
+}
+
+function clienteDaOs(osRow, clienteDb) {
+  if (clienteDb) return clienteDb;
+  return {
+    nome: osRow.cliente_nome,
+    telefone: osRow.cliente_telefone,
+    cpf_cnpj: osRow.cliente_cpf_cnpj,
+    email: osRow.cliente_email,
+    endereco: osRow.cliente_endereco,
+    numero: osRow.cliente_numero,
+    complemento: osRow.cliente_complemento,
+    bairro: osRow.cliente_bairro,
+    cidade: osRow.cliente_cidade,
+    estado: osRow.cliente_estado,
+    cep: osRow.cliente_cep,
+  };
+}
+
+async function persistirAtualizacaoNf(
+  nfId,
+  tenantId,
+  osId,
+  campos,
+  modeloDocumento = "NFSE",
+) {
   const r = await pool.query(
     `UPDATE notas_fiscais SET
        status = COALESCE($1, status),
@@ -175,8 +197,9 @@ async function persistirAtualizacaoNf(nfId, tenantId, osId, campos) {
        mensagem_status = $6,
        dados_resposta = COALESCE($7::jsonb, dados_resposta),
        data_emissao = COALESCE($8, data_emissao),
+       tributos = COALESCE($9::jsonb, tributos),
        atualizado_em = NOW()
-     WHERE id = $9 AND tenant_id = $10
+     WHERE id = $10 AND tenant_id = $11
      RETURNING *`,
     [
       campos.status,
@@ -187,13 +210,15 @@ async function persistirAtualizacaoNf(nfId, tenantId, osId, campos) {
       campos.mensagem,
       campos.dadosResposta ? JSON.stringify(campos.dadosResposta) : null,
       campos.dataEmissao,
+      campos.tributos ? JSON.stringify(campos.tributos) : null,
       nfId,
       tenantId,
     ],
   );
   if (r.rows[0]) {
+    const col = colunaVinculoOs(modeloDocumento);
     await pool.query(
-      `UPDATE ordens_servico SET nf_id = $1, atualizado_em = CURRENT_TIMESTAMP
+      `UPDATE ordens_servico SET ${col} = $1, atualizado_em = CURRENT_TIMESTAMP
        WHERE id = $2 AND tenant_id = $3`,
       [nfId, osId, tenantId],
     );
@@ -300,7 +325,21 @@ export function mapNfParaRespostaApi(row) {
 
     valor_cofins: Number(t.valor_cofins ?? 0),
 
+    valor_liquido: Number(t.valor_liquido ?? row.valor_total ?? 0),
+
     valor_total: Number(row.valor_total ?? 0),
+
+    aliquota_iss: t.aliquota_iss ?? null,
+
+    aliquota_pis: t.aliquota_pis ?? null,
+
+    aliquota_cofins: t.aliquota_cofins ?? null,
+
+    fonte_iss: t.fonte_iss || null,
+
+    fonte_pis: t.fonte_pis || null,
+
+    fonte_cofins: t.fonte_cofins || null,
 
     observacoes: row.mensagem_status || null,
 
@@ -360,30 +399,72 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
 
 
 
-const buscarPorOsId = async (tenantId = SINGLE_TENANT_ID, osId) => {
-
+const buscarPorOsId = async (
+  tenantId = SINGLE_TENANT_ID,
+  osId,
+  modeloDocumento = "NFSE",
+) => {
   const r = await pool.query(
-
-    `SELECT * FROM notas_fiscais WHERE ordem_servico_id = $1 AND tenant_id = $2`,
-
-    [osId, tenantId],
-
+    `SELECT * FROM notas_fiscais
+     WHERE ordem_servico_id = $1 AND tenant_id = $2 AND modelo_documento = $3`,
+    [osId, tenantId, modeloDocumento],
   );
-
   return r.rows[0] || null;
+};
 
+const listarPorOsId = async (tenantId = SINGLE_TENANT_ID, osId) => {
+  const r = await pool.query(
+    `SELECT * FROM notas_fiscais
+     WHERE ordem_servico_id = $1 AND tenant_id = $2
+     ORDER BY modelo_documento`,
+    [osId, tenantId],
+  );
+  return r.rows;
 };
 
 
 
-/** Consulta (e, se necessário, sincroniza) NFS-e já enviada — sem nova emissão. */
-const sincronizarPorOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
-  const nf = await buscarPorOsId(tenantId, osId);
-  if (!nf) return { erro: "Nenhuma nota fiscal registrada para esta OS" };
+/** Consulta (e, se necessário, sincroniza) nota já enviada — sem nova emissão. */
+const sincronizarPorOs = async (
+  tenantId = SINGLE_TENANT_ID,
+  osId,
+  modeloDocumento = "NFSE",
+) => {
+  const modelo = modeloDocumento === "NFE" ? "NFE" : "NFSE";
+  const nf = await buscarPorOsId(tenantId, osId, modelo);
+  if (!nf) {
+    return {
+      erro: `Nenhuma ${modelo === "NFE" ? "NF-e" : "NFS-e"} registrada para esta OS`,
+    };
+  }
+  const valorOs = Number(nf.valor_total) || 0;
+  const consultarFn = modelo === "NFE" ? consultarNfe : consultarNfse;
+  const sincronizarFn =
+    modelo === "NFE" ? sincronizarNfeNaSefaz : sincronizarNfseNaPrefeitura;
+  const label = modelo === "NFE" ? "NF-e" : "NFS-e";
+
+  if (nf.status === "autorizada" && nf.id_provedor && isNuvemFiscalConfigured()) {
+    const consulta = await consultarFn(nf.id_provedor);
+    if (consulta.ok) {
+      const campos = camposFromRespostaNuvem(consulta.data, valorOs);
+      const atualizada = await persistirAtualizacaoNf(
+        nf.id,
+        tenantId,
+        osId,
+        { ...campos, idProvedor: campos.idProvedor || nf.id_provedor },
+        modelo,
+      );
+      return {
+        nf: mapNfParaRespostaApi(atualizada),
+        message: `${label}: tributos atualizados na Nuvem Fiscal.`,
+      };
+    }
+  }
+
   if (nf.status === "autorizada") {
     return {
       nf: mapNfParaRespostaApi(nf),
-      message: "NFS-e já está autorizada.",
+      message: `${label} já está autorizada.`,
     };
   }
   if (!isNuvemFiscalConfigured()) {
@@ -394,35 +475,39 @@ const sincronizarPorOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
   }
   if (!nf.id_provedor) {
     return {
-      erro:
-        "Esta NF ainda não tem ID na Nuvem Fiscal. Use Gerar NF para enviar.",
+      erro: `Esta ${label} ainda não tem ID na Nuvem Fiscal. Use o botão Gerar.`,
     };
   }
 
-  let consulta = await consultarNfse(nf.id_provedor);
+  let consulta = await consultarFn(nf.id_provedor);
   if (!consulta.ok) {
-    return { erro: consulta.mensagem || "Falha ao consultar NFS-e na Nuvem Fiscal" };
+    return {
+      erro: consulta.mensagem || `Falha ao consultar ${label} na Nuvem Fiscal`,
+    };
   }
 
-  let campos = camposFromRespostaNuvem(consulta.data);
+  let campos = camposFromRespostaNuvem(consulta.data, valorOs);
 
   if (campos.status === "processamento") {
-    const sync = await sincronizarNfseNaPrefeitura(nf.id_provedor);
+    const sync = await sincronizarFn(nf.id_provedor);
     if (sync.ok && sync.data) {
       consulta = { ok: true, data: sync.data };
     } else if (sync.ok) {
-      consulta = await consultarNfse(nf.id_provedor);
+      consulta = await consultarFn(nf.id_provedor);
     }
-    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data);
+    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs);
     else if (!sync.ok && sync.mensagem) {
       return { erro: sync.mensagem };
     }
   }
 
-  const atualizada = await persistirAtualizacaoNf(nf.id, tenantId, osId, {
-    ...campos,
-    idProvedor: campos.idProvedor || nf.id_provedor,
-  });
+  const atualizada = await persistirAtualizacaoNf(
+    nf.id,
+    tenantId,
+    osId,
+    { ...campos, idProvedor: campos.idProvedor || nf.id_provedor },
+    modelo,
+  );
 
   return {
     nf: mapNfParaRespostaApi(atualizada),
@@ -433,357 +518,213 @@ const sincronizarPorOs = async (tenantId = SINGLE_TENANT_ID, osId) => {
 const gerarParaOs = async (
   tenantId = SINGLE_TENANT_ID,
   osId,
-  { forcarNovaEmissao = false } = {},
+  { forcarNovaEmissao = false, modeloDocumento = "NFSE" } = {},
 ) => {
+  const modelo = modeloDocumento === "NFE" ? "NFE" : "NFSE";
+  const label = modelo === "NFE" ? "NF-e" : "NFS-e";
 
   const osCompleta = await ordensServicoService.buscarPorId(tenantId, osId);
-
-  if (!osCompleta) {
-
-    return { erro: "OS não encontrada" };
-
-  }
-
+  if (!osCompleta) return { erro: "OS não encontrada" };
   if (osCompleta.status !== "Finalizada") {
-
     return { erro: "A OS precisa estar finalizada para gerar nota fiscal" };
-
   }
-
-
 
   const clienteRes = await pool.query(
-
     `SELECT * FROM clientes WHERE id = $1 AND tenant_id = $2`,
-
     [osCompleta.cliente_id, tenantId],
-
   );
+  const cliente = clienteDaOs(osCompleta, clienteRes.rows[0]);
+  if (!clienteRes.rows[0]) return { erro: "Cliente da OS não encontrado" };
 
-  const cliente = clienteRes.rows[0];
+  const totais = totaisFiscaisOs(osCompleta);
+  const valorNota =
+    modelo === "NFE" ? totais.valor_produtos : totais.valor_servicos;
 
-  if (!cliente) {
-
-    return { erro: "Cliente da OS não encontrado" };
-
-  }
-
-
-
-  const nfExistente = await buscarPorOsId(tenantId, osId);
-
+  const nfExistente = await buscarPorOsId(tenantId, osId, modelo);
   if (nfExistente?.status === "autorizada") {
-
-    return { erro: "Esta OS já possui nota fiscal autorizada" };
-
+    return { erro: `Esta OS já possui ${label} autorizada` };
   }
-
   if (
     !forcarNovaEmissao &&
     nfExistente?.status === "processamento" &&
     nfExistente?.id_provedor &&
     isNuvemFiscalConfigured()
   ) {
-    return sincronizarPorOs(tenantId, osId);
+    return sincronizarPorOs(tenantId, osId, modelo);
   }
 
   const nfRegistroExistente = nfExistente?.id ?? null;
 
-
-
   let status = "configuracao_pendente";
-
   let mensagem =
-
     "Defina NUVEM_FISCAL_CLIENT_ID, NUVEM_FISCAL_CLIENT_SECRET e NUVEM_FISCAL_CNPJ_EMITENTE no servidor.";
-
   let dadosResposta = {};
-
   let dadosEnvio = {
-
     ordem_servico_id: osCompleta.id,
-
     os_numero: osCompleta.numero,
-
-    modelo: "NFSE",
-
+    modelo,
+    valor_nota: valorNota,
   };
-
   let idProvedor = null;
-
   let numeroNf = null;
-
   let linkPdf = null;
-
   let dataEmissao = null;
-
   let chaveAcesso = null;
 
-
-
-  const tributos = tributosPadraoDaOs(osCompleta.valor_total);
-
-
+  let tributos =
+    modelo === "NFSE"
+      ? tributosEstimadosDaOs(valorNota)
+      : { valor_base: valorNota, valor_icms: 0, valor_liquido: valorNota };
 
   if (isNuvemFiscalConfigured()) {
-
-    const referenciaNfse = gerarReferenciaNfse(osId, nfRegistroExistente);
-
-    const montagem = montarCorpoEmissaoNfseDps(
-
-      osCompleta,
-
-      cliente,
-
-      osCompleta.produtos,
-
-      osCompleta.servicos,
-
-      { referencia: referenciaNfse, nfRegistroId: nfRegistroExistente },
-
+    const referencia = gerarReferenciaFiscal(
+      osId,
+      modelo,
+      nfRegistroExistente,
     );
+    const montagem =
+      modelo === "NFE"
+        ? montarCorpoEmissaoNfe(osCompleta, cliente, osCompleta.produtos, {
+            referencia,
+            nfRegistroId: nfRegistroExistente,
+          })
+        : montarCorpoEmissaoNfseDps(
+            osCompleta,
+            cliente,
+            osCompleta.produtos,
+            osCompleta.servicos,
+            { referencia, nfRegistroId: nfRegistroExistente },
+          );
 
     if (!montagem.ok) {
-
       status = "configuracao_pendente";
-
       mensagem = montagem.erro;
-
       dadosResposta = { validacao_local: montagem.erro };
-
     } else {
-
       dadosEnvio = {
-
         ...dadosEnvio,
-
         referencia: montagem.body.referencia,
-
         ambiente: montagem.body.ambiente,
-
-        provedor: montagem.body.provedor,
-
+        ...(montagem.body.provedor
+          ? { provedor: montagem.body.provedor }
+          : {}),
       };
 
       try {
-
-        const api = await emitirNfseDps(montagem.body);
+        const api =
+          modelo === "NFE"
+            ? await emitirNfe(montagem.body)
+            : await emitirNfseDps(montagem.body);
 
         if (!api.ok) {
-
-          if (api.authError) {
-
-            status = "erro_autenticacao";
-
-            mensagem = api.mensagem || "Falha ao autenticar na Nuvem Fiscal";
-
-          } else {
-
-            status = "rejeitada";
-
-            mensagem = api.mensagem || "Falha na emissão na Nuvem Fiscal";
-
-          }
-
+          status = api.authError ? "erro_autenticacao" : "rejeitada";
+          mensagem =
+            api.mensagem ||
+            `Falha na emissão de ${label} na Nuvem Fiscal`;
           dadosResposta = {
-
             http_status: api.statusCode,
-
             detalhe: api.detalhe,
-
             auth_error: Boolean(api.authError),
-
           };
-
         } else {
-
-          const parsed = camposFromRespostaNuvem(api.data);
-
+          const parsed = camposFromRespostaNuvem(api.data, valorNota);
           dadosResposta = parsed.dadosResposta;
-
           status = parsed.status;
-
           idProvedor = parsed.idProvedor;
-
           numeroNf = parsed.numeroNf;
-
           linkPdf = parsed.linkPdf;
-
           dataEmissao = parsed.dataEmissao;
-
           chaveAcesso = parsed.chaveAcesso;
-
           mensagem = parsed.mensagem;
-
+          if (parsed.tributos && modelo === "NFSE") tributos = parsed.tributos;
         }
-
       } catch (e) {
-
         status = "rejeitada";
-
         mensagem = e.message || "Erro inesperado ao chamar Nuvem Fiscal";
-
         dadosResposta = { exception: mensagem };
-
       }
-
     }
-
   }
 
-
-
-  const client = await pool.connect();
-
+  const colVinculo = colunaVinculoOs(modelo);
+  const dbClient = await pool.connect();
   try {
+    await dbClient.query("BEGIN");
 
-    await client.query("BEGIN");
-
-
-
-    const insert = await client.query(
-
+    const insert = await dbClient.query(
       `INSERT INTO notas_fiscais (
-
         tenant_id, ordem_servico_id, modelo_documento, provedor, status,
-
         id_provedor, numero, chave_acesso, valor_total, tributos,
-
         dados_envio, dados_resposta, link_pdf, mensagem_status, data_emissao, atualizado_em
-
-      ) VALUES ($1, $2, 'NFSE', 'nuvem_fiscal', $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, $13, NOW())
-
-      ON CONFLICT (tenant_id, ordem_servico_id) DO UPDATE SET
-
+      ) VALUES ($1, $2, $3, 'nuvem_fiscal', $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, NOW())
+      ON CONFLICT (tenant_id, ordem_servico_id, modelo_documento) DO UPDATE SET
         status = EXCLUDED.status,
-
         id_provedor = EXCLUDED.id_provedor,
-
         numero = EXCLUDED.numero,
-
         chave_acesso = EXCLUDED.chave_acesso,
-
         valor_total = EXCLUDED.valor_total,
-
         tributos = EXCLUDED.tributos,
-
         dados_envio = EXCLUDED.dados_envio,
-
         dados_resposta = EXCLUDED.dados_resposta,
-
         link_pdf = EXCLUDED.link_pdf,
-
         mensagem_status = EXCLUDED.mensagem_status,
-
         data_emissao = COALESCE(EXCLUDED.data_emissao, notas_fiscais.data_emissao),
-
         atualizado_em = NOW()
-
       RETURNING *`,
-
       [
-
         tenantId,
-
         osId,
-
+        modelo,
         status,
-
         idProvedor,
-
         numeroNf,
-
         chaveAcesso,
-
-        osCompleta.valor_total,
-
+        valorNota,
         JSON.stringify(tributos),
-
         JSON.stringify(dadosEnvio),
-
         JSON.stringify(dadosResposta),
-
         linkPdf,
-
         mensagem,
-
         dataEmissao,
-
       ],
-
     );
-
-
 
     const nf = insert.rows[0];
-
-    await client.query(
-
-      `UPDATE ordens_servico SET nf_id = $1, atualizado_em = CURRENT_TIMESTAMP
-
+    await dbClient.query(
+      `UPDATE ordens_servico SET ${colVinculo} = $1, atualizado_em = CURRENT_TIMESTAMP
        WHERE id = $2 AND tenant_id = $3`,
-
       [nf.id, osId, tenantId],
-
     );
 
-
-
-    await client.query("COMMIT");
-
-
-
-    const apiNf = mapNfParaRespostaApi(nf);
+    await dbClient.query("COMMIT");
 
     return {
-
-      nf: apiNf,
-
+      nf: mapNfParaRespostaApi(nf),
       message:
-
         status === "configuracao_pendente"
-
           ? mensagem ||
-
-            "Registro fiscal criado. Configure a Nuvem Fiscal no servidor para enviar à prefeitura."
-
+            `Registro de ${label} criado. Configure a Nuvem Fiscal no servidor.`
           : status === "erro_autenticacao"
-
-            ? "Registro criado, mas a autenticação na Nuvem Fiscal falhou. Verifique as credenciais."
-
+            ? "Registro criado, mas a autenticação na Nuvem Fiscal falhou."
             : mensagem,
-
     };
-
   } catch (e) {
-
-    await client.query("ROLLBACK");
-
+    await dbClient.query("ROLLBACK");
     throw e;
-
   } finally {
-
-    client.release();
-
+    dbClient.release();
   }
-
 };
 
 
 
 export default {
-
   listar,
-
   buscarPorId,
-
   buscarPorOsId,
-
+  listarPorOsId,
   gerarParaOs,
-
   sincronizarPorOs,
-
   mapNfParaRespostaApi,
-
 };
 

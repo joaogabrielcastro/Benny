@@ -27,11 +27,27 @@ class NotasFiscaisController {
     }
   }
 
+  async listarPorOs(req, res) {
+    try {
+      const rows = await notasFiscaisService.listarPorOs(
+        SINGLE_TENANT_ID,
+        req.params.osId,
+      );
+      res.json(rows.map(notasFiscaisService.mapNfParaRespostaApi));
+    } catch (error) {
+      logger.error(`Erro ao listar NF da OS ${req.params.osId}:`, error);
+      res.status(500).json({ erro: error.message });
+    }
+  }
+
   async sincronizarPorOs(req, res) {
     try {
+      const modelo =
+        req.params.modelo?.toUpperCase() === "NFE" ? "NFE" : "NFSE";
       const result = await notasFiscaisService.sincronizarPorOs(
         SINGLE_TENANT_ID,
         req.params.osId,
+        modelo,
       );
       if (result.erro) {
         return res.status(400).json({ erro: result.erro });
@@ -50,10 +66,16 @@ class NotasFiscaisController {
     try {
       const forcarNovaEmissao =
         req.query.forcar === "1" || req.query.forcar === "true";
+      const modeloParam = (
+        req.params.modelo ||
+        req.query.modelo ||
+        "NFSE"
+      ).toUpperCase();
+      const modeloDocumento = modeloParam === "NFE" ? "NFE" : "NFSE";
       const result = await notasFiscaisService.gerarParaOs(
         SINGLE_TENANT_ID,
         req.params.osId,
-        { forcarNovaEmissao },
+        { forcarNovaEmissao, modeloDocumento },
       );
       if (result.erro) {
         return res.status(400).json({ erro: result.erro });

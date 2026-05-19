@@ -518,12 +518,33 @@ async function initDatabase() {
     `);
 
     await client.query(`
+      ALTER TABLE notas_fiscais
+      DROP CONSTRAINT IF EXISTS uq_notas_fiscais_tenant_os
+    `);
+    await client.query(`
+      ALTER TABLE notas_fiscais
+      DROP CONSTRAINT IF EXISTS uq_notas_fiscais_tenant_os_modelo
+    `);
+    await client.query(`
+      ALTER TABLE notas_fiscais
+      ADD CONSTRAINT uq_notas_fiscais_tenant_os_modelo
+      UNIQUE (tenant_id, ordem_servico_id, modelo_documento)
+    `);
+
+    await client.query(`
       ALTER TABLE ordens_servico
       ADD COLUMN IF NOT EXISTS nf_id INTEGER REFERENCES notas_fiscais(id) ON DELETE SET NULL
+    `);
+    await client.query(`
+      ALTER TABLE ordens_servico
+      ADD COLUMN IF NOT EXISTS nf_nfe_id INTEGER REFERENCES notas_fiscais(id) ON DELETE SET NULL
     `);
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_ordens_servico_nf_id ON ordens_servico(nf_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_nf_nfe_id ON ordens_servico(nf_nfe_id)
     `);
 
     // ── Adicionar tenant_id em todas as tabelas principais ───────────────────

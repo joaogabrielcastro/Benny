@@ -95,7 +95,9 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
     pool.query(
       `SELECT os.*,
               c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
-              c.cep as cliente_cep,
+              c.email as cliente_email, c.endereco as cliente_endereco, c.numero as cliente_numero,
+              c.complemento as cliente_complemento, c.bairro as cliente_bairro,
+              c.cidade as cliente_cidade, c.estado as cliente_estado, c.cep as cliente_cep,
               v.modelo as veiculo_modelo, v.placa as veiculo_placa,
               v.cor as veiculo_cor, v.ano as veiculo_ano
        FROM ordens_servico os

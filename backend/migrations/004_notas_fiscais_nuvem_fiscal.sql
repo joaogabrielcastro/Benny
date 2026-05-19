@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS notas_fiscais (
   data_emissao TIMESTAMPTZ,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_notas_fiscais_tenant_os UNIQUE (tenant_id, ordem_servico_id)
+        CONSTRAINT uq_notas_fiscais_tenant_os_modelo UNIQUE (tenant_id, ordem_servico_id, modelo_documento)
 );
 
 CREATE INDEX IF NOT EXISTS idx_notas_fiscais_tenant ON notas_fiscais(tenant_id);
