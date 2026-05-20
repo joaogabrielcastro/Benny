@@ -15,23 +15,34 @@ function roundMoney(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
-/** ISS na DPS: base, alíquota e valor (layout Nacional exige para aparecer na NFS-e). */
+/**
+ * ISS municipal na DPS (Padrão Nacional / ADN).
+ * ME/EPP no Simples com tpRetISSQN=1 (sem retenção): não informar pAliq, vBC nem vISSQN
+ * (regra ADN quando regApTribISSQN=1 no cadastro do prestador).
+ */
 function buildTribMunIss(valorServico, cfg) {
-  const vBC = roundMoney(valorServico);
-  const pAliq = roundMoney(cfg.aliquotaIss);
-  const vISSQN = pAliq > 0 && vBC > 0 ? roundMoney((vBC * pAliq) / 100) : 0;
-
+  const tpRetISSQN = cfg.tpRetISSQN ?? 1;
   const tribMun = {
     tribISSQN: 1,
-    tpRetISSQN: 1,
+    tpRetISSQN,
   };
 
-  // TTribMunicipal (Padrão Nacional): pAliq sim; pAliqAplic não existe no schema.
-  if (pAliq > 0) tribMun.pAliq = pAliq;
-  if (vBC > 0) tribMun.vBC = vBC;
-  if (vISSQN > 0) tribMun.vISSQN = vISSQN;
+  const vBC = roundMoney(valorServico);
+  const pAliq = roundMoney(cfg.aliquotaIss);
+  const vISSQN =
+    pAliq > 0 && vBC > 0 ? roundMoney((vBC * pAliq) / 100) : 0;
 
-  return { tribMun, vISSQN };
+  const podeInformarAliquotaNaDps =
+    cfg.forcarAliquotaIssDps || tpRetISSQN !== 1;
+
+  if (podeInformarAliquotaNaDps && pAliq > 0) {
+    tribMun.pAliq = pAliq;
+    if (vBC > 0) tribMun.vBC = vBC;
+    if (vISSQN > 0) tribMun.vISSQN = vISSQN;
+  }
+
+  const vISSQNDps = podeInformarAliquotaNaDps ? vISSQN : 0;
+  return { tribMun, vISSQN: vISSQNDps };
 }
 
 function resolveMunicipioIbge(cfg) {

@@ -87,7 +87,8 @@ cd backend && npm run migrate
 
 Alinhar com Débora:
 
-- Regime apuração ISS (painel **2** se ISS 2% na nota, ou **1** se Simples puro)
+- Regime apuração ISS no painel: **1** = ISS pelo Simples (ME/EPP); com `tpRetISSQN=1` o Benny **não** envia alíquota na DPS (regra ADN)
+- `NUVEM_FISCAL_TP_RET_ISSQN=1` (padrão) — só use `2` se houver retenção pelo tomador
 - Certificado A1 configurado
 - NBS definitivo em `NUVEM_FISCAL_C_NBS`
 - CNPJ software SEFAZ: **46.363.985/0001-00** (Nuvem/WA2)

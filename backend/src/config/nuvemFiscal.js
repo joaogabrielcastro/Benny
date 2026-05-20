@@ -88,8 +88,17 @@ export function getNuvemFiscalConfig() {
     tomadorCMunFallback: (
       process.env.NUVEM_FISCAL_TOMADOR_C_MUN || ""
     ).replace(/\D/g, ""),
-    /** % ISS enviado na DPS (tribMun) e usado na estimativa da tela */
+    /**
+     * % ISS — estimativa na tela. Na DPS (ME/EPP + Simples + tpRetISSQN=1) não vai pAliq/vBC/vISSQN.
+     * tpRetISSQN: 1 = sem retenção (padrão oficina), 2 = retido pelo tomador.
+     */
     aliquotaIss: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_ISS, 2),
+    tpRetISSQN: parseInt(process.env.NUVEM_FISCAL_TP_RET_ISSQN || "1", 10) || 1,
+    /** Só true se precisar forçar pAliq na DPS com tpRetISSQN=1 (raro; pode gerar rejeição ADN). */
+    forcarAliquotaIssDps:
+      String(process.env.NUVEM_FISCAL_FORCAR_ALIQ_ISS_DPS || "")
+        .trim()
+        .toLowerCase() === "true",
     /** Regime especial tributação na DPS (Padrão Nacional): 0 = nenhum */
     regEspTrib: parseInt(process.env.NUVEM_FISCAL_REG_ESP_TRIB || "0", 10) || 0,
     aliquotaPis: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_PIS, 0),
