@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import api from "../services/api";
+import { unwrapListResponse } from "../utils/apiList";
 
 export default function ClienteAutocomplete({
   value,
@@ -59,9 +60,9 @@ export default function ClienteAutocomplete({
     try {
       setLoading(true);
       const response = await api.get("/clientes", {
-        params: { busca },
+        params: { busca, limit: 50 },
       });
-      setClientes(response.data);
+      setClientes(unwrapListResponse(response.data));
       setMostrarSugestoes(true);
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);

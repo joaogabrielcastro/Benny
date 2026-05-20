@@ -1,21 +1,14 @@
 import express from "express";
 import ordensServicoController from "../controllers/ordensServicoController.js";
+import { paginate } from "../middleware/paginate.js";
+import { ah } from "../lib/routeUtils.js";
 
 const router = express.Router();
 
-router.get("/", ordensServicoController.listar.bind(ordensServicoController));
-router.get(
-  "/:id",
-  ordensServicoController.buscar.bind(ordensServicoController),
-);
-router.post("/", ordensServicoController.criar.bind(ordensServicoController));
-router.put(
-  "/:id",
-  ordensServicoController.atualizar.bind(ordensServicoController),
-);
-router.delete(
-  "/:id",
-  ordensServicoController.deletar.bind(ordensServicoController),
-);
+router.get("/", paginate, ah(ordensServicoController, "listar"));
+router.get("/:id", ah(ordensServicoController, "buscar"));
+router.post("/", ah(ordensServicoController, "criar"));
+router.put("/:id", ah(ordensServicoController, "atualizar"));
+router.delete("/:id", ah(ordensServicoController, "deletar"));
 
 export default router;

@@ -2,9 +2,10 @@ import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
 
-async function gerarNumeroOS() {
+async function gerarNumeroOS(tenantId = SINGLE_TENANT_ID) {
   const result = await pool.query(
-    "SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1",
+    "SELECT numero FROM ordens_servico WHERE tenant_id = $1 ORDER BY id DESC LIMIT 1",
+    [tenantId],
   );
   if (result.rows.length === 0) return "OS-0001";
   const n = parseInt(result.rows[0].numero.split("-")[1]) + 1;
@@ -62,32 +63,50 @@ async function reverterMovimentacoesEstoquePorOs(client, osId) {
 
 // ─── Listagem ─────────────────────────────────────────────────────────────────
 
-const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
-  let query = `
-    SELECT os.*,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           v.modelo as veiculo_modelo, v.placa as veiculo_placa,
-           v.cor as veiculo_cor, v.ano as veiculo_ano
-    FROM ordens_servico os
-    LEFT JOIN clientes c ON os.cliente_id = c.id
-    LEFT JOIN veiculos v ON os.veiculo_id = v.id
-    WHERE os.tenant_id = $1
-  `;
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { status, busca, limit = 20, offset = 0 } = {},
+) => {
+  let where = "WHERE os.tenant_id = $1";
   const params = [tenantId];
   let i = 2;
 
   if (status) {
-    query += ` AND os.status = $${i++}`;
+    where += ` AND os.status = $${i++}`;
     params.push(status);
   }
   if (busca) {
-    query += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
+    where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
     params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`);
   }
 
-  query += " ORDER BY os.id DESC";
-  const result = await pool.query(query, params);
-  return result.rows;
+  const fromJoin = `
+    FROM ordens_servico os
+    LEFT JOIN clientes c ON os.cliente_id = c.id
+    LEFT JOIN veiculos v ON os.veiculo_id = v.id
+  `;
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total ${fromJoin} ${where}`,
+    params,
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const limitIdx = params.length + 1;
+  const offsetIdx = params.length + 2;
+  const dataResult = await pool.query(
+    `SELECT os.*,
+            c.nome as cliente_nome, c.telefone as cliente_telefone,
+            v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+            v.cor as veiculo_cor, v.ano as veiculo_ano
+     ${fromJoin}
+     ${where}
+     ORDER BY os.id DESC
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    [...params, limit, offset],
+  );
+
+  return { rows: dataResult.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
@@ -132,7 +151,7 @@ const criar = async (
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const numero = await gerarNumeroOS();
+    const numero = await gerarNumeroOS(tenantId);
     const { valor_produtos, valor_servicos, valor_total } = calcularTotais(
       produtos,
       servicos,

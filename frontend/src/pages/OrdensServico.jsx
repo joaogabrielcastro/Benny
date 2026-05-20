@@ -1,21 +1,35 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
+import {
+  useOrdensServicoList,
+  useClientesList,
+} from "../hooks/queries/useOrdensServicoList";
 import { formatarMoeda } from "../utils/formatters";
 import AdvancedFilters from "../components/AdvancedFilters";
 import LoadingSpinner from "../components/LoadingSpinner";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import SortableHeader from "../components/SortableHeader";
+import PageHeader from "../components/layout/PageHeader";
 
 export default function OrdensServico() {
-  const [ordens, setOrdens] = useState([]);
+  const queryClient = useQueryClient();
+  const { confirm, dialogState, handleClose } = useConfirm();
+  const {
+    data: ordens = [],
+    isLoading: loadingOrdens,
+    refetch: refetchOrdens,
+  } = useOrdensServicoList();
+  const { data: clientes = [] } = useClientesList();
   const [ordensFiltered, setOrdensFiltered] = useState([]);
-  const [clientes, setClientes] = useState([]);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
-  const [loading, setLoading] = useState(true);
+  const loading = loadingOrdens;
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({
@@ -27,36 +41,25 @@ export default function OrdensServico() {
   useEffect(() => {
     const status = searchParams.get("status");
     if (status) setFiltroStatus(status);
-    carregarDados();
   }, [searchParams]);
 
   useEffect(() => {
     aplicarFiltros();
   }, [busca, filtroStatus, ordens, sortConfig]);
 
-  const carregarDados = async () => {
-    try {
-      setLoading(true);
-      const [ordensRes, clientesRes] = await Promise.all([
-        api.get("/ordens-servico"),
-        api.get("/clientes"),
-      ]);
-      setOrdens(ordensRes.data);
-      setClientes(clientesRes.data);
-    } catch (error) {
-      toast.error("Erro ao carregar dados");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleExcluirOs = async (os) => {
     const msg = `Excluir a ordem ${os.numero}?\n\nSerão removidos itens, nota fiscal vinculada (se houver) e movimentações de estoque desta OS serão desfeitas no cadastro de produtos.`;
-    if (!window.confirm(msg)) return;
+    const ok = await confirm({
+      title: "Excluir ordem de serviço",
+      message: msg,
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
     try {
       await api.delete(`/ordens-servico/${os.id}`);
       toast.success("Ordem de serviço excluída.");
-      carregarDados();
+      queryClient.invalidateQueries({ queryKey: ["ordens-servico"] });
+      refetchOrdens();
     } catch (error) {
       toast.error(
         error.response?.data?.error ||
@@ -169,24 +172,20 @@ export default function OrdensServico() {
   };
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">
-          Ordens de Serviço
-        </h1>
-        <div className="flex gap-3 w-full sm:w-auto">
-          <Link
-            to="/orcamentos/novo"
-            className="w-full sm:w-auto text-center bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            + Nova OS
+    <div className="page-enter">
+      <PageHeader
+        title="Ordens de serviço"
+        subtitle="Gerencie atendimentos, status e faturamento."
+        actions={
+          <Link to="/orcamentos/novo" className="btn-brand w-full sm:w-auto">
+            Nova OS
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       <AdvancedFilters onFilter={handleAdvancedFilter} clientes={clientes} />
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
+      <div className="pro-card p-4 sm:p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SearchBar
             onSearch={handleSearch}
@@ -195,7 +194,7 @@ export default function OrdensServico() {
           <select
             value={filtroStatus}
             onChange={(e) => setFiltroStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-pro"
           >
             <option value="">Todos os status</option>
             <option value="Aberta">Aberta</option>
@@ -206,10 +205,10 @@ export default function OrdensServico() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      <div className="pro-card overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-100 dark:bg-gray-700">
+          <table className="table-pro">
+            <thead>
               <tr>
                 <SortableHeader
                   label="Número"
@@ -392,6 +391,16 @@ export default function OrdensServico() {
           totalItems={ordensFiltered.length}
         />
       </div>
+
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel={dialogState?.cancelLabel}
+        onCancel={() => handleClose(false)}
+        onConfirm={() => handleClose(true)}
+      />
     </div>
   );
 }

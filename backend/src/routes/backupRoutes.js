@@ -1,9 +1,11 @@
 import express from "express";
 import backupController from "../controllers/backupController.js";
+import { requireRole } from "../middleware/requireRole.js";
+import { ah } from "../lib/routeUtils.js";
 
 const router = express.Router();
 
-router.post("/", backupController.realizar.bind(backupController));
-router.get("/list", backupController.listar.bind(backupController));
+router.post("/", requireRole("admin"), ah(backupController, "realizar"));
+router.get("/list", ah(backupController, "listar"));
 
 export default router;

@@ -1,67 +1,48 @@
-import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
+import { resolveTenantId } from "../config/singleTenant.js";
 import servicosService from "../services/servicosService.js";
-import logger from "../config/logger.js";
+import { assertFound } from "../lib/controllerHelpers.js";
+import { sendPaginated } from "../lib/paginationResponse.js";
 
 class ServicosController {
   async listar(req, res) {
-    try {
-      const rows = await servicosService.listar(SINGLE_TENANT_ID);
-      res.json(rows);
-    } catch (error) {
-      logger.error("Erro ao listar serviços:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const tenantId = resolveTenantId(req);
+    const { limit, offset, page } = req.pagination;
+    const { rows, total } = await servicosService.listar(tenantId, {
+      limit,
+      offset,
+    });
+    sendPaginated(res, { rows, total, page, limit });
   }
 
   async buscar(req, res) {
-    try {
-      const servico = await servicosService.buscarPorId(
-        SINGLE_TENANT_ID,
-        req.params.id,
-      );
-      if (!servico)
-        return res.status(404).json({ error: "Serviço não encontrado" });
-      res.json(servico);
-    } catch (error) {
-      logger.error(`Erro ao buscar serviço ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    const servico = await servicosService.buscarPorId(
+      resolveTenantId(req),
+      req.params.id,
+    );
+    assertFound(servico, "Serviço não encontrado");
+    res.json(servico);
   }
 
   async criar(req, res) {
-    try {
-      const servico = await servicosService.criar(SINGLE_TENANT_ID, req.body);
-      res.status(201).json({ servico, message: "Serviço criado" });
-    } catch (error) {
-      logger.error("Erro ao criar serviço:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const body = req.validated?.body ?? req.body;
+    const servico = await servicosService.criar(resolveTenantId(req), body);
+    res.status(201).json({ servico, message: "Serviço criado" });
   }
 
   async atualizar(req, res) {
-    try {
-      const servico = await servicosService.atualizar(
-        SINGLE_TENANT_ID,
-        req.params.id,
-        req.body,
-      );
-      if (!servico)
-        return res.status(404).json({ error: "Serviço não encontrado" });
-      res.json({ servico, message: "Serviço atualizado" });
-    } catch (error) {
-      logger.error(`Erro ao atualizar serviço ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    const body = req.validated?.body ?? req.body;
+    const servico = await servicosService.atualizar(
+      resolveTenantId(req),
+      req.params.id,
+      body,
+    );
+    assertFound(servico, "Serviço não encontrado");
+    res.json({ servico, message: "Serviço atualizado" });
   }
 
   async deletar(req, res) {
-    try {
-      await servicosService.deletar(SINGLE_TENANT_ID, req.params.id);
-      res.json({ message: "Serviço deletado com sucesso" });
-    } catch (error) {
-      logger.error(`Erro ao deletar serviço ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    await servicosService.deletar(resolveTenantId(req), req.params.id);
+    res.json({ message: "Serviço deletado com sucesso" });
   }
 }
 

@@ -4,7 +4,8 @@
  *
  * Observação: parseInt(undefined) é NaN; NaN || 20 virava 20 e ignorava ?limit=50000 em alguns ambientes.
  */
-const MAX_LIMIT = 100_000;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 500;
 
 export const paginate = (req, res, next) => {
   const pageRaw = Array.isArray(req.query.page)
@@ -18,7 +19,7 @@ export const paginate = (req, res, next) => {
   if (!Number.isFinite(page) || page < 1) page = 1;
 
   let limit = parseInt(String(limitRaw ?? ""), 10);
-  if (!Number.isFinite(limit) || limit < 1) limit = 20;
+  if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_LIMIT;
   if (limit > MAX_LIMIT) limit = MAX_LIMIT;
 
   const offset = (page - 1) * limit;

@@ -2,6 +2,7 @@ import schedule from "node-schedule";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,13 +21,14 @@ async function realizarBackupAutomatico(pool) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const backupFile = path.join(BACKUP_DIR, `backup-auto-${timestamp}.json`);
 
+    const tid = SINGLE_TENANT_ID;
     const [produtos, clientes, veiculos, orcamentos, ordens] =
       await Promise.all([
-        pool.query("SELECT * FROM produtos"),
-        pool.query("SELECT * FROM clientes"),
-        pool.query("SELECT * FROM veiculos"),
-        pool.query("SELECT * FROM orcamentos"),
-        pool.query("SELECT * FROM ordens_servico"),
+        pool.query("SELECT * FROM produtos WHERE tenant_id = $1", [tid]),
+        pool.query("SELECT * FROM clientes WHERE tenant_id = $1", [tid]),
+        pool.query("SELECT * FROM veiculos WHERE tenant_id = $1", [tid]),
+        pool.query("SELECT * FROM orcamentos WHERE tenant_id = $1", [tid]),
+        pool.query("SELECT * FROM ordens_servico WHERE tenant_id = $1", [tid]),
       ]);
 
     const backupData = {
@@ -88,9 +90,9 @@ async function processarLembretesPendentes(pool) {
                   )
               END as dados_referencia
        FROM lembretes l
-       WHERE l.data_lembrete <= $1 AND l.enviado = false
+       WHERE l.tenant_id = $2 AND l.data_lembrete <= $1 AND l.enviado = false
        ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
-      [hoje],
+      [hoje, SINGLE_TENANT_ID],
     );
 
     if (lembretes.rows.length === 0) return;
@@ -148,8 +150,8 @@ async function gerarContasRecorrentes(pool) {
   try {
     const hoje = new Date();
     const resTemplates = await pool.query(
-      `SELECT * FROM contas_pagar WHERE recorrente = true AND data_vencimento <= $1`,
-      [hoje],
+      `SELECT * FROM contas_pagar WHERE tenant_id = $2 AND recorrente = true AND data_vencimento <= $1`,
+      [hoje, SINGLE_TENANT_ID],
     );
 
     if (resTemplates.rows.length === 0) return;

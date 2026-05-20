@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import { unwrapListResponse } from "../utils/apiList";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -47,12 +48,13 @@ export default function ContasPagar() {
       if (filtros.data_fim) params.append("data_fim", filtros.data_fim);
       if (filtros.categoria) params.append("categoria", filtros.categoria);
 
+      params.append("limit", "500");
       const [contasRes, alertasRes] = await Promise.all([
         api.get(`/contas-pagar?${params}`),
         api.get("/contas-pagar/alertas/resumo"),
       ]);
 
-      setContas(contasRes.data);
+      setContas(unwrapListResponse(contasRes.data));
       setAlertas(alertasRes.data);
     } catch (error) {
       console.error("Erro ao carregar contas:", error);

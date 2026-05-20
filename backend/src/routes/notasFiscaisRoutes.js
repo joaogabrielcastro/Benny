@@ -1,53 +1,39 @@
 import express from "express";
 import notasFiscaisController from "../controllers/notasFiscaisController.js";
+import { paginate } from "../middleware/paginate.js";
+import { ah } from "../lib/routeUtils.js";
 
 const router = express.Router();
 
-router.get(
-  "/os/:osId",
-  notasFiscaisController.listarPorOs.bind(notasFiscaisController),
-);
-router.post(
-  "/gerar/:osId/nfse",
-  notasFiscaisController.gerar.bind(notasFiscaisController),
-);
+const setModelo = (modelo) => (req, _res, next) => {
+  req.params.modelo = modelo;
+  next();
+};
+
+router.get("/os/:osId", ah(notasFiscaisController, "listarPorOs"));
+router.post("/gerar/:osId/nfse", ah(notasFiscaisController, "gerar"));
 router.post(
   "/gerar/:osId/nfe",
-  (req, res, next) => {
-    req.params.modelo = "nfe";
-    next();
-  },
-  notasFiscaisController.gerar.bind(notasFiscaisController),
+  setModelo("nfe"),
+  ah(notasFiscaisController, "gerar"),
 );
-router.post(
-  "/gerar/:osId",
-  notasFiscaisController.gerar.bind(notasFiscaisController),
-);
+router.post("/gerar/:osId", ah(notasFiscaisController, "gerar"));
 router.post(
   "/sincronizar/os/:osId/nfse",
-  (req, res, next) => {
-    req.params.modelo = "nfse";
-    next();
-  },
-  notasFiscaisController.sincronizarPorOs.bind(notasFiscaisController),
+  setModelo("nfse"),
+  ah(notasFiscaisController, "sincronizarPorOs"),
 );
 router.post(
   "/sincronizar/os/:osId/nfe",
-  (req, res, next) => {
-    req.params.modelo = "nfe";
-    next();
-  },
-  notasFiscaisController.sincronizarPorOs.bind(notasFiscaisController),
+  setModelo("nfe"),
+  ah(notasFiscaisController, "sincronizarPorOs"),
 );
 router.post(
   "/sincronizar/os/:osId",
-  notasFiscaisController.sincronizarPorOs.bind(notasFiscaisController),
+  ah(notasFiscaisController, "sincronizarPorOs"),
 );
-router.get("/", notasFiscaisController.listar.bind(notasFiscaisController));
-router.get("/:id", notasFiscaisController.buscar.bind(notasFiscaisController));
-router.put(
-  "/:id/cancelar",
-  notasFiscaisController.cancelar.bind(notasFiscaisController),
-);
+router.get("/", paginate, ah(notasFiscaisController, "listar"));
+router.get("/:id", ah(notasFiscaisController, "buscar"));
+router.put("/:id/cancelar", ah(notasFiscaisController, "cancelar"));
 
 export default router;

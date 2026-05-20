@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
+import { useOrcamentosList } from "../hooks/queries/useOrcamentosList";
 import { formatarMoeda } from "../utils/formatters";
 
 export default function Orcamentos() {
-  const [orcamentos, setOrcamentos] = useState([]);
+  const queryClient = useQueryClient();
+  const { confirm, dialogState, handleClose } = useConfirm();
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
   const [searchParams] = useSearchParams();
@@ -15,30 +20,36 @@ export default function Orcamentos() {
     if (status) setFiltroStatus(status);
   }, [searchParams]);
 
-  useEffect(() => {
-    carregarOrcamentos();
+  const listParams = useMemo(() => {
+    const p = { limit: 500 };
+    if (busca) p.busca = busca;
+    if (filtroStatus) p.status = filtroStatus;
+    return p;
   }, [busca, filtroStatus]);
 
-  const carregarOrcamentos = async () => {
-    try {
-      const params = {};
-      if (busca) params.busca = busca;
-      if (filtroStatus) params.status = filtroStatus;
+  const {
+    data: orcamentos = [],
+    isError,
+    refetch,
+  } = useOrcamentosList(listParams);
 
-      const response = await api.get("/orcamentos", { params });
-      setOrcamentos(response.data);
-    } catch (error) {
-      toast.error("Erro ao carregar orçamentos");
-    }
-  };
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar orçamentos");
+  }, [isError]);
 
   const handleExcluirOrcamento = async (orc) => {
     const msg = `Excluir o orçamento ${orc.numero}?\n\nSe houver OS gerada a partir dele, será preciso excluir a OS primeiro. Movimentações de estoque do orçamento aprovado serão desfeitas.`;
-    if (!window.confirm(msg)) return;
+    const ok = await confirm({
+      title: "Excluir orçamento",
+      message: msg,
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
     try {
       await api.delete(`/orcamentos/${orc.id}`);
       toast.success("Orçamento excluído.");
-      carregarOrcamentos();
+      queryClient.invalidateQueries({ queryKey: ["orcamentos"] });
+      refetch();
     } catch (error) {
       toast.error(
         error.response?.data?.error ||
@@ -260,6 +271,16 @@ export default function Orcamentos() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel={dialogState?.cancelLabel}
+        onCancel={() => handleClose(false)}
+        onConfirm={() => handleClose(true)}
+      />
     </div>
   );
 }

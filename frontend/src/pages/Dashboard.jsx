@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import api from "../services/api";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { useDashboardData } from "../hooks/queries/useDashboard";
 import { formatarMoeda } from "../utils/formatters";
 import { exportDashboardToPDF } from "../utils/pdfExport";
 import {
@@ -39,52 +39,44 @@ export default function Dashboard() {
     produtosMaisVendidos: [],
   });
 
+  const { data, isLoading, isError } = useDashboardData();
+
   useEffect(() => {
-    carregarDados();
-  }, []);
+    if (!data) return;
+    const { osLista, orcLista, estoqueBaixo, relatorio } = data;
+    const osAbertas = osLista.filter((os) => os.status === "Aberta");
+    const osFechadas = osLista.filter((os) => os.status === "Finalizada");
+    const orcPendentes = orcLista.filter((orc) => orc.status === "Pendente");
 
-  const carregarDados = async () => {
-    try {
-      setLoading(true);
-      const [osRes, orcRes, estRes, relatorioRes] = await Promise.all([
-        api.get("/ordens-servico"),
-        api.get("/orcamentos"),
-        api.get("/produtos/alertas/estoque-baixo"),
-        api.get("/relatorios/dashboard"),
-      ]);
+    setStats({
+      totalOS: osLista.length,
+      osAbertas: osAbertas.length,
+      osFechadas: osFechadas.length,
+      totalOrcamentos: orcLista.length,
+      orcamentosPendentes: orcPendentes.length,
+      estoqueBaixo: estoqueBaixo.length,
+      faturamentoMes: relatorio.faturamentoMes || 0,
+      ticketMedio: relatorio.ticketMedio || 0,
+    });
 
-      const osAbertas = osRes.data.filter((os) => os.status === "Aberta");
-      const osFechadas = osRes.data.filter((os) => os.status === "Finalizada");
-      const orcPendentes = orcRes.data.filter(
-        (orc) => orc.status === "Pendente"
-      );
+    setChartData({
+      osStatus: [
+        { name: "Abertas", value: osAbertas.length, color: "#3B82F6" },
+        { name: "Fechadas", value: osFechadas.length, color: "#10B981" },
+      ],
+      faturamentoMensal: relatorio.faturamentoMensal || [],
+      produtosMaisVendidos: relatorio.produtosMaisVendidos || [],
+    });
+    setLoading(false);
+  }, [data]);
 
-      setStats({
-        totalOS: osRes.data.length,
-        osAbertas: osAbertas.length,
-        osFechadas: osFechadas.length,
-        totalOrcamentos: orcRes.data.length,
-        orcamentosPendentes: orcPendentes.length,
-        estoqueBaixo: estRes.data.length,
-        faturamentoMes: relatorioRes.data.faturamentoMes || 0,
-        ticketMedio: relatorioRes.data.ticketMedio || 0,
-      });
+  useEffect(() => {
+    if (isLoading) setLoading(true);
+  }, [isLoading]);
 
-      setChartData({
-        osStatus: [
-          { name: "Abertas", value: osAbertas.length, color: "#3B82F6" },
-          { name: "Fechadas", value: osFechadas.length, color: "#10B981" },
-        ],
-        faturamentoMensal: relatorioRes.data.faturamentoMensal || [],
-        produtosMaisVendidos: relatorioRes.data.produtosMaisVendidos || [],
-      });
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error);
-      toast.error("Erro ao carregar dados do dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar dados do dashboard");
+  }, [isError]);
 
   const handleExportPDF = () => {
     exportDashboardToPDF(stats, chartData);

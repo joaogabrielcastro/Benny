@@ -32,10 +32,35 @@ const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
     paramIndex++;
   }
 
-  query += " ORDER BY data_vencimento DESC";
+  let countQuery = "SELECT COUNT(*)::int AS total FROM contas_pagar WHERE tenant_id = $1";
+  const countParams = [tenantId];
+  let ci = 2;
+  if (status) {
+    countQuery += ` AND status = $${ci++}`;
+    countParams.push(status);
+  }
+  if (data_inicio) {
+    countQuery += ` AND data_vencimento >= $${ci++}`;
+    countParams.push(data_inicio);
+  }
+  if (data_fim) {
+    countQuery += ` AND data_vencimento <= $${ci++}`;
+    countParams.push(data_fim);
+  }
+  if (categoria) {
+    countQuery += ` AND categoria = $${ci++}`;
+    countParams.push(categoria);
+  }
+  const countRes = await pool.query(countQuery, countParams);
+  const total = countRes.rows[0]?.total ?? 0;
+
+  const limit = filtros.limit ?? 20;
+  const offset = filtros.offset ?? 0;
+  query += ` ORDER BY data_vencimento DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  params.push(limit, offset);
 
   const result = await pool.query(query, params);
-  return result.rows;
+  return { rows: result.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {

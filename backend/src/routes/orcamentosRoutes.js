@@ -1,53 +1,24 @@
 import express from "express";
 import orcamentosController from "../controllers/orcamentosController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { paginate } from "../middleware/paginate.js";
+import { ah } from "../lib/routeUtils.js";
 
 const router = express.Router();
 
-// Rotas públicas (sem autenticação) — token no path
-router.get(
-  "/v/:token",
-  orcamentosController.buscarPublico.bind(orcamentosController),
-);
-router.put(
-  "/v/:token/aprovar",
-  orcamentosController.aprovarPublico.bind(orcamentosController),
-);
-router.put(
-  "/v/:token/reprovar",
-  orcamentosController.reprovarPublico.bind(orcamentosController),
-);
+router.get("/v/:token", ah(orcamentosController, "buscarPublico"));
+router.put("/v/:token/aprovar", ah(orcamentosController, "aprovarPublico"));
+router.put("/v/:token/reprovar", ah(orcamentosController, "reprovarPublico"));
 
-// Rotas autenticadas
-router.get(
-  "/",
-  requireAuth,
-  orcamentosController.listar.bind(orcamentosController),
-);
-router.get(
-  "/:id",
-  requireAuth,
-  orcamentosController.buscar.bind(orcamentosController),
-);
-router.post(
-  "/",
-  requireAuth,
-  orcamentosController.criar.bind(orcamentosController),
-);
-router.put(
-  "/:id",
-  requireAuth,
-  orcamentosController.atualizar.bind(orcamentosController),
-);
+router.get("/", requireAuth, paginate, ah(orcamentosController, "listar"));
+router.get("/:id", requireAuth, ah(orcamentosController, "buscar"));
+router.post("/", requireAuth, ah(orcamentosController, "criar"));
+router.put("/:id", requireAuth, ah(orcamentosController, "atualizar"));
 router.post(
   "/:id/converter-os",
   requireAuth,
-  orcamentosController.converterEmOS.bind(orcamentosController),
+  ah(orcamentosController, "converterEmOS"),
 );
-router.delete(
-  "/:id",
-  requireAuth,
-  orcamentosController.deletar.bind(orcamentosController),
-);
+router.delete("/:id", requireAuth, ah(orcamentosController, "deletar"));
 
 export default router;

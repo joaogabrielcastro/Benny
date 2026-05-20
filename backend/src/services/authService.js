@@ -1,10 +1,8 @@
 import pool from "../../database.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "benny-change-this-in-production";
-const JWT_EXPIRY = "8h";
-const DEFAULT_TENANT_ID = Number(process.env.DEFAULT_TENANT_ID || 1);
+import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/jwt.js";
+import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 
 const findUserByEmail = async (email) => {
   try {
@@ -36,7 +34,7 @@ const gerarToken = (user, tenantId) =>
       role: user.role,
     },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRY },
+    { expiresIn: JWT_EXPIRES_IN },
   );
 
 // Login de usuário existente
@@ -60,8 +58,7 @@ const login = async ({ email, senha }) => {
     [user.id],
   );
 
-  const tenantId = user.tenant_id || DEFAULT_TENANT_ID;
-  const token = gerarToken(user, tenantId);
+  const token = gerarToken(user, SINGLE_TENANT_ID);
 
   return {
     token,

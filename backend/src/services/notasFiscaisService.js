@@ -367,18 +367,20 @@ export function mapNfParaRespostaApi(row) {
 
 
 
-const listar = async (tenantId = SINGLE_TENANT_ID) => {
-
-  const r = await pool.query(
-
-    `SELECT * FROM notas_fiscais WHERE tenant_id = $1 ORDER BY id DESC`,
-
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { limit = 20, offset = 0 } = {},
+) => {
+  const countRes = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM notas_fiscais WHERE tenant_id = $1`,
     [tenantId],
-
   );
-
-  return r.rows.map(mapNfParaRespostaApi);
-
+  const total = countRes.rows[0]?.total ?? 0;
+  const r = await pool.query(
+    `SELECT * FROM notas_fiscais WHERE tenant_id = $1 ORDER BY id DESC LIMIT $2 OFFSET $3`,
+    [tenantId, limit, offset],
+  );
+  return { rows: r.rows.map(mapNfParaRespostaApi), total };
 };
 
 

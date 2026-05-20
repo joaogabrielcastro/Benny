@@ -1,13 +1,29 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import authController from "../controllers/authController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { validate } from "../lib/validate.js";
+import { ah } from "../lib/routeUtils.js";
+import { loginSchema } from "../schemas/authSchemas.js";
 
 const router = express.Router();
 
-// POST /api/auth/login — autentica usuário existente
-router.post("/login", (req, res) => authController.login(req, res));
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Muitas tentativas de login. Tente novamente em 15 minutos.",
+  },
+});
 
-// GET /api/auth/me — retorna dados do usuário logado (requer token)
-router.get("/me", requireAuth, (req, res) => authController.me(req, res));
+router.post(
+  "/login",
+  loginLimiter,
+  validate(loginSchema),
+  ah(authController, "login"),
+);
+router.get("/me", requireAuth, ah(authController, "me"));
 
 export default router;

@@ -181,10 +181,10 @@ export function montarCorpoEmissaoNfseDps(
       dCompet,
       prest: {
         CNPJ: cfg.empresaCnpj,
+        // Padrão Nacional (POST /nfse/dps): TRegTrib aceita apenas regEspTrib.
+        // opSimpNac e regApTribSN configuram no painel Nuvem → empresa → NFS-e.
         regTrib: {
-          opSimpNac: cfg.opSimpNac,
-          regApTribSN: cfg.regApTribSN,
-          regEspTrib: 0,
+          regEspTrib: cfg.regEspTrib,
         },
       },
       toma,

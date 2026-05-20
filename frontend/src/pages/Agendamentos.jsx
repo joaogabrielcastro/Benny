@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import { unwrapListResponse } from "../utils/apiList";
 import LoadingSpinner from "../components/LoadingSpinner";
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -44,8 +45,9 @@ export default function Agendamentos() {
       if (filtros.data_fim) params.append("data_fim", filtros.data_fim);
       if (filtros.status) params.append("status", filtros.status);
 
+      params.append("limit", "500");
       const response = await api.get(`/agendamentos?${params}`);
-      setAgendamentos(response.data);
+      setAgendamentos(unwrapListResponse(response.data));
     } catch (error) {
       console.error("Erro ao carregar agendamentos:", error);
       toast.error("Erro ao carregar agendamentos");

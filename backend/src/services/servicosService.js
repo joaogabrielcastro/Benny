@@ -1,12 +1,20 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId = SINGLE_TENANT_ID) => {
-  const result = await pool.query(
-    "SELECT * FROM servicos WHERE tenant_id = $1 ORDER BY nome",
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { limit = 20, offset = 0 } = {},
+) => {
+  const countResult = await pool.query(
+    "SELECT COUNT(*)::int AS total FROM servicos WHERE tenant_id = $1",
     [tenantId],
   );
-  return result.rows;
+  const total = countResult.rows[0]?.total ?? 0;
+  const result = await pool.query(
+    "SELECT * FROM servicos WHERE tenant_id = $1 ORDER BY nome LIMIT $2 OFFSET $3",
+    [tenantId, limit, offset],
+  );
+  return { rows: result.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {

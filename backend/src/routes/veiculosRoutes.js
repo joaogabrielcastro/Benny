@@ -1,17 +1,25 @@
 import express from "express";
 import veiculosController from "../controllers/veiculosController.js";
+import { paginate } from "../middleware/paginate.js";
+import { validate } from "../lib/validate.js";
+import { ah } from "../lib/routeUtils.js";
+import { createVeiculoSchema } from "../schemas/veiculoSchemas.js";
 
 const router = express.Router();
 
 router.get(
   "/consulta-placa/:placa",
-  veiculosController.consultarPlaca.bind(veiculosController),
+  ah(veiculosController, "consultarPlaca"),
 );
-router.get("/", veiculosController.listar.bind(veiculosController));
+router.get("/", paginate, ah(veiculosController, "listar"));
 router.get(
   "/cliente/:clienteId",
-  veiculosController.listarPorCliente.bind(veiculosController),
+  ah(veiculosController, "listarPorCliente"),
 );
-router.post("/", veiculosController.criar.bind(veiculosController));
+router.post(
+  "/",
+  validate(createVeiculoSchema),
+  ah(veiculosController, "criar"),
+);
 
 export default router;

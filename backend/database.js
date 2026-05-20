@@ -585,7 +585,11 @@ async function initDatabase() {
   }
 }
 
-// Inicializar banco de dados
-initDatabase().catch(console.error);
+// Inicializar banco de dados (desligar em produção com SKIP_DB_INIT_DDL=true + npm run migrate)
+if (process.env.SKIP_DB_INIT_DDL !== "true") {
+  initDatabase().catch(console.error);
+} else {
+  console.log("[INFO] SKIP_DB_INIT_DDL=true — DDL de boot ignorado; use npm run migrate");
+}
 
 export default pool;

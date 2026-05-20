@@ -35,7 +35,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* ── Painel esquerdo — Identidade da marca ── */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-gray-900 via-blue-950 to-gray-900 flex-col items-center justify-center p-12">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-slate-950 via-brand-950 to-slate-900 flex-col items-center justify-center p-12">
         {/* Decoração geométrica de fundo */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-blue-600/10 blur-3xl" />
@@ -115,7 +115,7 @@ export default function Login() {
       </div>
 
       {/* ── Painel direito — Formulário ── */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 px-6 py-12">
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
         {/* Logo mobile (visível só em telas pequenas) */}
         <div className="lg:hidden mb-8 text-center">
           <div className="flex justify-center mb-3">
@@ -183,7 +183,7 @@ export default function Login() {
                   value={formData.email}
                   onChange={handleChange}
                   autoComplete="email"
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
+                  className="input-pro !pl-10"
                   placeholder="seu@email.com"
                   required
                   disabled={loading}
@@ -220,7 +220,7 @@ export default function Login() {
                   value={formData.senha}
                   onChange={handleChange}
                   autoComplete="current-password"
-                  className="w-full pl-10 pr-12 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm"
+                  className="input-pro !pl-10 !pr-12"
                   placeholder="••••••••"
                   required
                   disabled={loading}
@@ -266,7 +266,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+              className="btn-brand w-full !py-3 mt-2"
             >
               {loading ? (
                 <>

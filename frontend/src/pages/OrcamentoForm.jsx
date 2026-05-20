@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { unwrapListResponse } from "../utils/apiList";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import NovoClienteModal from "../components/NovoClienteModal";
 import NovoVeiculoModal from "../components/NovoVeiculoModal";
@@ -51,8 +52,8 @@ export default function OrcamentoForm() {
 
   const carregarClientes = async () => {
     try {
-      const response = await api.get("/clientes");
-      setClientes(response.data);
+      const response = await api.get("/clientes", { params: { limit: 500 } });
+      setClientes(unwrapListResponse(response.data));
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
     }
