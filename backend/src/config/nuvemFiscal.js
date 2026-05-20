@@ -18,7 +18,9 @@
  * - NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE: 7 dígitos (ex. Colombo/PR 4105805 — local da prestação no JSON)
  * - NUVEM_FISCAL_C_TRIB_NAC: código nacional ISSQN, 6 dígitos (ajuste ao serviço; default 140101)
  * - NUVEM_FISCAL_C_NBS: Nomenclatura Brasileira de Serviços, 9 dígitos (obrigatório no layout Nacional; default 120013110 = manutenção/reparação veículos — ajuste pela tabela do município/Anexo VIII)
- * - NUVEM_FISCAL_ALIQUOTA_ISS: % ISS para exibir/estimar quando a API não retornar valor (ex.: 5)
+ * - NUVEM_FISCAL_ALIQUOTA_ISS: % ISS na DPS e na tela (ex.: 2 para Colombo)
+ * - NUVEM_FISCAL_OP_SIMP_NAC: 3 = ME/EPP no Simples (default 3)
+ * - NUVEM_FISCAL_REG_AP_TRIB_SN: 2 = ISSQN pela legislação municipal na NFS-e (default 2)
  * - NUVEM_FISCAL_ALIQUOTA_PIS / NUVEM_FISCAL_ALIQUOTA_COFINS: opcionais (0 = não estimar)
  * - NF-e (peças): NUVEM_FISCAL_NFE_CFOP (5102 ou 5405), NUVEM_FISCAL_NFE_CSOSN (103),
  *   NUVEM_FISCAL_NFE_NCM (8 dígitos), NUVEM_FISCAL_NFE_SERIE, NUVEM_FISCAL_CUF (41 = PR)
@@ -85,8 +87,12 @@ export function getNuvemFiscalConfig() {
     tomadorCMunFallback: (
       process.env.NUVEM_FISCAL_TOMADOR_C_MUN || ""
     ).replace(/\D/g, ""),
-    /** % para estimativa/exibição de ISS (município) */
-    aliquotaIss: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_ISS, 5),
+    /** % ISS enviado na DPS (tribMun) e usado na estimativa da tela */
+    aliquotaIss: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_ISS, 2),
+    /** Simples Nacional: 1 não optante, 2 MEI, 3 ME/EPP */
+    opSimpNac: parseInt(process.env.NUVEM_FISCAL_OP_SIMP_NAC || "3", 10) || 3,
+    /** Apuração SN: 2 = ISSQN conforme legislação municipal na NFS-e */
+    regApTribSN: parseInt(process.env.NUVEM_FISCAL_REG_AP_TRIB_SN || "2", 10) || 2,
     aliquotaPis: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_PIS, 0),
     aliquotaCofins: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_COFINS, 0),
     cuf: parseInt(process.env.NUVEM_FISCAL_CUF || "41", 10) || 41,

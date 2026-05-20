@@ -11,6 +11,31 @@ function trunc(s, max) {
   return t.slice(0, max);
 }
 
+function roundMoney(n) {
+  return Math.round(Number(n) * 100) / 100;
+}
+
+/** ISS na DPS: base, alíquota e valor (layout Nacional exige para aparecer na NFS-e). */
+function buildTribMunIss(valorServico, cfg) {
+  const vBC = roundMoney(valorServico);
+  const pAliq = roundMoney(cfg.aliquotaIss);
+  const vISSQN = pAliq > 0 && vBC > 0 ? roundMoney((vBC * pAliq) / 100) : 0;
+
+  const tribMun = {
+    tribISSQN: 1,
+    tpRetISSQN: 1,
+  };
+
+  if (pAliq > 0) {
+    tribMun.pAliq = pAliq;
+    tribMun.pAliqAplic = pAliq;
+  }
+  if (vBC > 0) tribMun.vBC = vBC;
+  if (vISSQN > 0) tribMun.vISSQN = vISSQN;
+
+  return { tribMun, vISSQN };
+}
+
 function resolveMunicipioIbge(cfg) {
   const a = cfg.codigoMunicipioIbge;
   if (a && a.length === 7) return a;
@@ -119,6 +144,7 @@ export function montarCorpoEmissaoNfseDps(
   }
 
   const valorServ = valor_servicos;
+  const { tribMun, vISSQN } = buildTribMunIss(valorServ, cfg);
   const now = new Date();
   const dhEmi = now.toISOString();
   const dCompet = dhEmi.slice(0, 10);
@@ -155,7 +181,11 @@ export function montarCorpoEmissaoNfseDps(
       dCompet,
       prest: {
         CNPJ: cfg.empresaCnpj,
-        regTrib: { regEspTrib: 0 },
+        regTrib: {
+          opSimpNac: cfg.opSimpNac,
+          regApTribSN: cfg.regApTribSN,
+          regEspTrib: 0,
+        },
       },
       toma,
       serv: {
@@ -169,15 +199,12 @@ export function montarCorpoEmissaoNfseDps(
       valores: {
         vServPrest: { vServ: valorServ },
         trib: {
-          tribMun: {
-            tribISSQN: 1,
-            tpRetISSQN: 1,
-          },
+          tribMun,
           totTrib: {
             vTotTrib: {
               vTotTribFed: 0,
               vTotTribEst: 0,
-              vTotTribMun: 0,
+              vTotTribMun: vISSQN,
             },
           },
         },
