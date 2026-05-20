@@ -2,7 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { montarCorpoEmissaoNfseDps } from "../src/services/nuvemFiscalNfsePayload.js";
 
-describe("montarCorpoEmissaoNfseDps — regTrib Padrão Nacional", () => {
+describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
   const envBackup = { ...process.env };
 
   beforeEach(() => {
@@ -40,5 +40,28 @@ describe("montarCorpoEmissaoNfseDps — regTrib Padrão Nacional", () => {
     assert.deepEqual(regTrib, { regEspTrib: 0 });
     assert.equal("opSimpNac" in regTrib, false);
     assert.equal("regApTribSN" in regTrib, false);
+  });
+
+  it("tribMun sem pAliqAplic (apenas campos do schema)", () => {
+    const os = { id: 2, numero: "OS-002" };
+    const cliente = {
+      nome: "Cliente",
+      cep: "83411100",
+      cpf_cnpj: "12345678909",
+    };
+    const servicos = [
+      { codigo: "S1", descricao: "Servico", quantidade: 1, valor_total: 200 },
+    ];
+
+    const result = montarCorpoEmissaoNfseDps(os, cliente, [], servicos);
+    assert.equal(result.ok, true);
+
+    const tribMun = result.body.infDPS.valores.trib.tribMun;
+    assert.equal("pAliqAplic" in tribMun, false);
+    assert.equal(tribMun.tribISSQN, 1);
+    assert.equal(tribMun.tpRetISSQN, 1);
+    assert.equal(tribMun.pAliq, 2);
+    assert.equal(tribMun.vBC, 200);
+    assert.equal(tribMun.vISSQN, 4);
   });
 });

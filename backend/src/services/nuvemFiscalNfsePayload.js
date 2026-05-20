@@ -26,10 +26,8 @@ function buildTribMunIss(valorServico, cfg) {
     tpRetISSQN: 1,
   };
 
-  if (pAliq > 0) {
-    tribMun.pAliq = pAliq;
-    tribMun.pAliqAplic = pAliq;
-  }
+  // TTribMunicipal (Padrão Nacional): pAliq sim; pAliqAplic não existe no schema.
+  if (pAliq > 0) tribMun.pAliq = pAliq;
   if (vBC > 0) tribMun.vBC = vBC;
   if (vISSQN > 0) tribMun.vISSQN = vISSQN;
 
