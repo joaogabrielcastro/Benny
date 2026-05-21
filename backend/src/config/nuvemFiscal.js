@@ -108,6 +108,9 @@ export function getNuvemFiscalConfig() {
     nfeCsosn: (process.env.NUVEM_FISCAL_NFE_CSOSN || "103").replace(/\D/g, ""),
     nfeNcm: (process.env.NUVEM_FISCAL_NFE_NCM || "87089990").replace(/\D/g, ""),
     nfeSerie: parseInt(process.env.NUVEM_FISCAL_NFE_SERIE || "1", 10) || 1,
+    /** Próximo nNF se ainda não houver NF-e emitida pelo Benny (alinhar ao último número na SEFAZ). */
+    nfeNumeroInicial:
+      parseInt(process.env.NUVEM_FISCAL_NFE_NUMERO_INICIAL || "1", 10) || 1,
     nfeNatOp:
       process.env.NUVEM_FISCAL_NFE_NAT_OP || "VENDA DE MERCADORIA ADQUIRIDA",
   };

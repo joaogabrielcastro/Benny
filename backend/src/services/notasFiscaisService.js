@@ -2,7 +2,10 @@ import pool from "../../database.js";
 
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 
-import { isNuvemFiscalConfigured } from "../config/nuvemFiscal.js";
+import {
+  getNuvemFiscalConfig,
+  isNuvemFiscalConfigured,
+} from "../config/nuvemFiscal.js";
 
 import {
   consultarNfe,
@@ -17,7 +20,10 @@ import {
   gerarReferenciaFiscal,
   montarCorpoEmissaoNfseDps,
 } from "./nuvemFiscalNfsePayload.js";
-import { montarCorpoEmissaoNfe } from "./nuvemFiscalNfePayload.js";
+import {
+  montarCorpoEmissaoNfe,
+  obterProximoNumeroNfe,
+} from "./nuvemFiscalNfePayload.js";
 import { totaisFiscaisOs } from "./osValoresFiscais.js";
 
 import ordensServicoService from "./ordensServicoService.js";
@@ -584,11 +590,19 @@ const gerarParaOs = async (
       modelo,
       nfRegistroExistente,
     );
+
+    let nNF;
+    if (modelo === "NFE") {
+      const { nfeSerie } = getNuvemFiscalConfig();
+      nNF = await obterProximoNumeroNfe(tenantId, nfeSerie);
+    }
+
     const montagem =
       modelo === "NFE"
         ? montarCorpoEmissaoNfe(osCompleta, cliente, osCompleta.produtos, {
             referencia,
             nfRegistroId: nfRegistroExistente,
+            nNF,
           })
         : montarCorpoEmissaoNfseDps(
             osCompleta,

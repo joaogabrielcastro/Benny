@@ -1,3 +1,4 @@
+import pool from "../../database.js";
 import { getNuvemFiscalConfig } from "../config/nuvemFiscal.js";
 import { gerarReferenciaFiscal } from "./nuvemFiscalNfsePayload.js";
 import { totaisFiscaisOs } from "./osValoresFiscais.js";
@@ -115,10 +116,37 @@ function buildDetItens(produtos, cfg) {
 }
 
 /**
+ * Próximo número NF-e (nNF) por tenant/série — evita duplicidade entre emissões do Benny.
+ */
+export async function obterProximoNumeroNfe(tenantId, serie) {
+  const cfg = getNuvemFiscalConfig();
+  const inicio = Math.max(1, cfg.nfeNumeroInicial);
+  const r = await pool.query(
+    `SELECT COALESCE(MAX((dados_envio->'infNFe'->'ide'->>'nNF')::integer), 0) AS max_num
+     FROM notas_fiscais
+     WHERE tenant_id = $1
+       AND modelo_documento = 'NFE'
+       AND dados_envio->'infNFe'->'ide'->>'nNF' IS NOT NULL
+       AND (dados_envio->'infNFe'->'ide'->>'serie')::integer = $2`,
+    [tenantId, serie],
+  );
+  const maxNum = Number(r.rows[0]?.max_num) || 0;
+  return Math.max(maxNum, inicio - 1) + 1;
+}
+
+/**
  * Monta corpo POST /nfe — venda de peças (Simples Nacional, CSOSN 103).
  */
 export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
   const cfg = getNuvemFiscalConfig();
+  const nNF = parseInt(String(opcoes.nNF ?? ""), 10);
+  if (!Number.isFinite(nNF) || nNF < 1) {
+    return {
+      ok: false,
+      erro:
+        "Número da NF-e (nNF) não definido. Verifique a numeração ou NUVEM_FISCAL_NFE_NUMERO_INICIAL.",
+    };
+  }
   const { valor_produtos } = totaisFiscaisOs({ ...os, produtos });
 
   if (!produtos?.length || valor_produtos <= 0) {
@@ -157,6 +185,7 @@ export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
         natOp: trunc(cfg.nfeNatOp, 60),
         mod: 55,
         serie: cfg.nfeSerie,
+        nNF,
         dhEmi,
         tpNF: 1,
         idDest: 1,
