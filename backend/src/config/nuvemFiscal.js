@@ -23,14 +23,21 @@
  *   (empresa → Serviços → NFS-e → regime tributário), não no JSON da DPS nacional.
  * - NUVEM_FISCAL_REG_ESP_TRIB: regime especial na DPS (0 = nenhum; default 0)
  * - NUVEM_FISCAL_ALIQUOTA_PIS / NUVEM_FISCAL_ALIQUOTA_COFINS: opcionais (0 = não estimar)
- * - NF-e (peças): NUVEM_FISCAL_NFE_CFOP (5102 ou 5405), NUVEM_FISCAL_NFE_CSOSN (103),
- *   NUVEM_FISCAL_NFE_NCM (8 dígitos), NUVEM_FISCAL_NFE_SERIE, NUVEM_FISCAL_CUF (41 = PR)
+ * - NF-e (peças): NUVEM_FISCAL_EMITENTE_IE (obrigatório na SEFAZ), NUVEM_FISCAL_NFE_CRT (1=Simples),
+ *   NUVEM_FISCAL_NFE_CFOP (5102), NUVEM_FISCAL_NFE_CSOSN (103), NUVEM_FISCAL_NFE_NCM, série, CUF
  * - NUVEM_FISCAL_AUTH_URL / NUVEM_FISCAL_API_URL / NUVEM_FISCAL_SCOPE (opcionais; veja defaults abaixo)
  * - NUVEM_FISCAL_TOMADOR_CPF / NUVEM_FISCAL_TOMADOR_CNPJ / NUVEM_FISCAL_TOMADOR_CEP / NUVEM_FISCAL_TOMADOR_C_MUN:
  *   fallbacks para OS de teste quando o cliente ainda não tiver documento ou CEP completos.
  *
  * Teste rápido OAuth: na pasta backend, `npm run test-nuvem-fiscal`.
  */
+
+function normalizeInscricaoEstadual(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^isento$/i.test(raw)) return "ISENTO";
+  return raw.replace(/\D/g, "");
+}
 
 export function getNuvemFiscalConfig() {
   const empresaCnpj = (process.env.NUVEM_FISCAL_CNPJ_EMITENTE || "").replace(
@@ -107,6 +114,14 @@ export function getNuvemFiscalConfig() {
     nfeCfop: (process.env.NUVEM_FISCAL_NFE_CFOP || "5102").replace(/\D/g, ""),
     nfeCsosn: (process.env.NUVEM_FISCAL_NFE_CSOSN || "103").replace(/\D/g, ""),
     nfeNcm: (process.env.NUVEM_FISCAL_NFE_NCM || "87089990").replace(/\D/g, ""),
+    /** Inscrição Estadual do emitente (obrigatória na NF-e). Use ISENTO se aplicável. */
+    emitenteIe: normalizeInscricaoEstadual(
+      process.env.NUVEM_FISCAL_EMITENTE_IE ||
+        process.env.NUVEM_FISCAL_NFE_IE ||
+        "",
+    ),
+    /** CRT NF-e: 1 = Simples Nacional (padrão oficina ME/EPP) */
+    nfeCrt: parseInt(process.env.NUVEM_FISCAL_NFE_CRT || "1", 10) || 1,
     nfeSerie: parseInt(process.env.NUVEM_FISCAL_NFE_SERIE || "1", 10) || 1,
     /** Próximo nNF se ainda não houver NF-e emitida pelo Benny (alinhar ao último número na SEFAZ). */
     nfeNumeroInicial:

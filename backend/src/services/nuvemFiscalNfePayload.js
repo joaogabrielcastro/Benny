@@ -147,6 +147,14 @@ export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
         "Número da NF-e (nNF) não definido. Verifique a numeração ou NUVEM_FISCAL_NFE_NUMERO_INICIAL.",
     };
   }
+
+  if (!cfg.emitenteIe) {
+    return {
+      ok: false,
+      erro:
+        "Inscrição Estadual (IE) do emitente é obrigatória na NF-e. Defina NUVEM_FISCAL_EMITENTE_IE no servidor (somente dígitos, igual ao cadastro SEFAZ / painel Nuvem).",
+    };
+  }
   const { valor_produtos } = totaisFiscaisOs({ ...os, produtos });
 
   if (!produtos?.length || valor_produtos <= 0) {
@@ -201,6 +209,8 @@ export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
       },
       emit: {
         CNPJ: cfg.empresaCnpj,
+        IE: cfg.emitenteIe,
+        CRT: cfg.nfeCrt,
       },
       dest,
       det,

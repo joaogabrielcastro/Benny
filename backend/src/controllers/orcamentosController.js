@@ -41,19 +41,36 @@ class OrcamentosController {
   }
 
   async atualizar(req, res) {
-    const result = await orcamentosService.atualizar(
-      resolveTenantId(req),
-      req.params.id,
-      req.body,
-    );
-    assertFound(result, "Orçamento não encontrado");
-    res.json({ message: "Orçamento atualizado com sucesso" });
+    try {
+      const result = await orcamentosService.atualizar(
+        resolveTenantId(req),
+        req.params.id,
+        req.body,
+      );
+      assertFound(result, "Orçamento não encontrado");
+      const message = result.os
+        ? `Orçamento aprovado. OS ${result.os.numero} criada.`
+        : "Orçamento atualizado com sucesso";
+      res.json({ message, os: result.os || undefined });
+    } catch (error) {
+      if (error.code === "EDICAO_NAO_PERMITIDA") {
+        throw new AppError(400, error.message);
+      }
+      throw error;
+    }
   }
 
   async aprovarPublico(req, res) {
-    const orc = await orcamentosService.aprovarPorToken(req.params.token);
-    assertFound(orc, "Orçamento não encontrado");
-    res.json({ message: "Orçamento aprovado com sucesso", orcamento: orc });
+    const result = await orcamentosService.aprovarPorToken(req.params.token);
+    assertFound(result, "Orçamento não encontrado");
+    const os = result.os;
+    res.json({
+      message: os
+        ? `Orçamento aprovado. OS ${os.numero} criada.`
+        : "Orçamento aprovado com sucesso",
+      orcamento: result.orcamento,
+      os: os || undefined,
+    });
   }
 
   async reprovarPublico(req, res) {

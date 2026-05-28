@@ -125,6 +125,14 @@ function AppShell() {
                 }
               />
               <Route
+                path="/orcamentos/:id/editar"
+                element={
+                  <ProtectedRoute>
+                    <OrcamentoForm />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/orcamentos/:id"
                 element={
                   <ProtectedRoute>

@@ -70,8 +70,10 @@ export default function NotaFiscalModal({
           </h3>
           {modelo === "NFSE" && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Tributos da Nuvem Fiscal quando disponíveis; senão, estimativa com
-              NUVEM_FISCAL_ALIQUOTA_ISS (2% Colombo) no servidor.
+              O valor total da NFS-e é o dos serviços prestados (o cliente não
+              paga ISS em cima desse total). ISS, PIS e COFINS abaixo são
+              referência/estimativa da oficina; no Simples Nacional o ISS costuma
+              compor o DAS.
             </p>
           )}
 
@@ -125,14 +127,17 @@ export default function NotaFiscalModal({
                     {formatarMoeda(nota.valor_cofins)}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Valor líquido (base − ISS):
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {formatarMoeda(nota.valor_liquido ?? nota.valor_total)}
-                  </span>
-                </div>
+                {(nota.valor_liquido != null &&
+                  Number(nota.valor_liquido) !== Number(nota.valor_total)) && (
+                  <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      Referência (base − ISS estimado):
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                      {formatarMoeda(nota.valor_liquido)}
+                    </span>
+                  </div>
+                )}
               </>
             )}
 

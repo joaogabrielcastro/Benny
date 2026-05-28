@@ -26,34 +26,38 @@ export default function OrcamentoDetalhes() {
   };
 
   const handleAtualizarStatus = async (novoStatus) => {
+    if (
+      novoStatus === "Aprovado" &&
+      !confirm(
+        "Aprovar este orçamento? Será dada baixa no estoque e criada uma OS automaticamente.",
+      )
+    ) {
+      return;
+    }
+
     try {
-      await api.put(`/orcamentos/${id}`, {
+      const response = await api.put(`/orcamentos/${id}`, {
         status: novoStatus,
         km: orcamento.km,
+        previsao_entrega: orcamento.previsao_entrega,
         observacoes_veiculo: orcamento.observacoes_veiculo,
         observacoes_gerais: orcamento.observacoes_gerais,
+        responsavel_tecnico: orcamento.responsavel_tecnico,
         produtos: orcamento.produtos,
         servicos: orcamento.servicos,
       });
-      alert("Status atualizado com sucesso!");
+      if (novoStatus === "Aprovado" && response.data?.os?.id) {
+        alert(`Orçamento aprovado. OS ${response.data.os.numero} criada.`);
+        navigate(`/ordens-servico/${response.data.os.id}`);
+        return;
+      }
+      alert(response.data?.message || "Status atualizado com sucesso!");
       carregarOrcamento();
     } catch (error) {
-      alert("Erro ao atualizar status");
-    }
-  };
-
-  const handleConverterOS = async () => {
-    if (!confirm("Deseja converter este orçamento em Ordem de Serviço?"))
-      return;
-
-    try {
-      const response = await api.post(`/orcamentos/${id}/converter-os`);
-      alert("Orçamento convertido em OS com sucesso!");
-      navigate(`/ordens-servico/${response.data.id}`);
-    } catch (error) {
       alert(
-        "Erro ao converter orçamento: " +
-          (error.response?.data?.error || error.message),
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Erro ao atualizar status",
       );
     }
   };
@@ -97,6 +101,12 @@ export default function OrcamentoDetalhes() {
         <div className="flex space-x-2">
           {orcamento.status === "Pendente" && (
             <>
+              <Link
+                to={`/orcamentos/${id}/editar`}
+                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
+              >
+                Editar
+              </Link>
               <button
                 onClick={handleImprimir}
                 className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2"
@@ -159,14 +169,6 @@ export default function OrcamentoDetalhes() {
                 Reprovar
               </button>
             </>
-          )}
-          {orcamento.status === "Aprovado" && (
-            <button
-              onClick={handleConverterOS}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Converter em OS
-            </button>
           )}
           <Link
             to="/orcamentos"

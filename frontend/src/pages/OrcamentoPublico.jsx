@@ -8,6 +8,7 @@ export default function OrcamentoPublico() {
   const [orcamento, setOrcamento] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const [aprovacaoLocal, setAprovacaoLocal] = useState(null);
   const impressaoRef = useRef();
 
   useEffect(() => {
@@ -30,9 +31,17 @@ export default function OrcamentoPublico() {
 
     setEnviando(true);
     try {
-      await api.put(`/orcamentos/v/${id}/aprovar`);
-      alert("Orçamento aprovado com sucesso! Em breve entraremos em contato.");
-      carregarOrcamento();
+      const response = await api.put(`/orcamentos/v/${id}/aprovar`);
+      const os = response.data?.os;
+      setAprovacaoLocal({
+        status: "Aprovado",
+        osNumero: os?.numero || null,
+      });
+      alert(
+        os
+          ? `Orçamento aprovado! OS ${os.numero} gerada. Em breve entraremos em contato.`
+          : "Orçamento aprovado com sucesso! Em breve entraremos em contato.",
+      );
     } catch (error) {
       alert("Erro ao aprovar orçamento. Tente novamente.");
     } finally {
@@ -93,6 +102,8 @@ export default function OrcamentoPublico() {
     );
   }
 
+  const statusEfetivo = aprovacaoLocal?.status ?? orcamento.status;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -139,14 +150,14 @@ export default function OrcamentoPublico() {
               </button>
               <span
                 className={`px-6 py-3 rounded-full text-lg font-semibold ${
-                  orcamento.status === "Aprovado"
+                  statusEfetivo === "Aprovado"
                     ? "bg-green-100 text-green-800"
-                    : orcamento.status === "Reprovado"
+                    : statusEfetivo === "Reprovado"
                       ? "bg-red-100 text-red-800"
                       : "bg-yellow-100 text-yellow-800"
                 }`}
               >
-                {orcamento.status}
+                {statusEfetivo}
               </span>
             </div>
           </div>
@@ -308,7 +319,7 @@ export default function OrcamentoPublico() {
         </div>
 
         {/* Botões de Ação */}
-        {orcamento.status === "Pendente" && (
+        {statusEfetivo === "Pendente" && (
           <div className="bg-white rounded-b-2xl shadow-xl p-8">
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
@@ -357,13 +368,15 @@ export default function OrcamentoPublico() {
           </div>
         )}
 
-        {orcamento.status !== "Pendente" && (
+        {statusEfetivo !== "Pendente" && (
           <div className="bg-white rounded-b-2xl shadow-xl p-8">
             <div className="text-center">
               <p className="text-xl text-gray-700">
-                {orcamento.status === "Aprovado"
-                  ? "✅ Orçamento já foi aprovado! Em breve entraremos em contato."
-                  : "❌ Este orçamento foi reprovado. Entraremos em contato para mais informações."}
+                {statusEfetivo === "Aprovado"
+                  ? aprovacaoLocal?.osNumero
+                    ? `Orçamento aprovado! OS ${aprovacaoLocal.osNumero} registrada. Em breve entraremos em contato.`
+                    : "Orçamento já foi aprovado! Em breve entraremos em contato."
+                  : "Este orçamento foi reprovado. Entraremos em contato para mais informações."}
               </p>
             </div>
           </div>

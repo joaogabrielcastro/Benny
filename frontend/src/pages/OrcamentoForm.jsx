@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
 import { unwrapListResponse } from "../utils/apiList";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
@@ -14,6 +14,9 @@ import ServicoFormModal from "../components/ServicoFormModal";
 
 export default function OrcamentoForm() {
   const navigate = useNavigate();
+  const { id: orcamentoId } = useParams();
+  const editando = Boolean(orcamentoId);
+  const [carregandoOrcamento, setCarregandoOrcamento] = useState(editando);
   const [clientes, setClientes] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [produtos, setProdutos] = useState([]);
@@ -43,6 +46,41 @@ export default function OrcamentoForm() {
     carregarProdutos();
     carregarServicos();
   }, []);
+
+  useEffect(() => {
+    if (!editando) return;
+    const carregar = async () => {
+      try {
+        const response = await api.get(`/orcamentos/${orcamentoId}`);
+        const o = response.data;
+        if (o.status !== "Pendente") {
+          showError("Só é possível editar orçamentos pendentes.");
+          navigate(`/orcamentos/${orcamentoId}`);
+          return;
+        }
+        setFormData({
+          cliente_id: String(o.cliente_id || ""),
+          veiculo_id: String(o.veiculo_id || ""),
+          km: o.km ?? "",
+          previsao_entrega: o.previsao_entrega
+            ? String(o.previsao_entrega).slice(0, 10)
+            : "",
+          observacoes_veiculo: o.observacoes_veiculo || "",
+          responsavel_tecnico: o.responsavel_tecnico || "",
+          observacoes_gerais: o.observacoes_gerais || "",
+        });
+        setItensProdutos(o.produtos || []);
+        setItensServicos(o.servicos || []);
+        if (o.cliente_id) await carregarVeiculos(o.cliente_id);
+      } catch {
+        showError("Erro ao carregar orçamento");
+        navigate("/orcamentos");
+      } finally {
+        setCarregandoOrcamento(false);
+      }
+    };
+    carregar();
+  }, [editando, orcamentoId, navigate]);
 
   useEffect(() => {
     if (formData.cliente_id) {
@@ -254,28 +292,41 @@ export default function OrcamentoForm() {
 
     const dados = {
       ...formData,
+      status: "Pendente",
       produtos: itensProdutos,
       servicos: itensServicos,
     };
 
-    showPromise(api.post("/orcamentos", dados), {
-      loading: "Criando orçamento...",
-      success: "Orçamento criado com sucesso!",
-      error: (err) => err.response?.data?.error || "Erro ao criar orçamento",
+    const request = editando
+      ? api.put(`/orcamentos/${orcamentoId}`, dados)
+      : api.post("/orcamentos", dados);
+
+    showPromise(request, {
+      loading: editando ? "Salvando orçamento..." : "Criando orçamento...",
+      success: editando
+        ? "Orçamento atualizado com sucesso!"
+        : "Orçamento criado com sucesso!",
+      error: (err) =>
+        err.response?.data?.error ||
+        (editando ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento"),
     })
       .then(() => {
-        navigate("/orcamentos");
+        navigate(editando ? `/orcamentos/${orcamentoId}` : "/orcamentos");
       })
       .catch((error) => {
-        console.error("Erro ao criar orçamento:", error);
+        console.error("Erro ao salvar orçamento:", error);
       });
   };
+
+  if (carregandoOrcamento) {
+    return <div className="text-center py-8">Carregando orçamento...</div>;
+  }
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Novo Orçamento
+          {editando ? "Editar Orçamento" : "Novo Orçamento"}
         </h1>
       </div>
 
@@ -702,7 +753,7 @@ export default function OrcamentoForm() {
             type="submit"
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
-            Salvar Orçamento
+            {editando ? "Salvar alterações" : "Salvar Orçamento"}
           </button>
         </div>
       </form>
