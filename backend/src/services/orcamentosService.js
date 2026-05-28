@@ -1,19 +1,11 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import { randomBytes } from "crypto";
 import pool from "../../database.js";
+import { calcularTotais } from "../domain/calcularTotais.js";
+import { proximoNumeroOrcamento, proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
-
-async function gerarNumeroOrcamento(tenantId = SINGLE_TENANT_ID) {
-  const result = await pool.query(
-    "SELECT numero FROM orcamentos WHERE tenant_id = $1 ORDER BY id DESC LIMIT 1",
-    [tenantId],
-  );
-  if (result.rows.length === 0) return "ORC-0001";
-  const n = parseInt(result.rows[0].numero.split("-")[1]) + 1;
-  return `ORC-${n.toString().padStart(4, "0")}`;
-}
 
 async function gerarTokenPublico() {
   let token;
@@ -27,16 +19,6 @@ async function gerarTokenPublico() {
     existe = result.rows.length > 0;
   }
   return token;
-}
-
-function calcularTotais(produtos = [], servicos = []) {
-  const valor_produtos = produtos.reduce((s, i) => s + i.valor_total, 0);
-  const valor_servicos = servicos.reduce((s, i) => s + i.valor_total, 0);
-  return {
-    valor_produtos,
-    valor_servicos,
-    valor_total: valor_produtos + valor_servicos,
-  };
 }
 
 async function inserirItens(
@@ -103,16 +85,6 @@ async function darBaixaEstoque(client, orcamento_id) {
   }
 }
 
-async function gerarNumeroOSNoClient(client) {
-  const osNumResult = await client.query(
-    "SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1",
-  );
-  if (osNumResult.rows.length === 0) return "OS-0001";
-  const part = parseInt(String(osNumResult.rows[0].numero).split("-")[1], 10);
-  const n = Number.isFinite(part) ? part + 1 : 1;
-  return `OS-${n.toString().padStart(4, "0")}`;
-}
-
 /**
  * Cria OS a partir de orçamento aprovado. Com excluirOrcamentoApos, remove o orçamento
  * (mantém movimentações de estoque, sem FK no orçamento excluído).
@@ -156,7 +128,7 @@ async function converterEmOSInterno(
     throw err;
   }
 
-  const numero = await gerarNumeroOSNoClient(client);
+  const numero = await proximoNumeroOS(client);
   const o = orc.rows[0];
   const osResult = await client.query(
     `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total, orcamento_id, status, tenant_id)
@@ -343,7 +315,7 @@ const criar = async (
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const numero = await gerarNumeroOrcamento(tenantId);
+    const numero = await proximoNumeroOrcamento(client);
     const tokenPublico = await gerarTokenPublico();
     const { valor_produtos, valor_servicos, valor_total } = calcularTotais(
       produtos,

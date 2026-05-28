@@ -7,11 +7,16 @@ import { useOrdemServicoQuery } from "../hooks/os/useOrdemServicoQuery";
 import { useNotasFiscaisOs } from "../hooks/os/useNotasFiscaisOs";
 import OSImpressao from "../components/OSImpressao";
 import OSDetalhesAcoes from "../features/os/OSDetalhesAcoes";
+import { useAuth } from "../contexts/AuthContext";
 import ClienteCepNfseBlock from "../features/os/ClienteCepNfseBlock";
 import NotaFiscalModal from "../features/os/NotaFiscalModal";
-import { formatarMoeda } from "../utils/formatters";
+import { formatarMoeda, formatarDataHora } from "../utils/formatters";
+import { osStatusClass } from "../utils/statusColors";
+import PageHeader from "../components/layout/PageHeader";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function OSDetalhes() {
+  const { isAdmin } = useAuth();
   const { id } = useParams();
   const {
     os,
@@ -55,19 +60,27 @@ export default function OSDetalhes() {
   });
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <LoadingSpinner size="xl" />;
   }
 
   if (!os) {
-    return <div className="text-center py-8">OS não encontrada</div>;
+    return <div className="text-center py-8 text-slate-500">OS não encontrada</div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
+      <PageHeader
+        title={`OS ${os.numero}`}
+        subtitle={`Cliente: ${os.cliente_nome} · ${os.veiculo_placa || ""}`}
+        badge={
+          <span
+            className={`px-3 py-1 text-sm font-semibold rounded-full ${osStatusClass(os.status)}`}
+          >
+            {os.status}
+          </span>
+        }
+      />
+
       <OSDetalhesAcoes
         os={os}
         osId={id}
@@ -79,42 +92,27 @@ export default function OSDetalhes() {
         onShowNFModal={nf.setShowNFModal}
         onAtualizarStatus={handleAtualizarStatus}
         onImprimir={handleImprimir}
+        isAdmin={isAdmin}
       />
 
-      <ClienteCepNfseBlock
-        os={os}
-        cepClienteEdicao={nf.cepClienteEdicao}
-        setCepClienteEdicao={nf.setCepClienteEdicao}
-        salvandoCepCliente={nf.salvandoCepCliente}
-        onSalvar={nf.salvarCepCliente}
-      />
+      {isAdmin && (
+        <ClienteCepNfseBlock
+          os={os}
+          cepClienteEdicao={nf.cepClienteEdicao}
+          setCepClienteEdicao={nf.setCepClienteEdicao}
+          salvandoCepCliente={nf.salvandoCepCliente}
+          onSalvar={nf.salvarCepCliente}
+        />
+      )}
 
-      {/* Badge de Status */}
-      <div className="flex items-center gap-3">
-        <span
-          className={`px-6 py-3 rounded-xl font-bold text-lg ${
-            os.status === "Aberta"
-              ? "bg-blue-100 text-blue-700"
-              : os.status === "Em andamento"
-                ? "bg-yellow-100 text-yellow-700"
-                : os.status === "Finalizada"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-          }`}
-        >
-          {os.status}
-        </span>
-        <span className="text-gray-600 dark:text-gray-300">
-          Data: {new Date(os.criado_em).toLocaleDateString("pt-BR")}
-        </span>
-      </div>
+      <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">
+        Aberta em {formatarDataHora(os.criado_em)}
+      </p>
 
-      {/* Grid de Informações */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Dados do Cliente */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            👤 Cliente
+        <div className="pro-card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Cliente
           </h2>
           <div className="space-y-3">
             <div>
@@ -146,10 +144,9 @@ export default function OSDetalhes() {
           </div>
         </div>
 
-        {/* Dados do Veículo */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            🚗 Veículo
+        <div className="pro-card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Veículo
           </h2>
           <div className="space-y-3">
             <div>
@@ -204,14 +201,14 @@ export default function OSDetalhes() {
 
       {/* Produtos Utilizados */}
       {os.produtos && os.produtos.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            📦 Produtos Utilizados
+        <div className="pro-card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Produtos
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="table-pro">
               <thead>
-                <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600">
+                <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Código
                   </th>
@@ -273,14 +270,14 @@ export default function OSDetalhes() {
 
       {/* Serviços Realizados */}
       {os.servicos && os.servicos.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            🔧 Serviços Realizados
+        <div className="pro-card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Serviços
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="table-pro">
               <thead>
-                <tr className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-600">
+                <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Código
                   </th>
@@ -340,21 +337,19 @@ export default function OSDetalhes() {
         </div>
       )}
 
-      {/* Valor Total */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-2xl p-6">
-        <div className="flex justify-between items-center text-white">
-          <span className="text-2xl font-bold">VALOR TOTAL DA OS:</span>
-          <span className="text-4xl font-bold">
+      <div className="pro-card p-6 bg-brand-600 text-white border-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <span className="text-lg font-semibold">Valor total da OS</span>
+          <span className="text-3xl font-bold tabular-nums">
             {formatarMoeda(os.valor_total)}
           </span>
         </div>
       </div>
 
-      {/* Observações Gerais */}
       {os.observacoes_gerais && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            📝 Observações Gerais
+        <div className="pro-card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Observações gerais
           </h2>
           <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
             {os.observacoes_gerais}
@@ -364,9 +359,9 @@ export default function OSDetalhes() {
 
       {/* Responsável Técnico */}
       {os.responsavel_tecnico && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
-            👨‍🔧 Responsável Técnico
+        <div className="pro-card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+            Responsável técnico
           </h2>
           <p className="text-lg text-gray-800 dark:text-gray-200">
             {os.responsavel_tecnico}
@@ -377,13 +372,16 @@ export default function OSDetalhes() {
       {/* Componente de Impressão (oculto) */}
       <OSImpressao ref={componentRef} os={os} />
 
-      <NotaFiscalModal
-        isOpen={!!nf.showNFModal}
-        modelo={nf.showNFModal}
-        nota={nf.notaFiscalModal}
-        os={os}
-        onClose={() => nf.setShowNFModal(null)}
-      />
+      {isAdmin && (
+        <NotaFiscalModal
+          isOpen={!!nf.showNFModal}
+          modelo={nf.showNFModal}
+          nota={nf.notaFiscalModal}
+          os={os}
+          onClose={() => nf.setShowNFModal(null)}
+          onCancelar={() => nf.handleCancelarNF(nf.showNFModal)}
+        />
+      )}
     </div>
   );
 }

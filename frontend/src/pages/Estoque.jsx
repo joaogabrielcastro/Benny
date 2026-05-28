@@ -1,26 +1,27 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import { formatarMoeda } from "../utils/formatters";
+import { useDebounce } from "../hooks/useDebounce";
+import { useProdutosPaginated } from "../hooks/queries/useProdutosList";
 import LoadingSpinner from "../components/LoadingSpinner";
+import PageHeader from "../components/layout/PageHeader";
+import SearchBar from "../components/SearchBar";
+import Pagination from "../components/Pagination";
 import ProdutoFormModal from "../components/ProdutoFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-/** Busca ignora acentos (ex.: "ret" encontra "RETÍFICA"). */
-const normalizarBusca = (s) =>
-  String(s ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+const ITEMS_PER_PAGE = 10;
 
 export default function Estoque() {
-  const [produtos, setProdutos] = useState([]);
-  const [produtosFiltrados, setProdutosFiltrados] = useState([]);
+  const queryClient = useQueryClient();
   const [busca, setBusca] = useState("");
+  const buscaDebounced = useDebounce(busca);
+  const [filtroEstoque, setFiltroEstoque] = useState("todos");
+  const [currentPage, setCurrentPage] = useState(1);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
-  const [filtroEstoque, setFiltroEstoque] = useState("todos");
-  const [loading, setLoading] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     produtoId: null,
@@ -28,12 +29,36 @@ export default function Estoque() {
   const wsRef = useRef(null);
 
   useEffect(() => {
-    carregarProdutos();
+    setCurrentPage(1);
+  }, [buscaDebounced, filtroEstoque]);
 
-    // Conectar WebSocket
+  const listParams = useMemo(() => {
+    const p = { page: currentPage, limit: ITEMS_PER_PAGE };
+    if (buscaDebounced) p.busca = buscaDebounced;
+    if (filtroEstoque === "baixo" || filtroEstoque === "zerado") {
+      p.estoque = filtroEstoque;
+    }
+    return p;
+  }, [currentPage, buscaDebounced, filtroEstoque]);
+
+  const { data, isLoading, isError, refetch } = useProdutosPaginated(listParams);
+
+  const produtos = data?.rows ?? [];
+  const pagination = data?.pagination;
+  const totalItems = pagination?.total ?? 0;
+  const totalPages = pagination?.pages ?? 1;
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar produtos");
+  }, [isError]);
+
+  useEffect(() => {
+    const invalidar = () => {
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+    };
+
     const conectarWebSocket = () => {
       try {
-        // Detecta automaticamente: localhost em dev, wss em produção
         const wsUrl =
           window.location.hostname === "localhost"
             ? "ws://localhost:3001"
@@ -42,102 +67,35 @@ export default function Estoque() {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 
-        ws.onopen = () => {
-          console.log("[ESTOQUE] WebSocket conectado");
-        };
-
         ws.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data);
-            console.log("[ESTOQUE] Mensagem recebida:", data);
-            if (data.type === "estoque_atualizado") {
-              console.log(
-                "[ESTOQUE] Recarregando produtos instantaneamente...",
-              );
-              carregarProdutos();
-            }
-          } catch (error) {
-            console.error("[ESTOQUE] Erro ao processar mensagem:", error);
+            const payload = JSON.parse(event.data);
+            if (payload.type === "estoque_atualizado") invalidar();
+          } catch {
+            /* ignore */
           }
         };
 
-        ws.onerror = (error) => {
-          console.warn(
-            "[ESTOQUE] WebSocket não disponível, usando polling:",
-            error,
-          );
-          // Não reconectar se der erro
-          if (wsRef.current) {
-            wsRef.current = null;
-          }
+        ws.onerror = () => {
+          wsRef.current = null;
         };
 
         ws.onclose = () => {
-          console.log("[ESTOQUE] WebSocket desconectado");
-          // Só reconectar se não foi por erro
-          if (wsRef.current) {
-            setTimeout(conectarWebSocket, 5000);
-          }
+          if (wsRef.current) setTimeout(conectarWebSocket, 5000);
         };
-      } catch (error) {
-        console.warn(
-          "[ESTOQUE] WebSocket não suportado, continuando sem updates em tempo real",
-        );
+      } catch {
+        /* WebSocket opcional */
       }
     };
 
     conectarWebSocket();
 
     return () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
     };
-  }, []);
-
-  useEffect(() => {
-    filtrarProdutos();
-  }, [busca, produtos, filtroEstoque]);
-
-  const carregarProdutos = async () => {
-    try {
-      setLoading(true);
-      // A API pagina com limite 20 por padrão; a busca no cliente precisa de todos os itens
-      const response = await api.get("/produtos", {
-        params: { limit: 50000 },
-      });
-      // A API agora retorna { data: [...], pagination: {...} }
-      setProdutos(
-        Array.isArray(response.data) ? response.data : response.data.data || [],
-      );
-    } catch (error) {
-      toast.error("Erro ao carregar produtos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filtrarProdutos = () => {
-    let resultado = produtos;
-
-    const termo = busca.trim();
-    if (termo) {
-      const q = normalizarBusca(termo);
-      resultado = resultado.filter((p) => {
-        const nome = normalizarBusca(p.nome);
-        const codigo = normalizarBusca(p.codigo);
-        return nome.includes(q) || codigo.includes(q);
-      });
-    }
-
-    if (filtroEstoque === "baixo") {
-      resultado = resultado.filter((p) => p.quantidade <= p.estoque_minimo);
-    } else if (filtroEstoque === "zerado") {
-      resultado = resultado.filter((p) => p.quantidade === 0);
-    }
-
-    setProdutosFiltrados(resultado);
-  };
+  }, [queryClient]);
 
   const handleEditar = (produto) => {
     setProdutoEditando(produto);
@@ -149,8 +107,9 @@ export default function Estoque() {
       await api.delete(`/produtos/${id}`);
       toast.success("Produto deletado com sucesso!");
       setConfirmDialog({ isOpen: false, produtoId: null });
-      carregarProdutos();
-    } catch (error) {
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+      refetch();
+    } catch {
       toast.error("Erro ao deletar produto");
       setConfirmDialog({ isOpen: false, produtoId: null });
     }
@@ -164,18 +123,18 @@ export default function Estoque() {
   const handleFecharForm = () => {
     setMostrarForm(false);
     setProdutoEditando(null);
-    carregarProdutos();
+    queryClient.invalidateQueries({ queryKey: ["produtos"] });
   };
 
-  if (loading) return <LoadingSpinner size="xl" />;
-
   const mensagemListaVazia =
-    produtos.length === 0
+    totalItems === 0 && !buscaDebounced && filtroEstoque === "todos"
       ? "Nenhum produto cadastrado."
       : "Nenhum produto corresponde à busca ou ao filtro selecionado.";
 
+  if (isLoading && !data) return <LoadingSpinner size="xl" />;
+
   return (
-    <div>
+    <div className="page-enter">
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ isOpen: false, produtoId: null })}
@@ -184,31 +143,26 @@ export default function Estoque() {
         message="Deseja realmente deletar este produto? Esta ação não pode ser desfeita."
       />
 
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">
-          Estoque
-        </h1>
-        <button
-          onClick={handleNovo}
-          className="w-full sm:w-auto bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + Novo Produto
-        </button>
-      </div>
+      <PageHeader
+        title="Estoque"
+        subtitle="Produtos, quantidades e alertas de estoque baixo."
+        actions={
+          <button type="button" onClick={handleNovo} className="btn-brand w-full sm:w-auto">
+            Novo produto
+          </button>
+        }
+      />
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
+      <div className="pro-card p-4 sm:p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
+          <SearchBar
+            onSearch={setBusca}
             placeholder="Buscar por nome ou código..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <select
             value={filtroEstoque}
             onChange={(e) => setFiltroEstoque(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-pro"
           >
             <option value="todos">Todos os produtos</option>
             <option value="baixo">Estoque baixo</option>
@@ -217,7 +171,13 @@ export default function Estoque() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      <div className="pro-card overflow-hidden relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        )}
+
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-100 dark:bg-gray-700">
@@ -243,7 +203,7 @@ export default function Estoque() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {produtosFiltrados.map((produto) => (
+              {produtos.map((produto) => (
                 <tr
                   key={produto.id}
                   className={
@@ -274,12 +234,14 @@ export default function Estoque() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <button
+                      type="button"
                       onClick={() => handleEditar(produto)}
                       className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 font-medium"
                     >
                       Editar
                     </button>
                     <button
+                      type="button"
                       onClick={() =>
                         setConfirmDialog({
                           isOpen: true,
@@ -293,7 +255,7 @@ export default function Estoque() {
                   </td>
                 </tr>
               ))}
-              {produtosFiltrados.length === 0 && (
+              {produtos.length === 0 && (
                 <tr>
                   <td
                     colSpan="6"
@@ -308,7 +270,7 @@ export default function Estoque() {
         </div>
 
         <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
-          {produtosFiltrados.map((produto) => (
+          {produtos.map((produto) => (
             <div
               key={produto.id}
               className={`p-4 space-y-2 ${
@@ -361,12 +323,14 @@ export default function Estoque() {
 
               <div className="pt-1 flex items-center gap-4">
                 <button
+                  type="button"
                   onClick={() => handleEditar(produto)}
                   className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                 >
                   Editar
                 </button>
                 <button
+                  type="button"
                   onClick={() =>
                     setConfirmDialog({
                       isOpen: true,
@@ -380,13 +344,21 @@ export default function Estoque() {
               </div>
             </div>
           ))}
-          {produtosFiltrados.length === 0 && (
+          {produtos.length === 0 && (
             <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
               {mensagemListaVazia}
             </div>
           )}
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        itemsPerPage={ITEMS_PER_PAGE}
+        totalItems={totalItems}
+      />
 
       {mostrarForm && (
         <ProdutoFormModal

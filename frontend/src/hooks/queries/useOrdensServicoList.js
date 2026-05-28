@@ -1,19 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "../../services/api";
-import { unwrapListResponse } from "../../utils/apiList";
+import { unwrapListResponse, unwrapPagination } from "../../utils/apiList";
 import { queryKeys } from "../../api/queryKeys";
 
-export function useOrdensServicoList(params = { limit: 500 }) {
+async function fetchPaginated(url, params) {
+  const { data } = await api.get(url, { params });
+  return {
+    rows: unwrapListResponse(data),
+    pagination: unwrapPagination(data),
+  };
+}
+
+export function useOrdensServicoPaginated(params = {}) {
   return useQuery({
     queryKey: queryKeys.ordensServico(params),
-    queryFn: async () => {
-      const { data } = await api.get("/ordens-servico", { params });
-      return unwrapListResponse(data);
-    },
+    queryFn: () => fetchPaginated("/ordens-servico", params),
+    placeholderData: (prev) => prev,
   });
 }
 
-export function useClientesList(params = { limit: 500 }) {
+/** Lista de clientes para filtros avançados (dropdown). */
+export function useClientesList(params = { limit: 500, page: 1 }) {
   return useQuery({
     queryKey: queryKeys.clientes(params),
     queryFn: async () => {

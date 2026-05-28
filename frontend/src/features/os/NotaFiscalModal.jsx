@@ -11,6 +11,8 @@ export default function NotaFiscalModal({
   nota,
   os,
   onClose,
+  onCancelar,
+  cancelando = false,
 }) {
   if (!isOpen || !nota || !modelo) return null;
 
@@ -199,18 +201,24 @@ export default function NotaFiscalModal({
               🔗 Abrir PDF
             </a>
           )}
+          {nota.status_nf === "autorizada" && onCancelar && (
+            <button
+              type="button"
+              onClick={onCancelar}
+              disabled={cancelando}
+              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-semibold disabled:opacity-50"
+            >
+              {cancelando ? "Cancelando…" : "Cancelar nota"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
+            className="flex-1 px-6 py-3 btn-brand"
           >
-            🖨️ Imprimir NF
+            Imprimir NF
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-semibold"
-          >
+          <button type="button" onClick={onClose} className="btn-secondary px-6 py-3">
             Fechar
           </button>
         </div>

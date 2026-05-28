@@ -34,6 +34,7 @@ export default function OSDetalhesAcoes({
   onShowNFModal,
   onAtualizarStatus,
   onImprimir,
+  isAdmin = true,
 }) {
   const temServicos = Number(os.valor_servicos) > 0;
   const temPecas = Number(os.valor_produtos) > 0;
@@ -80,7 +81,7 @@ export default function OSDetalhesAcoes({
             </Link>
           )}
 
-          {os.status === "Finalizada" && temServicos && (
+          {isAdmin && os.status === "Finalizada" && temServicos && (
             <ActionBtn
               icon={gerandoNfse ? FiRefreshCw : FiFileText}
               onClick={() => onGerarNF("NFSE")}
@@ -91,7 +92,7 @@ export default function OSDetalhesAcoes({
             </ActionBtn>
           )}
 
-          {os.status === "Finalizada" && temPecas && (
+          {isAdmin && os.status === "Finalizada" && temPecas && (
             <ActionBtn
               icon={gerandoNfe ? FiRefreshCw : FiFileText}
               onClick={() => onGerarNF("NFE")}
@@ -102,7 +103,7 @@ export default function OSDetalhesAcoes({
             </ActionBtn>
           )}
 
-          {notaFiscalServico?.status_nf === "autorizada" && (
+          {isAdmin && notaFiscalServico?.status_nf === "autorizada" && (
             <ActionBtn
               icon={FiFileText}
               onClick={() => onShowNFModal("NFSE")}
@@ -112,7 +113,7 @@ export default function OSDetalhesAcoes({
             </ActionBtn>
           )}
 
-          {notaFiscalPecas?.status_nf === "autorizada" && (
+          {isAdmin && notaFiscalPecas?.status_nf === "autorizada" && (
             <ActionBtn
               icon={FiFileText}
               onClick={() => onShowNFModal("NFE")}

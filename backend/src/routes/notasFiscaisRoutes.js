@@ -1,7 +1,9 @@
 import express from "express";
 import notasFiscaisController from "../controllers/notasFiscaisController.js";
 import { paginate } from "../middleware/paginate.js";
+import { validate } from "../lib/validate.js";
 import { ah } from "../lib/routeUtils.js";
+import { cancelarNotaFiscalSchema } from "../schemas/notaFiscalSchemas.js";
 
 const router = express.Router();
 
@@ -34,6 +36,10 @@ router.post(
 );
 router.get("/", paginate, ah(notasFiscaisController, "listar"));
 router.get("/:id", ah(notasFiscaisController, "buscar"));
-router.put("/:id/cancelar", ah(notasFiscaisController, "cancelar"));
+router.put(
+  "/:id/cancelar",
+  validate(cancelarNotaFiscalSchema),
+  ah(notasFiscaisController, "cancelar"),
+);
 
 export default router;

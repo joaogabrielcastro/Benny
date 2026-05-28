@@ -186,8 +186,8 @@ async function gerarContasRecorrentes(pool) {
           dataLembrete.setHours(9, 0, 0, 0);
 
           await pool.query(
-            `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade)
-             VALUES ($1,$2,$3,$4,$5,$6)`,
+            `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade, tenant_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [
               "conta_pagar",
               insertRes.rows[0].id,
@@ -195,6 +195,7 @@ async function gerarContasRecorrentes(pool) {
               `Conta a vencer em 3 dias: ${tpl.descricao} - ${tpl.valor}`,
               dataLembrete,
               "alta",
+              SINGLE_TENANT_ID,
             ],
           );
 

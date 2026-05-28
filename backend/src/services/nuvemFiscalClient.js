@@ -186,3 +186,25 @@ export async function emitirNfe(body) {
   }
   return requestNuvemFiscal("POST", "/nfe", body);
 }
+
+/** POST /nfse/{id}/cancelamento */
+export async function cancelarNfse(idProvedor, body = {}) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscal(
+    "POST",
+    `/nfse/${encodeURIComponent(id)}/cancelamento`,
+    body,
+  );
+}
+
+/** POST /nfe/{id}/cancelamento */
+export async function cancelarNfe(idProvedor, body = {}) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscal(
+    "POST",
+    `/nfe/${encodeURIComponent(id)}/cancelamento`,
+    body,
+  );
+}

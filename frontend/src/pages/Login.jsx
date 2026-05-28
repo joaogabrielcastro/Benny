@@ -12,7 +12,7 @@ export default function Login() {
   const { login, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) navigate("/dashboard");
+    if (isAuthenticated) navigate("/");
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
@@ -21,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(formData.email, formData.senha);
-      navigate("/dashboard");
+      navigate("/");
     } catch (error) {
       setErro(error.response?.data?.error || "E-mail ou senha incorretos");
     } finally {

@@ -78,7 +78,7 @@ async function initDatabase() {
         nome VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,
         senha_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'user',
+        role VARCHAR(50) DEFAULT 'admin',
         ativo BOOLEAN DEFAULT TRUE,
         ultimo_login TIMESTAMP,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -118,23 +118,6 @@ async function initDatabase() {
         atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-
-    // Garantir colunas de recorrência em bancos existentes
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS frequencia VARCHAR(20)`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS intervalo INTEGER DEFAULT 1`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS data_termino DATE`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrencia_origem_id INTEGER`,
-    );
 
     // Tabela de Clientes
     await client.query(`
@@ -416,6 +399,23 @@ async function initDatabase() {
       )
     `);
 
+    // Garantir colunas de recorrência em bancos existentes (após CREATE TABLE)
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS frequencia VARCHAR(20)`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS intervalo INTEGER DEFAULT 1`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS data_termino DATE`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrencia_origem_id INTEGER`,
+    );
+
     // Tabela de Lembretes
     await client.query(`
       CREATE TABLE IF NOT EXISTS lembretes (
@@ -477,6 +477,35 @@ async function initDatabase() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_lembretes_enviado 
       ON lembretes(enviado);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_orcamento_produtos_orcamento_id
+      ON orcamento_produtos(orcamento_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_orcamento_servicos_orcamento_id
+      ON orcamento_servicos(orcamento_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_os_produtos_os_id ON os_produtos(os_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_os_servicos_os_id ON os_servicos(os_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_veiculos_cliente_id ON veiculos(cliente_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_movimentacoes_os_id ON movimentacoes_estoque(os_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_movimentacoes_orcamento_id
+      ON movimentacoes_estoque(orcamento_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_criado_em
+      ON ordens_servico(criado_em DESC)
     `);
 
     // ── Notas fiscais (integração Nuvem Fiscal / NFS-e) ───────────────────────
@@ -574,6 +603,38 @@ async function initDatabase() {
     `);
     await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_servicos_codigo_tenant ON servicos(codigo, tenant_id)
+    `);
+
+    // Sequences de numeração ORC/OS (idempotente; ver também migrations/007)
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS seq_orcamento_numero`);
+    await client.query(`
+      SELECT setval(
+        'seq_orcamento_numero',
+        GREATEST(
+          1,
+          COALESCE(
+            (SELECT MAX(SUBSTRING(numero FROM 5)::integer)
+             FROM orcamentos WHERE numero ~ '^ORC-[0-9]+$'),
+            0
+          ) + 1
+        ),
+        false
+      )
+    `);
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS seq_os_numero`);
+    await client.query(`
+      SELECT setval(
+        'seq_os_numero',
+        GREATEST(
+          1,
+          COALESCE(
+            (SELECT MAX(SUBSTRING(numero FROM 4)::integer)
+             FROM ordens_servico WHERE numero ~ '^OS-[0-9]+$'),
+            0
+          ) + 1
+        ),
+        false
+      )
     `);
 
     console.log("✓ Tabelas do banco de dados criadas/verificadas com sucesso!");

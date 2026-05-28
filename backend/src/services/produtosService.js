@@ -1,17 +1,39 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const listar = async (tenantId = SINGLE_TENANT_ID, { limit = 20, offset = 0 }) => {
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { limit = 20, offset = 0, busca, estoque } = {},
+) => {
+  let where = "WHERE tenant_id = $1";
+  const params = [tenantId];
+  let i = 2;
+
+  if (busca) {
+    where += ` AND (nome ILIKE $${i} OR codigo ILIKE $${i})`;
+    params.push(`%${busca}%`);
+    i++;
+  }
+  if (estoque === "baixo") {
+    where += " AND quantidade <= estoque_minimo";
+  } else if (estoque === "zerado") {
+    where += " AND quantidade = 0";
+  }
+
+  const limitIdx = i;
+  const offsetIdx = i + 1;
+
   const [result, countResult] = await Promise.all([
     pool.query(
-      "SELECT * FROM produtos WHERE tenant_id = $1 ORDER BY nome LIMIT $2 OFFSET $3",
-      [tenantId, limit, offset],
+      `SELECT * FROM produtos ${where} ORDER BY nome LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...params, limit, offset],
     ),
-    pool.query("SELECT COUNT(*) FROM produtos WHERE tenant_id = $1", [
-      tenantId,
-    ]),
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM produtos ${where}`,
+      params,
+    ),
   ]);
-  return { rows: result.rows, total: parseInt(countResult.rows[0].count) };
+  return { rows: result.rows, total: countResult.rows[0]?.total ?? 0 };
 };
 
 const estoqueBaixo = async (tenantId = SINGLE_TENANT_ID) => {

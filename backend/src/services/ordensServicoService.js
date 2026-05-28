@@ -1,26 +1,8 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
+import { calcularTotais } from "../domain/calcularTotais.js";
+import { proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
-
-async function gerarNumeroOS(tenantId = SINGLE_TENANT_ID) {
-  const result = await pool.query(
-    "SELECT numero FROM ordens_servico WHERE tenant_id = $1 ORDER BY id DESC LIMIT 1",
-    [tenantId],
-  );
-  if (result.rows.length === 0) return "OS-0001";
-  const n = parseInt(result.rows[0].numero.split("-")[1]) + 1;
-  return `OS-${n.toString().padStart(4, "0")}`;
-}
-
-function calcularTotais(produtos = [], servicos = []) {
-  const valor_produtos = produtos.reduce((s, i) => s + i.valor_total, 0);
-  const valor_servicos = servicos.reduce((s, i) => s + i.valor_total, 0);
-  return {
-    valor_produtos,
-    valor_servicos,
-    valor_total: valor_produtos + valor_servicos,
-  };
-}
 
 async function deducaoEstoque(client, os_id, produtos = []) {
   for (const p of produtos) {
@@ -63,9 +45,27 @@ async function reverterMovimentacoesEstoquePorOs(client, osId) {
 
 // ─── Listagem ─────────────────────────────────────────────────────────────────
 
+const ORDENAR_COLUNAS = {
+  numero: "os.numero",
+  cliente_nome: "c.nome",
+  valor_total: "os.valor_total",
+  status: "os.status",
+  criado_em: "os.criado_em",
+};
+
 const listar = async (
   tenantId = SINGLE_TENANT_ID,
-  { status, busca, limit = 20, offset = 0 } = {},
+  {
+    status,
+    busca,
+    cliente_id,
+    data_inicio,
+    data_fim,
+    ordenar = "criado_em",
+    direcao = "desc",
+    limit = 20,
+    offset = 0,
+  } = {},
 ) => {
   let where = "WHERE os.tenant_id = $1";
   const params = [tenantId];
@@ -78,6 +78,19 @@ const listar = async (
   if (busca) {
     where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
     params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`);
+    i += 3;
+  }
+  if (cliente_id) {
+    where += ` AND os.cliente_id = $${i++}`;
+    params.push(cliente_id);
+  }
+  if (data_inicio) {
+    where += ` AND os.criado_em >= $${i++}::date`;
+    params.push(data_inicio);
+  }
+  if (data_fim) {
+    where += ` AND os.criado_em < ($${i++}::date + INTERVAL '1 day')`;
+    params.push(data_fim);
   }
 
   const fromJoin = `
@@ -92,6 +105,9 @@ const listar = async (
   );
   const total = countResult.rows[0]?.total ?? 0;
 
+  const sortCol = ORDENAR_COLUNAS[ordenar] || ORDENAR_COLUNAS.criado_em;
+  const sortDir = String(direcao).toLowerCase() === "asc" ? "ASC" : "DESC";
+
   const limitIdx = params.length + 1;
   const offsetIdx = params.length + 2;
   const dataResult = await pool.query(
@@ -101,7 +117,7 @@ const listar = async (
             v.cor as veiculo_cor, v.ano as veiculo_ano
      ${fromJoin}
      ${where}
-     ORDER BY os.id DESC
+     ORDER BY ${sortCol} ${sortDir}
      LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
     [...params, limit, offset],
   );
@@ -151,7 +167,7 @@ const criar = async (
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const numero = await gerarNumeroOS(tenantId);
+    const numero = await proximoNumeroOS(client);
     const { valor_produtos, valor_servicos, valor_total } = calcularTotais(
       produtos,
       servicos,

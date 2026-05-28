@@ -33,19 +33,21 @@ class OrcamentosController {
   }
 
   async criar(req, res) {
+    const body = req.validated?.body ?? req.body;
     const result = await orcamentosService.criar(
       resolveTenantId(req),
-      req.body,
+      body,
     );
     res.status(201).json({ ...result, message: "Orçamento criado com sucesso" });
   }
 
   async atualizar(req, res) {
     try {
+      const body = req.validated?.body ?? req.body;
       const result = await orcamentosService.atualizar(
         resolveTenantId(req),
         req.params.id,
-        req.body,
+        body,
       );
       assertFound(result, "Orçamento não encontrado");
       const message = result.os

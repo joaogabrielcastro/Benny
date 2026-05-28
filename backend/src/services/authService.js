@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../config/jwt.js";
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
+import { normalizeRole } from "../config/roles.js";
 
 const findUserByEmail = async (email) => {
   try {
@@ -31,7 +32,7 @@ const gerarToken = (user, tenantId) =>
       tenantId,
       email: user.email,
       nome: user.nome,
-      role: user.role,
+      role: normalizeRole(user.role),
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN },
@@ -66,7 +67,7 @@ const login = async ({ email, senha }) => {
       id: user.id,
       nome: user.nome,
       email: user.email,
-      role: user.role,
+      role: normalizeRole(user.role),
     },
   };
 };

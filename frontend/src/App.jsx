@@ -15,9 +15,9 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import NotificacoesWidget from "./components/NotificacoesWidget";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppSidebar from "./components/layout/AppSidebar";
+import { useAuth } from "./contexts/AuthContext";
 
 const Login = lazy(() => import("./pages/Login"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Estoque = lazy(() => import("./pages/Estoque"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
@@ -28,6 +28,7 @@ const OSForm = lazy(() => import("./pages/OSForm"));
 const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
 const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
 
 function App() {
   return (
@@ -67,6 +68,7 @@ function App() {
 
 function AppShell() {
   const location = useLocation();
+  const { isAdmin } = useAuth();
   const isBare =
     location.pathname.startsWith("/v") || location.pathname === "/login";
 
@@ -94,11 +96,7 @@ function AppShell() {
               />
               <Route
                 path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
+                element={<Navigate to="/" replace />}
               />
               <Route
                 path="/estoque"
@@ -188,11 +186,19 @@ function AppShell() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/usuarios"
+                element={
+                  <ProtectedRoute>
+                    <Usuarios />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </Suspense>
         </div>
       </main>
-      {!isBare && <NotificacoesWidget />}
+      {!isBare && isAdmin && <NotificacoesWidget />}
     </div>
   );
 }

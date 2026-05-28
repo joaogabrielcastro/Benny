@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config/jwt.js";
 import { resolveTenantId } from "../config/singleTenant.js";
+import { normalizeRole } from "../config/roles.js";
 
 export const requireAuth = (req, res, next) => {
   const header = req.headers.authorization;
@@ -18,7 +19,7 @@ export const requireAuth = (req, res, next) => {
       id: payload.userId,
       email: payload.email,
       nome: payload.nome,
-      role: payload.role || "user",
+      role: normalizeRole(payload.role),
     };
     next();
   } catch (err) {

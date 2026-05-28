@@ -5,7 +5,7 @@ export default function OSFormItensServicos({
   onAtualizar,
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+    <div className="pro-card p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
           Serviços

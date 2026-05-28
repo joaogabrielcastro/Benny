@@ -7,11 +7,16 @@ import BuscaPlacaVeiculoButton from "../components/BuscaPlacaVeiculoButton";
 import { mascaraPlaca } from "../utils/masks";
 import { validarPlaca } from "../utils/validators";
 import toast from "react-hot-toast";
+import PageHeader from "../components/layout/PageHeader";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { formatarMoeda } from "../utils/formatters";
+import { useAuth } from "../contexts/AuthContext";
 import { useOSForm } from "../hooks/os/useOSForm";
 import OSFormItensProdutos from "../features/os/OSFormItensProdutos";
 import OSFormItensServicos from "../features/os/OSFormItensServicos";
 
 export default function OSForm() {
+  const { isAdmin } = useAuth();
   const { id } = useParams();
   const queryClient = useQueryClient();
   const f = useOSForm(id);
@@ -41,21 +46,21 @@ export default function OSForm() {
   } = f;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          {modoEdicao ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}
-        </h1>
-      </div>
+    <div className="page-enter">
+      <PageHeader
+        title={modoEdicao ? "Editar ordem de serviço" : "Nova ordem de serviço"}
+        subtitle={
+          modoEdicao
+            ? "Atualize cliente, itens e observações da OS."
+            : "Preencha os dados do cliente e adicione produtos e serviços."
+        }
+      />
 
       {carregando ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner size="xl" />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Dados do Cliente e Veículo */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="pro-card p-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Cliente e Veículo
           </h2>
@@ -85,13 +90,15 @@ export default function OSForm() {
                     required
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMostrarClienteForm(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  + Novo
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarClienteForm(true)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    + Novo
+                  </button>
+                )}
               </div>
             </div>
 
@@ -116,14 +123,16 @@ export default function OSForm() {
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() => setMostrarVeiculoForm(true)}
-                  disabled={!formData.cliente_id}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
-                >
-                  + Novo
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarVeiculoForm(true)}
+                    disabled={!formData.cliente_id}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                  >
+                    + Novo
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -213,8 +222,7 @@ export default function OSForm() {
           onAtualizar={atualizarServico}
         />
 
-        {/* Observações e Total */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="pro-card p-6">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Observações Gerais
@@ -233,25 +241,21 @@ export default function OSForm() {
             <span className="text-2xl font-bold text-gray-800 dark:text-white">
               Valor Total:
             </span>
-            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              R$ {calcularTotal().toFixed(2)}
+            <span className="text-3xl font-bold text-brand-600 dark:text-brand-400">
+              {formatarMoeda(calcularTotal())}
             </span>
           </div>
         </div>
 
-        {/* Botões */}
-        <div className="flex justify-end space-x-4">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
             type="button"
             onClick={() => navigate("/ordens-servico")}
-            className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="btn-secondary"
           >
             Cancelar
           </button>
-          <button
-            type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
+          <button type="submit" className="btn-brand">
             {modoEdicao ? "Atualizar OS" : "Salvar OS"}
           </button>
         </div>

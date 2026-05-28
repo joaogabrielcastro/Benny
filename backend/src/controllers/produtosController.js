@@ -8,9 +8,13 @@ class ProdutosController {
   async listar(req, res) {
     const tenantId = resolveTenantId(req);
     const { limit, offset, page } = req.pagination;
+    const { busca, estoque } = req.query;
     const { rows, total } = await produtosService.listar(tenantId, {
       limit,
       offset,
+      busca: busca || undefined,
+      estoque:
+        estoque === "baixo" || estoque === "zerado" ? estoque : undefined,
     });
     res.set("Cache-Control", "private, no-store, no-cache, must-revalidate");
     sendPaginated(res, { rows, total, page, limit });

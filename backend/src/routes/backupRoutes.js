@@ -6,6 +6,6 @@ import { ah } from "../lib/routeUtils.js";
 const router = express.Router();
 
 router.post("/", requireRole("admin"), ah(backupController, "realizar"));
-router.get("/list", ah(backupController, "listar"));
+router.get("/list", requireRole("admin"), ah(backupController, "listar"));
 
 export default router;

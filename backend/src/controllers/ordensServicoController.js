@@ -10,6 +10,13 @@ class OrdensServicoController {
     const { rows, total } = await ordensServicoService.listar(tenantId, {
       status: req.query.status,
       busca: req.query.busca,
+      cliente_id: req.query.cliente_id
+        ? parseInt(req.query.cliente_id, 10)
+        : undefined,
+      data_inicio: req.query.data_inicio,
+      data_fim: req.query.data_fim,
+      ordenar: req.query.ordenar,
+      direcao: req.query.direcao,
       limit,
       offset,
     });
@@ -26,18 +33,20 @@ class OrdensServicoController {
   }
 
   async criar(req, res) {
+    const body = req.validated?.body ?? req.body;
     const result = await ordensServicoService.criar(
       resolveTenantId(req),
-      req.body,
+      body,
     );
     res.status(201).json({ ...result, message: "OS criada com sucesso" });
   }
 
   async atualizar(req, res) {
+    const body = req.validated?.body ?? req.body;
     const result = await ordensServicoService.atualizar(
       resolveTenantId(req),
       req.params.id,
-      req.body,
+      body,
     );
     if (!result) throw notFound("OS não encontrada");
     res.json({ message: "OS atualizada com sucesso" });

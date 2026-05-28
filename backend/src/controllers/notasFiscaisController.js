@@ -62,10 +62,14 @@ class NotasFiscaisController {
   }
 
   async cancelar(req, res) {
-    throw new AppError(
-      501,
-      "Cancelamento de NFS-e via Nuvem Fiscal ainda não implementado. Use o painel da Nuvem Fiscal se necessário.",
+    const body = req.validated?.body ?? req.body ?? {};
+    const result = await notasFiscaisService.cancelar(
+      resolveTenantId(req),
+      req.params.id,
+      body,
     );
+    if (result.erro) throw new AppError(400, result.erro);
+    res.json({ message: result.message, nf: result.nf });
   }
 }
 
