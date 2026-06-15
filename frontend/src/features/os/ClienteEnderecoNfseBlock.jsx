@@ -15,6 +15,7 @@ function osParaForm(os) {
     bairro: os?.cliente_bairro || "",
     cidade: os?.cliente_cidade || "",
     estado: os?.cliente_estado || "",
+    codigo_ibge: os?.cliente_codigo_ibge || "",
   };
 }
 
@@ -36,6 +37,7 @@ export default function ClienteEnderecoNfseBlock({
     os?.cliente_bairro,
     os?.cliente_cidade,
     os?.cliente_estado,
+    os?.cliente_codigo_ibge,
   ]);
 
   if (os?.status !== "Finalizada") return null;
@@ -83,6 +85,7 @@ export default function ClienteEnderecoNfseBlock({
         bairro: form.bairro,
         cidade: form.cidade,
         estado: form.estado,
+        codigo_ibge: form.codigo_ibge || undefined,
       });
       toast.success("Endereço do cliente atualizado. Tente emitir a NFS-e novamente.");
       onSalvo?.();
@@ -127,6 +130,7 @@ export default function ClienteEnderecoNfseBlock({
             cidade: end.cidade || f.cidade,
             estado: end.estado || f.estado,
             complemento: end.complemento || f.complemento,
+            codigo_ibge: end.ibge || f.codigo_ibge,
           }));
         }}
       />

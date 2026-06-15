@@ -20,6 +20,7 @@ export function clienteDaOs(osRow, clienteDb) {
     cidade: osRow.cliente_cidade,
     estado: osRow.cliente_estado,
     cep: osRow.cliente_cep,
+    codigo_ibge: osRow.cliente_codigo_ibge,
   };
 }
 

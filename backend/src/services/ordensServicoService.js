@@ -133,6 +133,7 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
               c.email as cliente_email, c.endereco as cliente_endereco, c.numero as cliente_numero,
               c.complemento as cliente_complemento, c.bairro as cliente_bairro,
               c.cidade as cliente_cidade, c.estado as cliente_estado, c.cep as cliente_cep,
+              c.codigo_ibge as cliente_codigo_ibge,
               v.modelo as veiculo_modelo, v.placa as veiculo_placa,
               v.cor as veiculo_cor, v.ano as veiculo_ano
        FROM ordens_servico os

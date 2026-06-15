@@ -14,6 +14,7 @@ export const createClienteSchema = z.object({
   bairro: optionalStr,
   cidade: optionalStr,
   estado: optionalStr,
+  codigo_ibge: optionalStr,
 });
 
 export const updateClienteSchema = createClienteSchema.partial().extend({

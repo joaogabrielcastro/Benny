@@ -450,6 +450,11 @@ async function initDatabase() {
     `);
 
     await client.query(`
+      ALTER TABLE clientes
+      ADD COLUMN IF NOT EXISTS codigo_ibge VARCHAR(7)
+    `);
+
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_agendamentos_data 
       ON agendamentos(data_agendamento DESC);
     `);

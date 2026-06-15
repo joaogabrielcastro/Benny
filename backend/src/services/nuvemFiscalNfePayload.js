@@ -45,7 +45,10 @@ function buildDest(cliente, cfg) {
   const cep = resolveCep(cliente, cfg);
   if (!cep) return null;
 
-  const cMun = cfg.codigoMunicipioIbge || cfg.tomadorCMunFallback || "";
+  const cMun =
+    onlyDigits(cliente?.codigo_ibge).length === 7
+      ? onlyDigits(cliente.codigo_ibge)
+      : cfg.tomadorCMunFallback || "";
   if (cMun.length !== 7) return null;
 
   const dest = {

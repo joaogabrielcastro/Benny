@@ -24,6 +24,7 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
     nome: "Cliente Teste",
     cep: "83411100",
     cpf_cnpj: "12345678909",
+    codigo_ibge: "4105805",
   };
   const baseServicos = [
     {
@@ -83,5 +84,24 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
     assert.equal(tribMun.pAliq, 2);
     assert.equal(tribMun.vBC, 200);
     assert.equal(tribMun.vISSQN, 4);
+  });
+
+  it("usa IBGE do tomador no endereço e IBGE da oficina no local de prestação", () => {
+    const clienteCuritiba = {
+      ...baseCliente,
+      cep: "81020670",
+      codigo_ibge: "4106902",
+      cidade: "Curitiba",
+    };
+    const result = montarCorpoEmissaoNfseDps(
+      baseOs,
+      clienteCuritiba,
+      [],
+      baseServicos,
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.body.infDPS.toma.end.endNac.cMun, "4106902");
+    assert.equal(result.body.infDPS.toma.end.endNac.CEP, "81020670");
+    assert.equal(result.body.infDPS.serv.locPrest.cLocPrestacao, "4105805");
   });
 });

@@ -24,6 +24,7 @@ import {
   colunaVinculoOs,
 } from "./notasFiscaisRepository.js";
 import { sincronizarPorOs } from "./notasFiscaisSincronizar.js";
+import { resolveCodigoIbgeCliente } from "../../domain/clienteIbge.js";
 
 export const gerarParaOs = async (
   tenantId = SINGLE_TENANT_ID,
@@ -45,6 +46,21 @@ export const gerarParaOs = async (
   );
   const cliente = clienteDaOs(osCompleta, clienteRes.rows[0]);
   if (!clienteRes.rows[0]) return { erro: "Cliente da OS não encontrado" };
+
+  if (!cliente.codigo_ibge && cliente.cep) {
+    const ibge = await resolveCodigoIbgeCliente(
+      cliente.cep,
+      clienteRes.rows[0].codigo_ibge,
+    );
+    if (ibge) {
+      cliente.codigo_ibge = ibge;
+      await pool.query(
+        `UPDATE clientes SET codigo_ibge = $1, atualizado_em = CURRENT_TIMESTAMP
+         WHERE id = $2 AND tenant_id = $3`,
+        [ibge, osCompleta.cliente_id, tenantId],
+      );
+    }
+  }
 
   const totais = totaisFiscaisOs(osCompleta);
   const valorNota =

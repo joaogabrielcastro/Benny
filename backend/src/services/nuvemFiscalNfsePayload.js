@@ -45,9 +45,18 @@ function buildTribMunIss(valorServico, cfg) {
   return { tribMun, vISSQN: vISSQNDps };
 }
 
-function resolveMunicipioIbge(cfg) {
+function resolveMunicipioIbgePrestacao(cfg) {
   const a = cfg.codigoMunicipioIbge;
   if (a && a.length === 7) return a;
+  const b = cfg.tomadorCMunFallback;
+  if (b && b.length === 7) return b;
+  return "";
+}
+
+/** IBGE do município do endereço do tomador (deve corresponder ao CEP). */
+function resolveMunicipioIbgeTomador(cliente, cfg) {
+  const doCliente = onlyDigits(cliente?.codigo_ibge);
+  if (doCliente.length === 7) return doCliente;
   const b = cfg.tomadorCMunFallback;
   if (b && b.length === 7) return b;
   return "";
@@ -127,8 +136,8 @@ export function montarCorpoEmissaoNfseDps(
     };
   }
 
-  const cMun = resolveMunicipioIbge(cfg);
-  if (!cMun) {
+  const cMunPrestacao = resolveMunicipioIbgePrestacao(cfg);
+  if (!cMunPrestacao) {
     return {
       ok: false,
       erro:
@@ -141,6 +150,14 @@ export function montarCorpoEmissaoNfseDps(
       ok: false,
       erro:
         "CEP do tomador (cliente) inválido ou ausente. Cadastre o CEP com 8 dígitos no cliente.",
+    };
+  }
+  const cMunTomador = resolveMunicipioIbgeTomador(cliente, cfg);
+  if (!cMunTomador) {
+    return {
+      ok: false,
+      erro:
+        "Código IBGE do município do cliente não encontrado. Edite o cliente, use Buscar no CEP e salve novamente.",
     };
   }
   const doc = resolveDocTomador(cliente, cfg);
@@ -165,7 +182,7 @@ export function montarCorpoEmissaoNfseDps(
     fone: onlyDigits(cliente?.telefone) || undefined,
     email: cliente?.email ? trunc(cliente.email, 80) : undefined,
     end: {
-      endNac: { cMun, CEP: cep },
+      endNac: { cMun: cMunTomador, CEP: cep },
       xLgr: logradouroCliente(cliente),
       nro: trunc(String(cliente?.numero || "S/N"), 60),
       xCpl: cliente?.complemento
@@ -198,7 +215,7 @@ export function montarCorpoEmissaoNfseDps(
       },
       toma,
       serv: {
-        locPrest: { cLocPrestacao: cMun },
+        locPrest: { cLocPrestacao: cMunPrestacao },
         cServ: {
           cTribNac: cfg.cTribNac,
           cNBS: cfg.cNbs,

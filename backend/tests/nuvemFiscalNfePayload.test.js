@@ -23,6 +23,7 @@ describe("montarCorpoEmissaoNfe", () => {
       cpf_cnpj: "12345678909",
       cidade: "Colombo",
       estado: "PR",
+      codigo_ibge: "4105805",
     };
     const produtos = [
       {
@@ -68,6 +69,7 @@ describe("montarCorpoEmissaoNfe", () => {
       cpf_cnpj: "12345678909",
       cidade: "Colombo",
       estado: "PR",
+      codigo_ibge: "4105805",
     };
     const produtos = [
       { codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 },

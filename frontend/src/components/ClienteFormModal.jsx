@@ -33,6 +33,7 @@ const emptyForm = {
   cidade: "",
   estado: "",
   cep: "",
+  codigo_ibge: "",
 };
 
 function inferirTipoPessoa(cpfCnpj) {
@@ -55,6 +56,7 @@ function clienteParaForm(c) {
     cidade: c.cidade || "",
     estado: c.estado || "",
     cep: c.cep ? mascaraCEP(c.cep) : "",
+    codigo_ibge: c.codigo_ibge || "",
   };
 }
 
@@ -101,6 +103,7 @@ export default function ClienteFormModal({
       cidade: endereco.cidade,
       estado: endereco.estado,
       complemento: endereco.complemento || prev.complemento,
+      codigo_ibge: endereco.ibge || prev.codigo_ibge,
     }));
   };
 
@@ -119,6 +122,7 @@ export default function ClienteFormModal({
       cidade: formData.cidade,
       estado: formData.estado,
       cep: removerMascara(formData.cep),
+      codigo_ibge: formData.codigo_ibge || undefined,
     };
 
     if (dadosLimpos.cep.length !== 8) {
