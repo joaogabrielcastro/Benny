@@ -13,6 +13,7 @@ export default function NotaFiscalModal({
   onClose,
   onCancelar,
   cancelando = false,
+  onCorrigirEndereco,
 }) {
   if (!isOpen || !nota || !modelo) return null;
 
@@ -190,7 +191,16 @@ export default function NotaFiscalModal({
 
         <StatusBadge status={nota.status_nf} />
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-wrap gap-3 pt-4">
+          {onCorrigirEndereco && (
+            <button
+              type="button"
+              onClick={onCorrigirEndereco}
+              className="flex-1 min-w-[10rem] px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all font-semibold"
+            >
+              Corrigir endereço do cliente
+            </button>
+          )}
           {pdfHref && (
             <a
               href={pdfHref}

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../../services/api";
 import { feedbackNotaFiscal } from "../../features/os/fiscalUtils";
-import { removerMascara, mascaraCEP } from "../../utils/masks";
 
 /**
  * Emissão, sincronização e CEP para NFS-e/NF-e de uma OS.
@@ -20,16 +19,6 @@ export function useNotasFiscaisOs({
   const [showNFModal, setShowNFModal] = useState(null);
   const [gerandoNfse, setGerandoNfse] = useState(false);
   const [gerandoNfe, setGerandoNfe] = useState(false);
-  const [cepClienteEdicao, setCepClienteEdicao] = useState("");
-  const [salvandoCepCliente, setSalvandoCepCliente] = useState(false);
-
-  useEffect(() => {
-    if (os?.cliente_cep != null && os.cliente_cep !== "") {
-      setCepClienteEdicao(mascaraCEP(os.cliente_cep));
-    } else {
-      setCepClienteEdicao("");
-    }
-  }, [os?.id, os?.cliente_cep]);
 
   const setNotaPorModelo = (modelo, nf) => {
     if (modelo === "NFE") setNotaFiscalPecas(nf);
@@ -168,48 +157,6 @@ export function useNotasFiscaisOs({
     setNotaFiscalPecas,
   ]);
 
-  const clienteCepValidoParaNfse =
-    String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
-
-  const salvarCepCliente = async () => {
-    const d = removerMascara(cepClienteEdicao);
-    if (d.length !== 8) {
-      toast.error("Informe um CEP com 8 dígitos.");
-      return;
-    }
-    if (!os?.cliente_id) {
-      toast.error("OS sem cliente vinculado.");
-      return;
-    }
-    try {
-      setSalvandoCepCliente(true);
-      const { data: c } = await api.get(`/clientes/${os.cliente_id}`);
-      await api.put(`/clientes/${os.cliente_id}`, {
-        nome: c.nome,
-        telefone: c.telefone,
-        cpf_cnpj: c.cpf_cnpj,
-        email: c.email ?? "",
-        endereco: c.endereco ?? "",
-        cep: d,
-        numero: c.numero ?? "",
-        complemento: c.complemento ?? "",
-        bairro: c.bairro ?? "",
-        cidade: c.cidade ?? "",
-        estado: c.estado ?? "",
-      });
-      toast.success("CEP do cliente atualizado.");
-      await carregarOS();
-    } catch (error) {
-      toast.error(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Erro ao salvar CEP",
-      );
-    } finally {
-      setSalvandoCepCliente(false);
-    }
-  };
-
   const handleCancelarNF = async (modelo = "NFSE") => {
     const nota = notaPorModelo(modelo);
     if (!nota?.id) {
@@ -254,11 +201,6 @@ export function useNotasFiscaisOs({
     setShowNFModal,
     gerandoNfse,
     gerandoNfe,
-    cepClienteEdicao,
-    setCepClienteEdicao,
-    salvandoCepCliente,
-    clienteCepValidoParaNfse,
-    salvarCepCliente,
     handleGerarNF,
     handleCancelarNF,
     sincronizarNotaFiscal,

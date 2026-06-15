@@ -11,6 +11,19 @@ export function formatarAliquota(p) {
   return `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 }
 
+/** Erro da Nuvem relacionado a CEP/município do tomador. */
+export function nfErroEnderecoTomador(nota) {
+  const msg = String(nota?.observacoes || "").toLowerCase();
+  return (
+    msg.includes("cep") ||
+    msg.includes("município") ||
+    msg.includes("municipio") ||
+    msg.includes("tomador") ||
+    msg.includes("endereço") ||
+    msg.includes("endereco")
+  );
+}
+
 export function feedbackNotaFiscal(toast, message, nf) {
   const st = nf?.status_nf;
   if (st === "autorizada") {

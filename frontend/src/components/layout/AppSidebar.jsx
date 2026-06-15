@@ -16,6 +16,8 @@ import {
 
   FiPackage,
 
+  FiUser,
+
   FiUsers,
 
   FiLogOut,
@@ -49,6 +51,8 @@ const ICONS = {
   "/contas-pagar": FiDollarSign,
 
   "/estoque": FiPackage,
+
+  "/clientes": FiUser,
 
   "/usuarios": FiUsers,
 

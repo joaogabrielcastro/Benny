@@ -47,6 +47,8 @@ export default function OrcamentoDetalhes() {
     try {
       const response = await api.put(`/orcamentos/${id}`, {
         status: novoStatus,
+        cliente_id: orcamento.cliente_id,
+        veiculo_id: orcamento.veiculo_id,
         km: orcamento.km,
         previsao_entrega: orcamento.previsao_entrega,
         observacoes_veiculo: orcamento.observacoes_veiculo,

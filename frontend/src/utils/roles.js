@@ -38,6 +38,7 @@ export const NAV_ITEMS = [
   { to: "/agendamentos", label: "Agenda", roles: [ROLES.ADMIN, ROLES.MECANICO] },
   { to: "/contas-pagar", label: "Contas a pagar", roles: [ROLES.ADMIN] },
   { to: "/estoque", label: "Estoque", roles: [ROLES.ADMIN] },
+  { to: "/clientes", label: "Clientes", roles: [ROLES.ADMIN] },
   { to: "/usuarios", label: "Usuários", roles: [ROLES.ADMIN] },
 ];
 

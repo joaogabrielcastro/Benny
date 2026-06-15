@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import toast from "react-hot-toast";
@@ -8,8 +8,11 @@ import { useNotasFiscaisOs } from "../hooks/os/useNotasFiscaisOs";
 import OSImpressao from "../components/OSImpressao";
 import OSDetalhesAcoes from "../features/os/OSDetalhesAcoes";
 import { useAuth } from "../contexts/AuthContext";
-import ClienteCepNfseBlock from "../features/os/ClienteCepNfseBlock";
+import ClienteEnderecoNfseBlock from "../features/os/ClienteEnderecoNfseBlock";
 import NotaFiscalModal from "../features/os/NotaFiscalModal";
+import ClienteFormModal from "../components/ClienteFormModal";
+import { nfErroEnderecoTomador } from "../features/os/fiscalUtils";
+import { mascaraCEP } from "../utils/masks";
 import { formatarMoeda, formatarDataHora } from "../utils/formatters";
 import { osStatusClass } from "../utils/statusColors";
 import PageHeader from "../components/layout/PageHeader";
@@ -18,6 +21,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 export default function OSDetalhes() {
   const { isAdmin } = useAuth();
   const { id } = useParams();
+  const [editarClienteAberto, setEditarClienteAberto] = useState(false);
   const {
     os,
     loading,
@@ -59,6 +63,19 @@ export default function OSDetalhes() {
     documentTitle: `OS_${os?.numero}`,
   });
 
+  const motivoEnderecoNf = useMemo(() => {
+    const cepOk =
+      String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
+    const nfRejeitada =
+      (nf.notaFiscalServico?.status_nf === "rejeitada" &&
+        nfErroEnderecoTomador(nf.notaFiscalServico)) ||
+      (nf.notaFiscalPecas?.status_nf === "rejeitada" &&
+        nfErroEnderecoTomador(nf.notaFiscalPecas));
+    if (nfRejeitada) return "cep_invalido";
+    if (!cepOk) return "cep_ausente";
+    return null;
+  }, [os?.cliente_cep, nf.notaFiscalServico, nf.notaFiscalPecas]);
+
   if (loading) {
     return <LoadingSpinner size="xl" />;
   }
@@ -95,13 +112,11 @@ export default function OSDetalhes() {
         isAdmin={isAdmin}
       />
 
-      {isAdmin && (
-        <ClienteCepNfseBlock
+      {isAdmin && motivoEnderecoNf && (
+        <ClienteEnderecoNfseBlock
           os={os}
-          cepClienteEdicao={nf.cepClienteEdicao}
-          setCepClienteEdicao={nf.setCepClienteEdicao}
-          salvandoCepCliente={nf.salvandoCepCliente}
-          onSalvar={nf.salvarCepCliente}
+          motivo={motivoEnderecoNf}
+          onSalvo={carregarOS}
         />
       )}
 
@@ -111,9 +126,20 @@ export default function OSDetalhes() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="pro-card p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Cliente
-          </h2>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+              Cliente
+            </h2>
+            {isAdmin && os.cliente_id && (
+              <button
+                type="button"
+                onClick={() => setEditarClienteAberto(true)}
+                className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
+              >
+                Editar
+              </button>
+            )}
+          </div>
           <div className="space-y-3">
             <div>
               <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
@@ -138,6 +164,29 @@ export default function OSDetalhes() {
                 </span>
                 <p className="text-lg text-gray-800 dark:text-gray-200">
                   {os.cliente_cpf_cnpj}
+                </p>
+              </div>
+            )}
+            {(os.cliente_endereco || os.cliente_cep) && (
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  Endereço:
+                </span>
+                <p className="text-gray-800 dark:text-gray-200">
+                  {[
+                    os.cliente_endereco,
+                    os.cliente_numero,
+                    os.cliente_bairro,
+                    os.cliente_cidade,
+                    os.cliente_estado,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                  {os.cliente_cep && (
+                    <span className="block text-sm text-slate-500 mt-1">
+                      CEP {mascaraCEP(os.cliente_cep)}
+                    </span>
+                  )}
                 </p>
               </div>
             )}
@@ -380,6 +429,28 @@ export default function OSDetalhes() {
           os={os}
           onClose={() => nf.setShowNFModal(null)}
           onCancelar={() => nf.handleCancelarNF(nf.showNFModal)}
+          onCorrigirEndereco={
+            nf.notaFiscalModal &&
+            nf.notaFiscalModal.status_nf === "rejeitada" &&
+            nfErroEnderecoTomador(nf.notaFiscalModal)
+              ? () => {
+                  nf.setShowNFModal(null);
+                  setEditarClienteAberto(true);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {isAdmin && (
+        <ClienteFormModal
+          isOpen={editarClienteAberto}
+          onClose={() => setEditarClienteAberto(false)}
+          clienteId={os.cliente_id}
+          onSuccess={() => {
+            carregarOS();
+            setEditarClienteAberto(false);
+          }}
         />
       )}
     </div>

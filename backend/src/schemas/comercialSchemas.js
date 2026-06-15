@@ -31,8 +31,18 @@ const comercialBaseSchema = z.object({
 
 export const createOrcamentoSchema = comercialBaseSchema;
 
-export const updateOrcamentoSchema = comercialBaseSchema.extend({
+/** Atualização: status + itens; cliente/veículo opcionais (detalhes só altera status). */
+export const updateOrcamentoSchema = z.object({
   status: z.enum(["Pendente", "Aprovado", "Reprovado"]),
+  cliente_id: z.coerce.number().int().positive().optional(),
+  veiculo_id: z.coerce.number().int().positive().optional(),
+  km: z.union([z.string(), z.number()]).optional().nullable(),
+  previsao_entrega: z.string().optional().nullable(),
+  observacoes_veiculo: z.string().optional().nullable(),
+  observacoes_gerais: z.string().optional().nullable(),
+  responsavel_tecnico: z.string().optional().nullable(),
+  produtos: z.array(linhaProdutoSchema).default([]),
+  servicos: z.array(linhaServicoSchema).default([]),
 });
 
 export const createOrdemServicoSchema = comercialBaseSchema;

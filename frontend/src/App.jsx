@@ -29,6 +29,7 @@ const OSDetalhes = lazy(() => import("./pages/OSDetalhes"));
 const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
+const Clientes = lazy(() => import("./pages/Clientes"));
 
 function App() {
   return (
@@ -183,6 +184,14 @@ function AppShell() {
                 element={
                   <ProtectedRoute>
                     <ContasPagar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/clientes"
+                element={
+                  <ProtectedRoute>
+                    <Clientes />
                   </ProtectedRoute>
                 }
               />
