@@ -46,6 +46,31 @@ async function appliedVersions(client) {
   return new Set(rows.map((r) => r.version));
 }
 
+async function maybeBootstrapBaseline(client) {
+  const done = await appliedVersions(client);
+  if (done.size > 0) return;
+
+  const { rows } = await client.query(`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'clientes'
+    ) AS has_clientes
+  `);
+  if (!rows[0]?.has_clientes) return;
+
+  const files = listMigrationFiles();
+  const baseline = files.filter((f) => f < "009_cliente_codigo_ibge.sql");
+  for (const file of baseline) {
+    await client.query(
+      "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING",
+      [file],
+    );
+  }
+  console.log(
+    `⊘ Baseline: banco já existia (DDL); ${baseline.length} migration(s) antigas marcadas como aplicadas.`,
+  );
+}
+
 function listMigrationFiles() {
   if (!fs.existsSync(migrationsDir)) return [];
   return fs
@@ -58,6 +83,7 @@ async function run() {
   const client = await pool.connect();
   try {
     await ensureMigrationsTable(client);
+    await maybeBootstrapBaseline(client);
     const done = await appliedVersions(client);
     const files = listMigrationFiles();
 

@@ -1,9 +1,35 @@
+import { useRef } from "react";
+import { useReactToPrint } from "react-to-print";
+import toast from "react-hot-toast";
 import Modal from "../../components/Modal";
 import { formatarMoeda } from "../../utils/formatters";
 import {
   rotuloFonteTributo,
   formatarAliquota,
 } from "./fiscalUtils";
+import NotaFiscalImpressao from "./NotaFiscalImpressao";
+
+function imprimirPdf(url) {
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch {
+        window.open(url, "_blank", "noopener,noreferrer");
+        toast("Abra o PDF na nova aba e use Ctrl+P para imprimir.", {
+          icon: "ℹ️",
+        });
+      }
+      setTimeout(() => iframe.remove(), 3000);
+    }, 400);
+  };
+}
 
 export default function NotaFiscalModal({
   isOpen,
@@ -15,14 +41,31 @@ export default function NotaFiscalModal({
   cancelando = false,
   onCorrigirEndereco,
 }) {
-  if (!isOpen || !nota || !modelo) return null;
+  const impressaoRef = useRef(null);
 
-  const pdfHref = (() => {
-    const raw = nota.link_pdf || nota.pdf_path;
-    if (!raw) return null;
-    if (/^https?:\/\//i.test(raw)) return raw;
-    return `/api/storage/${raw.replace(/^storage\//, "")}`;
-  })();
+  const pdfHref = nota
+    ? (() => {
+        const raw = nota.link_pdf || nota.pdf_path;
+        if (!raw) return null;
+        if (/^https?:\/\//i.test(raw)) return raw;
+        return `/api/storage/${raw.replace(/^storage\//, "")}`;
+      })()
+    : null;
+
+  const handlePrintResumo = useReactToPrint({
+    contentRef: impressaoRef,
+    documentTitle: `${modelo === "NFE" ? "NFE" : "NFSE"}_${nota?.numero || "nota"}`,
+  });
+
+  const handleImprimir = () => {
+    if (pdfHref && nota?.status_nf === "autorizada") {
+      imprimirPdf(pdfHref);
+      return;
+    }
+    handlePrintResumo();
+  };
+
+  if (!isOpen || !nota || !modelo) return null;
 
   return (
     <Modal
@@ -223,7 +266,7 @@ export default function NotaFiscalModal({
           )}
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={handleImprimir}
             className="flex-1 px-6 py-3 btn-brand"
           >
             Imprimir NF
@@ -232,6 +275,15 @@ export default function NotaFiscalModal({
             Fechar
           </button>
         </div>
+      </div>
+
+      <div className="hidden">
+        <NotaFiscalImpressao
+          ref={impressaoRef}
+          modelo={modelo}
+          nota={nota}
+          os={os}
+        />
       </div>
     </Modal>
   );
