@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { createPortal } from "react-dom";
 import { useReactToPrint } from "react-to-print";
 import toast from "react-hot-toast";
 import Modal from "../../components/Modal";
@@ -9,26 +10,13 @@ import {
 } from "./fiscalUtils";
 import NotaFiscalImpressao from "./NotaFiscalImpressao";
 
-function imprimirPdf(url) {
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText =
-    "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-  iframe.src = url;
-  document.body.appendChild(iframe);
-  iframe.onload = () => {
-    setTimeout(() => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } catch {
-        window.open(url, "_blank", "noopener,noreferrer");
-        toast("Abra o PDF na nova aba e use Ctrl+P para imprimir.", {
-          icon: "ℹ️",
-        });
-      }
-      setTimeout(() => iframe.remove(), 3000);
-    }, 400);
-  };
+function abrirPdf(url) {
+  const win = window.open(url, "_blank", "noopener,noreferrer");
+  if (!win) {
+    toast.error("Permita pop-ups para abrir o PDF da nota.");
+    return false;
+  }
+  return true;
 }
 
 export default function NotaFiscalModal({
@@ -55,11 +43,19 @@ export default function NotaFiscalModal({
   const handlePrintResumo = useReactToPrint({
     contentRef: impressaoRef,
     documentTitle: `${modelo === "NFE" ? "NFE" : "NFSE"}_${nota?.numero || "nota"}`,
+    pageStyle: "@page { size: A4; margin: 12mm; }",
   });
 
   const handleImprimir = () => {
-    if (pdfHref && nota?.status_nf === "autorizada") {
-      imprimirPdf(pdfHref);
+    if (pdfHref) {
+      const ok = abrirPdf(pdfHref);
+      if (ok) {
+        toast("Use Ctrl+P na aba do PDF para imprimir.", { icon: "ℹ️" });
+      }
+      return;
+    }
+    if (nota?.status_nf !== "autorizada") {
+      toast.error("PDF da nota indisponível. Aguarde autorização na Nuvem Fiscal.");
       return;
     }
     handlePrintResumo();
@@ -277,14 +273,26 @@ export default function NotaFiscalModal({
         </div>
       </div>
 
-      <div className="hidden">
-        <NotaFiscalImpressao
-          ref={impressaoRef}
-          modelo={modelo}
-          nota={nota}
-          os={os}
-        />
-      </div>
+      {createPortal(
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            left: "-10000px",
+            top: 0,
+            width: "210mm",
+            background: "#fff",
+          }}
+        >
+          <NotaFiscalImpressao
+            ref={impressaoRef}
+            modelo={modelo}
+            nota={nota}
+            os={os}
+          />
+        </div>,
+        document.body,
+      )}
     </Modal>
   );
 }
