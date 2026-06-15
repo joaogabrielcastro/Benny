@@ -71,6 +71,20 @@ class NotasFiscaisController {
     if (result.erro) throw new AppError(400, result.erro);
     res.json({ message: result.message, nf: result.nf });
   }
+
+  async baixarPdf(req, res) {
+    const result = await notasFiscaisService.baixarPdf(
+      resolveTenantId(req),
+      req.params.id,
+    );
+    if (result.erro) throw new AppError(400, result.erro);
+    res.setHeader("Content-Type", result.contentType || "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${result.filename}.pdf"`,
+    );
+    res.send(result.buffer);
+  }
 }
 
 export default new NotasFiscaisController();

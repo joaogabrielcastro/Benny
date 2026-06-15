@@ -35,6 +35,7 @@ router.post(
   ah(notasFiscaisController, "sincronizarPorOs"),
 );
 router.get("/", paginate, ah(notasFiscaisController, "listar"));
+router.get("/:id/pdf", ah(notasFiscaisController, "baixarPdf"));
 router.get("/:id", ah(notasFiscaisController, "buscar"));
 router.put(
   "/:id/cancelar",

@@ -11,6 +11,7 @@ import {
 import { sincronizarPorOs } from "./notasFiscais/notasFiscaisSincronizar.js";
 import { gerarParaOs } from "./notasFiscais/notasFiscaisEmitir.js";
 import { cancelar } from "./notasFiscais/notasFiscaisCancelar.js";
+import { baixarPdf } from "./notasFiscais/notasFiscaisBaixarPdf.js";
 import { mapNfParaRespostaApi } from "./notasFiscais/notasFiscaisMapper.js";
 
 export default {
@@ -22,5 +23,6 @@ export default {
   gerarParaOs,
   sincronizarPorOs,
   cancelar,
+  baixarPdf,
   mapNfParaRespostaApi,
 };

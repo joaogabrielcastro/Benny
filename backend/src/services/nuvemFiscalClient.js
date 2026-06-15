@@ -141,6 +141,75 @@ async function requestNuvemFiscal(method, path, body) {
   }
 }
 
+/** GET binário (PDF/XML) — segue redirects da Nuvem Fiscal */
+async function requestNuvemFiscalBinary(path) {
+  if (!isNuvemFiscalConfigured()) {
+    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+  }
+  let token;
+  try {
+    token = await obterAccessToken();
+  } catch (e) {
+    return {
+      ok: false,
+      mensagem: e.message || "Falha de autenticação OAuth",
+      authError: true,
+    };
+  }
+  try {
+    const cfg = getNuvemFiscalConfig();
+    const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
+    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+    const { data, headers } = await axios({
+      method: "GET",
+      url,
+      responseType: "arraybuffer",
+      maxRedirects: 5,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/pdf",
+      },
+      timeout: 120_000,
+    });
+    const buffer = Buffer.from(data);
+    const head = buffer.subarray(0, 4).toString("utf8");
+    if (head !== "%PDF") {
+      return {
+        ok: false,
+        mensagem: "Nuvem Fiscal não retornou um PDF válido para esta nota.",
+      };
+    }
+    return {
+      ok: true,
+      buffer,
+      contentType: headers["content-type"] || "application/pdf",
+    };
+  } catch (err) {
+    logger.error(
+      `Nuvem Fiscal: GET ${path} (pdf) falhou`,
+      err.response?.data || err.message,
+    );
+    return {
+      ok: false,
+      mensagem: formatarErroApi(err),
+      statusCode: err.response?.status,
+      authError: err.response?.status === 401,
+    };
+  }
+}
+
+export async function baixarPdfNfse(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscalBinary(`/nfse/${encodeURIComponent(id)}/pdf`);
+}
+
+export async function baixarPdfNfe(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
+  return requestNuvemFiscalBinary(`/nfe/${encodeURIComponent(id)}/pdf`);
+}
+
 /** GET /nfse/{id} — consulta status da NFS-e na Nuvem Fiscal */
 export async function consultarNfse(idProvedor) {
   const id = String(idProvedor || "").trim();
