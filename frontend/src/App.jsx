@@ -72,6 +72,11 @@ function AppShell() {
   const { isAdmin } = useAuth();
   const isBare =
     location.pathname.startsWith("/v") || location.pathname === "/login";
+  const wideListLayout =
+    location.pathname === "/ordens-servico" ||
+    location.pathname === "/orcamentos" ||
+    location.pathname === "/estoque" ||
+    location.pathname === "/clientes";
 
   return (
     <div className="app-shell">
@@ -79,7 +84,11 @@ function AppShell() {
       <main className={isBare ? "" : "lg:pl-64"}>
         <div
           className={
-            isBare ? "" : "max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+            isBare
+              ? ""
+              : wideListLayout
+                ? "w-full max-w-none mx-auto px-4 py-6 sm:px-5 lg:px-6 xl:px-8 lg:py-8"
+                : "max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
           }
         >
           <Suspense fallback={<LoadingSpinner size="xl" />}>

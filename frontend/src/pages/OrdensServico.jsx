@@ -169,8 +169,17 @@ export default function OrdensServico() {
           </div>
         )}
 
-        <div className="hidden md:block overflow-x-auto">
-          <table className="table-pro">
+        <div className="hidden md:block">
+          <table className="table-pro table-fixed w-full">
+            <colgroup>
+              <col className="w-[7rem]" />
+              <col className="w-[26%]" />
+              <col className="w-[18%]" />
+              <col className="w-[8rem]" />
+              <col className="w-[8.5rem]" />
+              <col className="w-[10.5rem]" />
+              <col className="w-[9rem]" />
+            </colgroup>
             <thead>
               <tr>
                 <SortableHeader
@@ -178,35 +187,40 @@ export default function OrdensServico() {
                   field="numero"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
                 <SortableHeader
                   label="Cliente"
                   field="cliente_nome"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Veículo
                 </th>
                 <SortableHeader
-                  label="Valor Total"
+                  label="Valor"
                   field="valor_total"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
                 <SortableHeader
                   label="Status"
                   field="status"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
                 <SortableHeader
                   label="Data"
                   field="criado_em"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Ações
                 </th>
               </tr>
@@ -217,41 +231,47 @@ export default function OrdensServico() {
                   key={os.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
+                  <td className="px-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-200">
                     {os.numero}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td
+                    className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 max-w-0 truncate"
+                    title={os.cliente_nome}
+                  >
                     {os.cliente_nome}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td
+                    className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 max-w-0 truncate"
+                    title={`${os.veiculo_modelo} - ${os.veiculo_placa}`}
+                  >
                     {os.veiculo_modelo} - {os.veiculo_placa}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-200">
+                  <td className="px-3 py-4 text-sm font-semibold text-gray-900 dark:text-gray-200 whitespace-nowrap">
                     {formatarMoeda(os.valor_total)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-4">
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(os.status)}`}
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(os.status)}`}
                     >
                       {os.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                     {formatarData(os.criado_em)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex flex-wrap items-center gap-3">
+                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                    <div className="flex flex-col gap-1">
                       <Link
                         to={`/ordens-servico/${os.id}`}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium"
                       >
-                        Ver Detalhes
+                        Detalhes
                       </Link>
                       {isAdmin && (
                         <button
                           type="button"
                           onClick={() => handleExcluirOs(os)}
-                          className="text-red-600 dark:text-red-400 hover:text-red-800 font-medium"
+                          className="text-left text-red-600 dark:text-red-400 hover:text-red-800 font-medium"
                         >
                           Excluir
                         </button>

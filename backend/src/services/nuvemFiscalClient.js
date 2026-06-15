@@ -82,7 +82,18 @@ export async function testarConexao() {
 function formatarErroApi(err) {
   const status = err.response?.status;
   const data = err.response?.data;
-  if (data && typeof data === "object") {
+  if (Buffer.isBuffer(data) || data instanceof ArrayBuffer) {
+    const buf = Buffer.from(data);
+    try {
+      const parsed = JSON.parse(buf.toString("utf8"));
+      const fakeErr = { response: { status, data: parsed } };
+      return formatarErroApi(fakeErr);
+    } catch {
+      const snippet = buf.toString("utf8", 0, 200).trim();
+      if (snippet) return `Nuvem Fiscal HTTP ${status || "?"}: ${snippet}`;
+    }
+  }
+  if (data && typeof data === "object" && !(data instanceof ArrayBuffer)) {
     const msgs = data.mensagens || data.message || data.error;
     const texto = Array.isArray(msgs)
       ? msgs.map((m) => m.descricao || m.message || JSON.stringify(m)).join("; ")
@@ -141,10 +152,13 @@ async function requestNuvemFiscal(method, path, body) {
   }
 }
 
-/** GET binário (PDF/XML) — segue redirects da Nuvem Fiscal */
-async function requestNuvemFiscalBinary(path) {
+/** GET binário (PDF) — segue redirects 302/307 da Nuvem Fiscal */
+async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
   if (!isNuvemFiscalConfigured()) {
     return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+  }
+  if (hops > 6) {
+    return { ok: false, mensagem: "Muitos redirects ao baixar PDF na Nuvem Fiscal." };
   }
   let token;
   try {
@@ -159,35 +173,64 @@ async function requestNuvemFiscalBinary(path) {
   try {
     const cfg = getNuvemFiscalConfig();
     const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
-    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
-    const { data, headers } = await axios({
+    const url =
+      redirectUrl ||
+      `${base}${path.startsWith("/") ? path : `/${path}`}`;
+    const response = await axios({
       method: "GET",
       url,
       responseType: "arraybuffer",
-      maxRedirects: 5,
+      maxRedirects: 0,
+      validateStatus: (s) => s === 200 || s === 302 || s === 307,
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/pdf",
       },
       timeout: 120_000,
+      decompress: true,
     });
-    const buffer = Buffer.from(data);
+
+    if (response.status === 302 || response.status === 307) {
+      const loc = response.headers?.location;
+      if (!loc) {
+        return {
+          ok: false,
+          mensagem: `Nuvem Fiscal redirecionou (${response.status}) sem URL do PDF.`,
+        };
+      }
+      const next =
+        loc.startsWith("http://") || loc.startsWith("https://")
+          ? loc
+          : `${base}${loc.startsWith("/") ? loc : `/${loc}`}`;
+      return requestNuvemFiscalBinary(path, next, hops + 1);
+    }
+
+    const buffer = Buffer.from(response.data);
     const head = buffer.subarray(0, 4).toString("utf8");
     if (head !== "%PDF") {
+      const msg = formatarErroApi({
+        response: { status: response.status, data: buffer },
+      });
       return {
         ok: false,
-        mensagem: "Nuvem Fiscal não retornou um PDF válido para esta nota.",
+        mensagem:
+          msg.includes("Nuvem Fiscal")
+            ? msg
+            : "Nuvem Fiscal não retornou PDF válido. A nota pode estar rejeitada ou em processamento.",
       };
     }
     return {
       ok: true,
       buffer,
-      contentType: headers["content-type"] || "application/pdf",
+      contentType: response.headers["content-type"] || "application/pdf",
     };
   } catch (err) {
     logger.error(
       `Nuvem Fiscal: GET ${path} (pdf) falhou`,
-      err.response?.data || err.message,
+      err.response?.status,
+      err.response?.data
+        ? Buffer.from(err.response.data).toString("utf8", 0, 300)
+        : err.message,
     );
     return {
       ok: false,

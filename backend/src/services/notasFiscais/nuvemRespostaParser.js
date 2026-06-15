@@ -22,11 +22,15 @@ export function mapStatusApiNuvemParaInterno(apiStatus) {
 
   if (
     s === "negada" ||
+    s === "negado" ||
     s === "erro" ||
     s === "rejeitada" ||
+    s === "rejeitado" ||
     s === "denegada" ||
+    s === "denegado" ||
     s === "falha" ||
-    s === "reprovada"
+    s === "reprovada" ||
+    s === "reprovado"
   )
     return "rejeitada";
 
@@ -43,6 +47,8 @@ export function extrairStatusBrutoNuvem(data) {
     data.situacao,
     data.status_nfse,
     data.situacao_nfse,
+    data.status_nfe,
+    data.situacao_nfe,
     data.status_sefaz,
     data.autorizacao?.status,
     data.DPS?.status,
@@ -66,6 +72,10 @@ function nfPareceAutorizada(data) {
 export function resolverStatusNuvem(data) {
   const bruto = extrairStatusBrutoNuvem(data);
   let interno = mapStatusApiNuvemParaInterno(bruto);
+
+  if (bruto && /rejeit|negad|deneg|falha|erro/i.test(String(bruto))) {
+    interno = "rejeitada";
+  }
 
   if (interno === "processamento" && nfPareceAutorizada(data)) {
     interno = "autorizada";

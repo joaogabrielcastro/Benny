@@ -16,6 +16,8 @@ function resolvePdfUrl(nota) {
     return { url: raw, auth: false };
   }
   if (nota.id && nota.id_provedor && nota.status_nf === "autorizada") {
+    const prov = String(nota.status_provedor || "").toLowerCase();
+    if (/rejeit|negad|deneg|erro/.test(prov)) return null;
     return { url: `/notas-fiscais/${nota.id}/pdf`, auth: true };
   }
   if (raw) {
@@ -45,8 +47,21 @@ async function abrirPdf({ url, auth }) {
     const win = window.open(url, "_blank", "noopener,noreferrer");
     if (!win) toast.error("Permita pop-ups para abrir o PDF da nota.");
     else toast("Use Ctrl+P na aba do PDF para imprimir.", { icon: "ℹ️" });
-  } catch {
-    toast.error("Não foi possível baixar o PDF da nota na Nuvem Fiscal.");
+  } catch (err) {
+    let msg = err.response?.data?.error;
+    if (err.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const parsed = JSON.parse(text);
+        msg = parsed.error || parsed.message;
+      } catch {
+        /* ignore */
+      }
+    }
+    toast.error(
+      msg ||
+        "PDF indisponível — nota pode estar rejeitada na SEFAZ. Atualize o status e reemita se necessário.",
+    );
   }
 }
 
