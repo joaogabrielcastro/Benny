@@ -75,12 +75,14 @@ function buildDest(cliente, cfg) {
 function buildDetItens(produtos, cfg) {
   const cfop = cfg.nfeCfop.length === 4 ? cfg.nfeCfop : "5102";
   const csosn = cfg.nfeCsosn.length === 3 ? cfg.nfeCsosn : "103";
-  const ncm = cfg.nfeNcm.length === 8 ? cfg.nfeNcm : "87089990";
+  const ncmPadrao = cfg.nfeNcm.length === 8 ? cfg.nfeNcm : "87089990";
 
   return produtos.map((p, idx) => {
     const qCom = Number(p.quantidade) || 1;
     const vUnCom = round2(p.valor_unitario);
     const vProd = round2(p.valor_total ?? qCom * vUnCom);
+    const ncmRaw = onlyDigits(p.ncm || p.produto_ncm);
+    const ncm = ncmRaw.length === 8 ? ncmRaw : ncmPadrao;
 
     return {
       nItem: idx + 1,
