@@ -1,6 +1,10 @@
 import { forwardRef } from "react";
+import {
+  DEFAULTS_OS,
+  carregarDefaultsImpressao,
+} from "../utils/impressaoDefaults";
 
-const OSImpressao = forwardRef(({ os }, ref) => {
+const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
   const formatarData = (data) => {
     return new Date(data).toLocaleDateString("pt-BR");
   };
@@ -24,6 +28,16 @@ const OSImpressao = forwardRef(({ os }, ref) => {
     os.observacoes_veiculo && os.observacoes_veiculo.trim() !== "";
   const temObservacoesGerais =
     os.observacoes_gerais && os.observacoes_gerais.trim() !== "";
+
+  const textos = {
+    ...DEFAULTS_OS,
+    ...carregarDefaultsImpressao("os"),
+    ...textosImpressao,
+  };
+  const temTermosAdicionais =
+    textos.termosAdicionais && textos.termosAdicionais.trim() !== "";
+  const temMensagemRodape =
+    textos.mensagemRodape && textos.mensagemRodape.trim() !== "";
 
   return (
     <div ref={ref} style={{ display: "none" }} className="os-impressao">
@@ -534,13 +548,30 @@ const OSImpressao = forwardRef(({ os }, ref) => {
         }}
       >
         <p style={{ fontSize: "10px", margin: 0, fontWeight: "bold" }}>
-          Todos os nossos serviços e produtos possuem 3 meses de garantia.
+          {textos.garantia}
         </p>
-        <p
-          style={{ fontSize: "10px", margin: "5px 0 0 0", fontWeight: "bold" }}
-        >
-          Obrigado pela preferência!
-        </p>
+        {temMensagemRodape && (
+          <p
+            style={{
+              fontSize: "10px",
+              margin: "5px 0 0 0",
+              fontWeight: "bold",
+            }}
+          >
+            {textos.mensagemRodape}
+          </p>
+        )}
+        {temTermosAdicionais && (
+          <p
+            style={{
+              fontSize: "9px",
+              margin: "5px 0 0 0",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {textos.termosAdicionais}
+          </p>
+        )}
       </div>
 
       {/* Status e Responsável */}

@@ -5,6 +5,11 @@ import toast from "react-hot-toast";
 import api from "../services/api";
 import OSImpressao from "../components/OSImpressao";
 import Modal from "../components/Modal";
+import PersonalizarImpressaoModal from "../components/PersonalizarImpressaoModal";
+import {
+  carregarDefaultsImpressao,
+  salvarDefaultsImpressao,
+} from "../utils/impressaoDefaults";
 
 export default function OSDetalhes() {
   const { id } = useParams();
@@ -14,6 +19,10 @@ export default function OSDetalhes() {
   const [notaFiscal, setNotaFiscal] = useState(null);
   const [showNFModal, setShowNFModal] = useState(false);
   const [gerandoNF, setGerandoNF] = useState(false);
+  const [showImpressaoModal, setShowImpressaoModal] = useState(false);
+  const [textosImpressao, setTextosImpressao] = useState(() =>
+    carregarDefaultsImpressao("os"),
+  );
   const componentRef = useRef();
 
   useEffect(() => {
@@ -92,6 +101,17 @@ export default function OSDetalhes() {
     contentRef: componentRef,
     documentTitle: `OS_${os?.numero}`,
   });
+
+  const handleAbrirImpressao = () => {
+    setShowImpressaoModal(true);
+  };
+
+  const handleConfirmarImpressao = (textos) => {
+    salvarDefaultsImpressao("os", textos);
+    setTextosImpressao(textos);
+    setShowImpressaoModal(false);
+    setTimeout(() => handleImprimir(), 150);
+  };
 
   const formatarMoeda = (valor) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -176,7 +196,7 @@ export default function OSDetalhes() {
               </button>
             )}
             <button
-              onClick={handleImprimir}
+              onClick={handleAbrirImpressao}
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl hover:shadow-lg transition-all font-semibold flex items-center gap-2"
             >
               🖨️ Imprimir
@@ -477,7 +497,14 @@ export default function OSDetalhes() {
       )}
 
       {/* Componente de Impressão (oculto) */}
-      <OSImpressao ref={componentRef} os={os} />
+      <OSImpressao ref={componentRef} os={os} textosImpressao={textosImpressao} />
+
+      <PersonalizarImpressaoModal
+        isOpen={showImpressaoModal}
+        onClose={() => setShowImpressaoModal(false)}
+        tipo="os"
+        onConfirmar={handleConfirmarImpressao}
+      />
 
       {/* Modal de Nota Fiscal */}
       {notaFiscal && (

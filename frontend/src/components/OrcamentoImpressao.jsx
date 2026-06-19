@@ -1,6 +1,10 @@
 import { forwardRef, useImperativeHandle } from "react";
+import {
+  DEFAULTS_ORCAMENTO,
+  carregarDefaultsImpressao,
+} from "../utils/impressaoDefaults";
 
-const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
+const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
   // Expor método imprimir para o componente pai
   useImperativeHandle(ref, () => ({
     imprimir: () => {
@@ -34,6 +38,14 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
     orcamento.observacoes_veiculo.trim() !== "";
   const temObservacoesGerais =
     orcamento.observacoes_gerais && orcamento.observacoes_gerais.trim() !== "";
+
+  const textos = {
+    ...DEFAULTS_ORCAMENTO,
+    ...carregarDefaultsImpressao("orcamento"),
+    ...textosImpressao,
+  };
+  const temTermosAdicionais =
+    textos.termosAdicionais && textos.termosAdicionais.trim() !== "";
 
   return (
     <div ref={ref} style={{ display: "none" }} className="orcamento-impressao">
@@ -538,14 +550,21 @@ const OrcamentoImpressao = forwardRef(({ orcamento }, ref) => {
         <p style={{ margin: "0 0 2px 0", fontWeight: "bold" }}>
           VALIDADE DO ORÇAMENTO:
         </p>
-        <p style={{ margin: "0 0 4px 0" }}>
-          Este orçamento tem validade de 7 dias corridos a partir da data de
-          emissão.
-        </p>
+        <p style={{ margin: "0 0 4px 0" }}>{textos.validadeOrcamento}</p>
         <p style={{ margin: "0 0 2px 0", fontWeight: "bold" }}>GARANTIA:</p>
-        <p style={{ margin: 0 }}>
-          Todos os nossos serviços e produtos possuem 3 meses de garantia.
+        <p style={{ margin: temTermosAdicionais ? "0 0 4px 0" : 0 }}>
+          {textos.garantia}
         </p>
+        {temTermosAdicionais && (
+          <>
+            <p style={{ margin: "0 0 2px 0", fontWeight: "bold" }}>
+              TERMOS ADICIONAIS:
+            </p>
+            <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+              {textos.termosAdicionais}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Área de Assinatura */}
