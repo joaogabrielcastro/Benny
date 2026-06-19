@@ -3,6 +3,11 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import OrcamentoImpressao from "../components/OrcamentoImpressao";
+import PersonalizarImpressaoModal from "../components/PersonalizarImpressaoModal";
+import {
+  carregarDefaultsImpressao,
+  salvarDefaultsImpressao,
+} from "../utils/impressaoDefaults";
 import PageHeader from "../components/layout/PageHeader";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useConfirm } from "../hooks/useConfirm";
@@ -15,7 +20,12 @@ export default function OrcamentoDetalhes() {
   const navigate = useNavigate();
   const [orcamento, setOrcamento] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showImpressaoModal, setShowImpressaoModal] = useState(false);
+  const [textosImpressao, setTextosImpressao] = useState(() =>
+    carregarDefaultsImpressao("orcamento"),
+  );
   const impressaoRef = useRef();
+  const pendingPrint = useRef(false);
   const { confirm, dialogState, handleClose } = useConfirm();
 
   useEffect(() => {
@@ -92,17 +102,33 @@ export default function OrcamentoDetalhes() {
   };
 
   const handleImprimir = () => {
-    if (impressaoRef.current) {
-      impressaoRef.current.imprimir();
-    }
+    setShowImpressaoModal(true);
   };
+
+  const handleConfirmarImpressao = (textos) => {
+    salvarDefaultsImpressao("orcamento", textos);
+    setTextosImpressao(textos);
+    setShowImpressaoModal(false);
+    pendingPrint.current = true;
+  };
+
+  useEffect(() => {
+    if (pendingPrint.current && impressaoRef.current) {
+      pendingPrint.current = false;
+      setTimeout(() => impressaoRef.current.imprimir(), 150);
+    }
+  }, [textosImpressao]);
 
   if (loading) {
     return <LoadingSpinner size="xl" />;
   }
 
   if (!orcamento) {
-    return <div className="text-center py-8 text-slate-500">Orçamento não encontrado</div>;
+    return (
+      <div className="text-center py-8 text-slate-500">
+        Orçamento não encontrado
+      </div>
+    );
   }
 
   const statusBadge = (
@@ -121,6 +147,26 @@ export default function OrcamentoDetalhes() {
         badge={statusBadge}
         actions={
           <>
+            <button
+              type="button"
+              onClick={handleImprimir}
+              className="btn-secondary"
+              title="Imprimir/Baixar PDF"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Imprimir
+            </button>
             {orcamento.status === "Pendente" && (
               <>
                 <Link to={`/orcamentos/${id}/editar`} className="btn-secondary">
@@ -128,38 +174,18 @@ export default function OrcamentoDetalhes() {
                 </Link>
                 <button
                   type="button"
-                  onClick={handleImprimir}
-                  className="btn-secondary"
-                  title="Imprimir/Baixar PDF"
-                >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                  Imprimir
-                </button>
-                <button
-                  type="button"
                   onClick={handleCompartilharWhatsApp}
                   className="btn-success"
                   title="WhatsApp"
                 >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                </svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                  </svg>
                   WhatsApp
                 </button>
                 <button
@@ -168,14 +194,14 @@ export default function OrcamentoDetalhes() {
                   className="btn-secondary"
                   title="Copiar link"
                 >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                </svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                  </svg>
                   Copiar link
                 </button>
                 <button
@@ -279,7 +305,6 @@ export default function OrcamentoDetalhes() {
         )}
       </div>
 
-      {/* Produtos */}
       {orcamento.produtos && orcamento.produtos.length > 0 && (
         <div className="pro-card p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -345,7 +370,6 @@ export default function OrcamentoDetalhes() {
         </div>
       )}
 
-      {/* Serviços */}
       {orcamento.servicos && orcamento.servicos.length > 0 && (
         <div className="pro-card p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -411,7 +435,6 @@ export default function OrcamentoDetalhes() {
         </div>
       )}
 
-      {/* Observações Gerais */}
       {orcamento.observacoes_gerais && (
         <div className="pro-card p-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
@@ -423,8 +446,18 @@ export default function OrcamentoDetalhes() {
         </div>
       )}
 
-      {/* Componente de impressão (oculto) */}
-      <OrcamentoImpressao ref={impressaoRef} orcamento={orcamento} />
+      <OrcamentoImpressao
+        ref={impressaoRef}
+        orcamento={orcamento}
+        textosImpressao={textosImpressao}
+      />
+
+      <PersonalizarImpressaoModal
+        isOpen={showImpressaoModal}
+        onClose={() => setShowImpressaoModal(false)}
+        tipo="orcamento"
+        onConfirmar={handleConfirmarImpressao}
+      />
 
       <ConfirmDialog
         open={!!dialogState}

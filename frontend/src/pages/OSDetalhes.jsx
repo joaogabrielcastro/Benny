@@ -6,6 +6,11 @@ import api from "../services/api";
 import { useOrdemServicoQuery } from "../hooks/os/useOrdemServicoQuery";
 import { useNotasFiscaisOs } from "../hooks/os/useNotasFiscaisOs";
 import OSImpressao from "../components/OSImpressao";
+import PersonalizarImpressaoModal from "../components/PersonalizarImpressaoModal";
+import {
+  carregarDefaultsImpressao,
+  salvarDefaultsImpressao,
+} from "../utils/impressaoDefaults";
 import OSDetalhesAcoes from "../features/os/OSDetalhesAcoes";
 import { useAuth } from "../contexts/AuthContext";
 import ClienteEnderecoNfseBlock from "../features/os/ClienteEnderecoNfseBlock";
@@ -22,6 +27,10 @@ export default function OSDetalhes() {
   const { isAdmin } = useAuth();
   const { id } = useParams();
   const [editarClienteAberto, setEditarClienteAberto] = useState(false);
+  const [showImpressaoModal, setShowImpressaoModal] = useState(false);
+  const [textosImpressao, setTextosImpressao] = useState(() =>
+    carregarDefaultsImpressao("os"),
+  );
   const {
     os,
     loading,
@@ -63,6 +72,17 @@ export default function OSDetalhes() {
     documentTitle: `OS_${os?.numero}`,
   });
 
+  const handleAbrirImpressao = () => {
+    setShowImpressaoModal(true);
+  };
+
+  const handleConfirmarImpressao = (textos) => {
+    salvarDefaultsImpressao("os", textos);
+    setTextosImpressao(textos);
+    setShowImpressaoModal(false);
+    setTimeout(() => handleImprimir(), 150);
+  };
+
   const motivoEnderecoNf = useMemo(() => {
     const cepOk =
       String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
@@ -81,7 +101,9 @@ export default function OSDetalhes() {
   }
 
   if (!os) {
-    return <div className="text-center py-8 text-slate-500">OS não encontrada</div>;
+    return (
+      <div className="text-center py-8 text-slate-500">OS não encontrada</div>
+    );
   }
 
   return (
@@ -108,7 +130,7 @@ export default function OSDetalhes() {
         onGerarNF={nf.handleGerarNF}
         onShowNFModal={nf.setShowNFModal}
         onAtualizarStatus={handleAtualizarStatus}
-        onImprimir={handleImprimir}
+        onImprimir={handleAbrirImpressao}
         isAdmin={isAdmin}
       />
 
@@ -248,7 +270,6 @@ export default function OSDetalhes() {
         </div>
       </div>
 
-      {/* Produtos Utilizados */}
       {os.produtos && os.produtos.length > 0 && (
         <div className="pro-card p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -317,7 +338,6 @@ export default function OSDetalhes() {
         </div>
       )}
 
-      {/* Serviços Realizados */}
       {os.servicos && os.servicos.length > 0 && (
         <div className="pro-card p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -406,7 +426,6 @@ export default function OSDetalhes() {
         </div>
       )}
 
-      {/* Responsável Técnico */}
       {os.responsavel_tecnico && (
         <div className="pro-card p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -418,8 +437,18 @@ export default function OSDetalhes() {
         </div>
       )}
 
-      {/* Componente de Impressão (oculto) */}
-      <OSImpressao ref={componentRef} os={os} />
+      <OSImpressao
+        ref={componentRef}
+        os={os}
+        textosImpressao={textosImpressao}
+      />
+
+      <PersonalizarImpressaoModal
+        isOpen={showImpressaoModal}
+        onClose={() => setShowImpressaoModal(false)}
+        tipo="os"
+        onConfirmar={handleConfirmarImpressao}
+      />
 
       {isAdmin && (
         <NotaFiscalModal

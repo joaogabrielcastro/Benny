@@ -15,6 +15,21 @@ export default function OrcamentoPublico() {
     carregarOrcamento();
   }, [id]);
 
+  // Página pública sempre em tema claro (legível para o cliente)
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+
+    return () => {
+      const saved = localStorage.getItem("theme");
+      const prefersDark =
+        saved === "dark" ||
+        (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      if (prefersDark) {
+        document.documentElement.classList.add("dark");
+      }
+    };
+  }, []);
+
   const carregarOrcamento = async () => {
     try {
       const response = await api.get(`/orcamentos/v/${id}`);
@@ -105,12 +120,12 @@ export default function OrcamentoPublico() {
   const statusEfetivo = aprovacaoLocal?.status ?? orcamento.status;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 text-gray-900">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-t-2xl shadow-xl p-8 border-b-4 border-blue-600">
+        <div className="bg-white rounded-t-2xl shadow-xl p-6 sm:p-8 border-b-4 border-blue-600">
           <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold text-blue-600 mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold text-blue-700 mb-2">
               BENNY'S MOTORSPORT
             </h1>
             <p className="text-gray-600">
@@ -118,17 +133,17 @@ export default function OrcamentoPublico() {
             </p>
           </div>
 
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Orçamento {orcamento.numero}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mt-1">
                 Data:{" "}
                 {new Date(orcamento.criado_em).toLocaleDateString("pt-BR")}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleImprimir}
                 className="no-print px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold transition-all flex items-center gap-2"
@@ -164,74 +179,102 @@ export default function OrcamentoPublico() {
         </div>
 
         {/* Conteúdo */}
-        <div className="bg-white shadow-xl p-8">
+        <div className="bg-white shadow-xl p-6 sm:p-8 text-gray-900">
           {/* Cliente e Veículo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-blue-50 p-6 rounded-lg">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
+            <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Dados do Cliente
               </h3>
-              <p className="mb-2">
-                <strong>Nome:</strong> {orcamento.cliente_nome}
-              </p>
-              <p className="mb-2">
-                <strong>Telefone:</strong> {orcamento.cliente_telefone}
-              </p>
-              {orcamento.cliente_cpf_cnpj && (
+              <div className="space-y-2 text-gray-900">
                 <p>
-                  <strong>CPF/CNPJ:</strong> {orcamento.cliente_cpf_cnpj}
+                  <span className="font-semibold text-gray-700">Nome:</span>{" "}
+                  {orcamento.cliente_nome || "—"}
                 </p>
-              )}
+                <p>
+                  <span className="font-semibold text-gray-700">Telefone:</span>{" "}
+                  {orcamento.cliente_telefone || "—"}
+                </p>
+                {orcamento.cliente_cpf_cnpj && (
+                  <p>
+                    <span className="font-semibold text-gray-700">
+                      CPF/CNPJ:
+                    </span>{" "}
+                    {orcamento.cliente_cpf_cnpj}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="bg-indigo-50 p-6 rounded-lg">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
+            <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Dados do Veículo
               </h3>
-              <p className="mb-2">
-                <strong>Modelo:</strong> {orcamento.veiculo_modelo}
-              </p>
-              <p className="mb-2">
-                <strong>Placa:</strong> {orcamento.veiculo_placa}
-              </p>
-              <p className="mb-2">
-                <strong>Cor:</strong> {orcamento.veiculo_cor}
-              </p>
-              {orcamento.km && (
+              <div className="space-y-2 text-gray-900">
                 <p>
-                  <strong>KM:</strong> {orcamento.km.toLocaleString()}
+                  <span className="font-semibold text-gray-700">Modelo:</span>{" "}
+                  {[orcamento.veiculo_marca, orcamento.veiculo_modelo]
+                    .filter(Boolean)
+                    .join(" ") || "—"}
                 </p>
-              )}
+                <p>
+                  <span className="font-semibold text-gray-700">Placa:</span>{" "}
+                  {orcamento.veiculo_placa || "—"}
+                </p>
+                <p>
+                  <span className="font-semibold text-gray-700">Cor:</span>{" "}
+                  {orcamento.veiculo_cor || "—"}
+                </p>
+                {orcamento.km != null && (
+                  <p>
+                    <span className="font-semibold text-gray-700">KM:</span>{" "}
+                    {Number(orcamento.km).toLocaleString("pt-BR")}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Produtos */}
           {orcamento.produtos && orcamento.produtos.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4 border-b-2 border-gray-300 pb-2">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 border-b-2 border-gray-300 pb-2">
                 Peças e Produtos
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-gray-900">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-3 text-left">Descrição</th>
-                      <th className="px-4 py-3 text-center">Qtd</th>
-                      <th className="px-4 py-3 text-right">Valor Unit.</th>
-                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-800">
+                        Descrição
+                      </th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-800">
+                        Qtd
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-800">
+                        Valor Unit.
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-800">
+                        Total
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white">
                     {orcamento.produtos.map((produto, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-3">{produto.descricao}</td>
-                        <td className="px-4 py-3 text-center">
+                      <tr
+                        key={index}
+                        className="border-t border-gray-200 even:bg-gray-50"
+                      >
+                        <td className="px-4 py-3 text-gray-900">
+                          {produto.descricao}
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-900">
                           {produto.quantidade}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right text-gray-900">
                           {formatarMoeda(produto.valor_unitario)}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold">
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900">
                           {formatarMoeda(produto.valor_total)}
                         </td>
                       </tr>
@@ -245,30 +288,43 @@ export default function OrcamentoPublico() {
           {/* Serviços */}
           {orcamento.servicos && orcamento.servicos.length > 0 && (
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4 border-b-2 border-gray-300 pb-2">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 border-b-2 border-gray-300 pb-2">
                 Serviços
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-gray-900">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-3 text-left">Descrição</th>
-                      <th className="px-4 py-3 text-center">Qtd</th>
-                      <th className="px-4 py-3 text-right">Valor Unit.</th>
-                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-800">
+                        Descrição
+                      </th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-800">
+                        Qtd
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-800">
+                        Valor Unit.
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-800">
+                        Total
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white">
                     {orcamento.servicos.map((servico, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-3">{servico.descricao}</td>
-                        <td className="px-4 py-3 text-center">
+                      <tr
+                        key={index}
+                        className="border-t border-gray-200 even:bg-gray-50"
+                      >
+                        <td className="px-4 py-3 text-gray-900">
+                          {servico.descricao}
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-900">
                           {servico.quantidade}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right text-gray-900">
                           {formatarMoeda(servico.valor_unitario)}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold">
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900">
                           {formatarMoeda(servico.valor_total)}
                         </td>
                       </tr>
@@ -281,35 +337,35 @@ export default function OrcamentoPublico() {
 
           {/* Observações */}
           {orcamento.observacoes_gerais && (
-            <div className="mb-8 bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-lg font-bold text-gray-800 mb-3">
+            <div className="mb-8 bg-slate-50 border border-slate-200 p-6 rounded-lg">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
                 Observações
               </h3>
-              <p className="text-gray-700 whitespace-pre-wrap">
+              <p className="text-gray-800 whitespace-pre-wrap">
                 {orcamento.observacoes_gerais}
               </p>
             </div>
           )}
 
           {/* Totais */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-lg">
+          <div className="bg-blue-50 border border-blue-200 p-6 sm:p-8 rounded-lg">
             <div className="flex justify-end items-center">
-              <div className="text-right">
-                <p className="text-gray-700 text-lg mb-2">
+              <div className="text-right text-gray-900">
+                <p className="text-lg mb-2">
                   Produtos:{" "}
                   <span className="font-semibold">
                     {formatarMoeda(orcamento.valor_produtos || 0)}
                   </span>
                 </p>
-                <p className="text-gray-700 text-lg mb-4">
+                <p className="text-lg mb-4">
                   Serviços:{" "}
                   <span className="font-semibold">
                     {formatarMoeda(orcamento.valor_servicos || 0)}
                   </span>
                 </p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold">
                   VALOR TOTAL:{" "}
-                  <span className="text-blue-600">
+                  <span className="text-blue-700">
                     {formatarMoeda(orcamento.valor_total || 0)}
                   </span>
                 </p>
@@ -371,7 +427,7 @@ export default function OrcamentoPublico() {
         {statusEfetivo !== "Pendente" && (
           <div className="bg-white rounded-b-2xl shadow-xl p-8">
             <div className="text-center">
-              <p className="text-xl text-gray-700">
+              <p className="text-xl text-gray-800">
                 {statusEfetivo === "Aprovado"
                   ? aprovacaoLocal?.osNumero
                     ? `Orçamento aprovado! OS ${aprovacaoLocal.osNumero} registrada. Em breve entraremos em contato.`
