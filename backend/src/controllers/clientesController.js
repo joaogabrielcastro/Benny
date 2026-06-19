@@ -1,53 +1,47 @@
-import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
+import { resolveTenantId } from "../config/singleTenant.js";
 import clientesService from "../services/clientesService.js";
-import logger from "../config/logger.js";
+import { notFound } from "../lib/AppError.js";
+import { sendPaginated } from "../lib/paginationResponse.js";
 
 class ClientesController {
   async listar(req, res) {
-    try {
-      const rows = await clientesService.listar(SINGLE_TENANT_ID, req.query.busca);
-      res.json(rows);
-    } catch (error) {
-      logger.error("Erro ao listar clientes:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const tenantId = resolveTenantId(req);
+    const { limit, offset, page } = req.pagination;
+    const busca = req.query.busca || req.validated?.query?.busca;
+
+    const { rows, total } = await clientesService.listar(tenantId, {
+      busca,
+      limit,
+      offset,
+    });
+    sendPaginated(res, { rows, total, page, limit });
   }
 
   async buscar(req, res) {
-    try {
-      const cliente = await clientesService.buscarPorId(
-        SINGLE_TENANT_ID,
-        req.params.id,
-      );
-      if (!cliente)
-        return res.status(404).json({ error: "Cliente não encontrado" });
-      res.json(cliente);
-    } catch (error) {
-      logger.error(`Erro ao buscar cliente ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    const cliente = await clientesService.buscarPorId(
+      resolveTenantId(req),
+      req.params.id,
+    );
+    if (!cliente) throw notFound("Cliente não encontrado");
+    res.json(cliente);
   }
 
   async criar(req, res) {
-    try {
-      const cliente = await clientesService.criar(SINGLE_TENANT_ID, req.body);
-      res
-        .status(201)
-        .json({ id: cliente.id, message: "Cliente criado com sucesso" });
-    } catch (error) {
-      logger.error("Erro ao criar cliente:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const body = req.validated?.body ?? req.body;
+    const cliente = await clientesService.criar(resolveTenantId(req), body);
+    res
+      .status(201)
+      .json({ id: cliente.id, message: "Cliente criado com sucesso" });
   }
 
   async atualizar(req, res) {
-    try {
-      await clientesService.atualizar(SINGLE_TENANT_ID, req.params.id, req.body);
-      res.json({ message: "Cliente atualizado com sucesso" });
-    } catch (error) {
-      logger.error(`Erro ao atualizar cliente ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    const body = req.validated?.body ?? req.body;
+    await clientesService.atualizar(
+      resolveTenantId(req),
+      req.params.id,
+      body,
+    );
+    res.json({ message: "Cliente atualizado com sucesso" });
   }
 }
 

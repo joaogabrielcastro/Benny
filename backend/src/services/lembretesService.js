@@ -20,10 +20,27 @@ const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
     paramIndex++;
   }
 
-  query += " ORDER BY data_lembrete DESC";
+  let countQuery = "SELECT COUNT(*)::int AS total FROM lembretes WHERE tenant_id = $1";
+  const countParams = [tenantId];
+  let ci = 2;
+  if (tipo) {
+    countQuery += ` AND tipo = $${ci++}`;
+    countParams.push(tipo);
+  }
+  if (enviado !== undefined) {
+    countQuery += ` AND enviado = $${ci++}`;
+    countParams.push(enviado === "true");
+  }
+  const countRes = await pool.query(countQuery, countParams);
+  const total = countRes.rows[0]?.total ?? 0;
+
+  const limit = filtros.limit ?? 20;
+  const offset = filtros.offset ?? 0;
+  query += ` ORDER BY data_lembrete DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  params.push(limit, offset);
 
   const result = await pool.query(query, params);
-  return result.rows;
+  return { rows: result.rows, total };
 };
 
 const hoje = async (tenantId = SINGLE_TENANT_ID) => {

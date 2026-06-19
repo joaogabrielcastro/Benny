@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import api from "../services/api";
+import { normalizeRole, isAdmin, isMecanico, roleLabel } from "../utils/roles";
 
 const AuthContext = createContext(null);
 
@@ -14,7 +15,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem("auth_user");
-      return stored ? JSON.parse(stored) : null;
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return parsed ? { ...parsed, role: normalizeRole(parsed.role) } : null;
     } catch {
       return null;
     }
@@ -32,8 +35,12 @@ export function AuthProvider({ children }) {
     }
 
     localStorage.setItem("auth_token", auth.token);
-    localStorage.setItem("auth_user", JSON.stringify(auth.user));
-    setUser(auth.user);
+    const userWithRole = {
+      ...auth.user,
+      role: normalizeRole(auth.user.role),
+    };
+    localStorage.setItem("auth_user", JSON.stringify(userWithRole));
+    setUser(userWithRole);
     return auth;
   }, []);
 
@@ -46,8 +53,21 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const role = normalizeRole(user?.role);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        role,
+        isAuthenticated,
+        isAdmin: isAdmin(user),
+        isMecanico: isMecanico(user),
+        roleLabel: roleLabel(role),
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

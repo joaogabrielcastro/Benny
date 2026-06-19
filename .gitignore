@@ -23,6 +23,7 @@ dist/
 build/
 .vite/
 out/
+frontend/dev-dist/
 
 # IDEs e Editores
 .vscode/

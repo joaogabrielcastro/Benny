@@ -2,60 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+@layer base {
+  :root {
+    --color-brand: 37 99 235;
+    --radius-card: 0.875rem;
+  }
 
-/* Animações */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+  html {
+    scroll-behavior: smooth;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
+  body {
+    @apply font-sans antialiased text-slate-800 bg-slate-50;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+
+  .dark body {
+    @apply text-slate-200 bg-slate-950;
+  }
+
+  ::selection {
+    @apply bg-brand-500/25 text-brand-950;
   }
 }
 
-@keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
+@layer components {
+  .app-shell {
+    @apply min-h-screen bg-slate-50 dark:bg-slate-950;
   }
-  10%, 30%, 50%, 70%, 90% {
-    transform: translateX(-5px);
+
+  .pro-card {
+    @apply bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-card;
   }
-  20%, 40%, 60%, 80% {
-    transform: translateX(5px);
+
+  .pro-card-hover {
+    @apply pro-card transition-all duration-200 hover:shadow-card-hover hover:border-slate-300/80 dark:hover:border-slate-700;
   }
-}
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
-}
+  .input-pro {
+    @apply w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900
+      text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500
+      px-3.5 py-2.5 text-sm shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500
+      transition-colors;
+  }
 
-.animate-fade-in {
-  animation: fade-in 0.5s ease-out;
-}
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
+      bg-brand-600 text-white shadow-sm
+      hover:bg-brand-700 active:bg-brand-800
+      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
+      disabled:opacity-50 disabled:pointer-events-none transition-colors;
+  }
 
-.animate-shake {
-  animation: shake 0.5s ease-in-out;
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium
+      bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200
+      border border-slate-200 dark:border-slate-700 shadow-sm
+      hover:bg-slate-50 dark:hover:bg-slate-700
+      focus:outline-none focus:ring-2 focus:ring-slate-400/30
+      disabled:opacity-50 transition-colors;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
+      text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
+      bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500/40 transition-colors;
+  }
+
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
+      bg-emerald-600 text-white hover:bg-emerald-700 transition-colors;
+  }
+
+  .table-pro {
+    @apply w-full text-sm text-left;
+  }
+
+  .table-pro thead {
+    @apply bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider;
+  }
+
+  .table-pro th {
+    @apply px-4 py-3 font-semibold;
+  }
+
+  .table-pro td {
+    @apply px-4 py-3.5 border-t border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300;
+  }
+
+  .table-pro tbody tr {
+    @apply hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset;
+  }
+
+  .page-enter {
+    @apply animate-fade-in;
+  }
 }
 
 @media print {

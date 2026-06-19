@@ -1,45 +1,34 @@
 import express from "express";
 import produtosController from "../controllers/produtosController.js";
+import { requireRole } from "../middleware/requireRole.js";
+import { ROLES } from "../config/roles.js";
 import { paginate } from "../middleware/paginate.js";
-import { body, validationResult } from "express-validator";
+import { validate } from "../lib/validate.js";
+import { ah } from "../lib/routeUtils.js";
+import {
+  createProdutoSchema,
+  updateProdutoSchema,
+} from "../schemas/produtoSchemas.js";
 
 const router = express.Router();
+const adminOnly = requireRole(ROLES.ADMIN);
 
-const validateProduto = [
-  body("nome").notEmpty().withMessage("Nome é obrigatório"),
-  body("codigo").optional().isString(),
-  body("quantidade")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Quantidade inválida"),
-  body("valor_venda")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("Valor de venda inválido"),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty())
-      return res.status(400).json({ errors: errors.array() });
-    next();
-  },
-];
-
-router.get("/", paginate, produtosController.listar.bind(produtosController));
-router.get(
-  "/alertas/estoque-baixo",
-  produtosController.estoqueBaixo.bind(produtosController),
-);
-router.get(
-  "/diagnostico/verificar",
-  produtosController.diagnostico.bind(produtosController),
-);
-router.get("/:id", produtosController.buscar.bind(produtosController));
+router.get("/", paginate, ah(produtosController, "listar"));
+router.get("/alertas/estoque-baixo", ah(produtosController, "estoqueBaixo"));
+router.get("/diagnostico/verificar", adminOnly, ah(produtosController, "diagnostico"));
+router.get("/:id", ah(produtosController, "buscar"));
 router.post(
   "/",
-  validateProduto,
-  produtosController.criar.bind(produtosController),
+  adminOnly,
+  validate(createProdutoSchema),
+  ah(produtosController, "criar"),
 );
-router.put("/:id", produtosController.atualizar.bind(produtosController));
-router.delete("/:id", produtosController.deletar.bind(produtosController));
+router.put(
+  "/:id",
+  adminOnly,
+  validate(updateProdutoSchema),
+  ah(produtosController, "atualizar"),
+);
+router.delete("/:id", adminOnly, ah(produtosController, "deletar"));
 
 export default router;

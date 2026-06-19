@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import { unwrapListResponse } from "../utils/apiList";
 import LoadingSpinner from "../components/LoadingSpinner";
+import PageHeader from "../components/layout/PageHeader";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
+import { useAuth } from "../contexts/AuthContext";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
@@ -20,6 +25,8 @@ import {
 } from "react-icons/fi";
 
 export default function Agendamentos() {
+  const { isAdmin } = useAuth();
+  const { confirm, dialogState, handleClose } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [agendamentos, setAgendamentos] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -44,8 +51,9 @@ export default function Agendamentos() {
       if (filtros.data_fim) params.append("data_fim", filtros.data_fim);
       if (filtros.status) params.append("status", filtros.status);
 
+      params.append("limit", "500");
       const response = await api.get(`/agendamentos?${params}`);
-      setAgendamentos(response.data);
+      setAgendamentos(unwrapListResponse(response.data));
     } catch (error) {
       console.error("Erro ao carregar agendamentos:", error);
       toast.error("Erro ao carregar agendamentos");
@@ -75,7 +83,12 @@ export default function Agendamentos() {
   };
 
   const handleDeletar = async (id) => {
-    if (!confirm("Tem certeza que deseja deletar este agendamento?")) return;
+    const ok = await confirm({
+      title: "Excluir agendamento",
+      message: "Tem certeza que deseja excluir este agendamento?",
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
 
     try {
       await api.delete(`/agendamentos/${id}`);
@@ -118,23 +131,29 @@ export default function Agendamentos() {
   if (loading) return <LoadingSpinner size="xl" />;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Agendamentos
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Gerencie os agendamentos da oficina
-          </p>
-        </div>
-        <Button onClick={abrirModalNovo} icon={FiPlus} className="w-full sm:w-auto">
-          Novo Agendamento
-        </Button>
-      </div>
+    <div className="page-enter space-y-6">
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel={dialogState?.cancelLabel}
+        onCancel={() => handleClose(false)}
+        onConfirm={() => handleClose(true)}
+      />
 
-      {/* Filtros */}
+      <PageHeader
+        title="Agendamentos"
+        subtitle="Gerencie os agendamentos da oficina."
+        actions={
+          isAdmin ? (
+            <Button onClick={abrirModalNovo} icon={FiPlus} className="w-full sm:w-auto">
+              Novo agendamento
+            </Button>
+          ) : null
+        }
+      />
+
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input
@@ -300,20 +319,24 @@ export default function Agendamentos() {
                       title="Concluir"
                     />
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => abrirModalEditar(agendamento)}
-                    icon={FiEdit2}
-                    className="flex-1 md:flex-none"
-                  />
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleDeletar(agendamento.id)}
-                    icon={FiTrash2}
-                    className="flex-1 md:flex-none"
-                  />
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => abrirModalEditar(agendamento)}
+                      icon={FiEdit2}
+                      className="flex-1 md:flex-none"
+                    />
+                  )}
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeletar(agendamento.id)}
+                      icon={FiTrash2}
+                      className="flex-1 md:flex-none"
+                    />
+                  )}
                 </div>
               </div>
             </Card>

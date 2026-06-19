@@ -78,7 +78,7 @@ async function initDatabase() {
         nome VARCHAR(255) NOT NULL,
         email VARCHAR(255) NOT NULL,
         senha_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'user',
+        role VARCHAR(50) DEFAULT 'admin',
         ativo BOOLEAN DEFAULT TRUE,
         ultimo_login TIMESTAMP,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -119,23 +119,6 @@ async function initDatabase() {
       )
     `);
 
-    // Garantir colunas de recorrência em bancos existentes
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS frequencia VARCHAR(20)`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS intervalo INTEGER DEFAULT 1`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS data_termino DATE`,
-    );
-    await client.query(
-      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrencia_origem_id INTEGER`,
-    );
-
     // Tabela de Clientes
     await client.query(`
       CREATE TABLE IF NOT EXISTS clientes (
@@ -151,7 +134,8 @@ async function initDatabase() {
         bairro VARCHAR(100),
         cidade VARCHAR(100),
         estado VARCHAR(2),
-        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -415,6 +399,23 @@ async function initDatabase() {
       )
     `);
 
+    // Garantir colunas de recorrência em bancos existentes (após CREATE TABLE)
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS frequencia VARCHAR(20)`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS intervalo INTEGER DEFAULT 1`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS data_termino DATE`,
+    );
+    await client.query(
+      `ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS recorrencia_origem_id INTEGER`,
+    );
+
     // Tabela de Lembretes
     await client.query(`
       CREATE TABLE IF NOT EXISTS lembretes (
@@ -441,6 +442,16 @@ async function initDatabase() {
       ADD COLUMN IF NOT EXISTS bairro VARCHAR(100),
       ADD COLUMN IF NOT EXISTS cidade VARCHAR(100),
       ADD COLUMN IF NOT EXISTS estado VARCHAR(2);
+    `);
+
+    await client.query(`
+      ALTER TABLE clientes
+      ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `);
+
+    await client.query(`
+      ALTER TABLE clientes
+      ADD COLUMN IF NOT EXISTS codigo_ibge VARCHAR(7)
     `);
 
     await client.query(`
@@ -473,6 +484,103 @@ async function initDatabase() {
       ON lembretes(enviado);
     `);
 
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_orcamento_produtos_orcamento_id
+      ON orcamento_produtos(orcamento_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_orcamento_servicos_orcamento_id
+      ON orcamento_servicos(orcamento_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_os_produtos_os_id ON os_produtos(os_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_os_servicos_os_id ON os_servicos(os_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_veiculos_cliente_id ON veiculos(cliente_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_movimentacoes_os_id ON movimentacoes_estoque(os_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_movimentacoes_orcamento_id
+      ON movimentacoes_estoque(orcamento_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_criado_em
+      ON ordens_servico(criado_em DESC)
+    `);
+
+    // ── Notas fiscais (integração Nuvem Fiscal / NFS-e) ───────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notas_fiscais (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL DEFAULT 1 REFERENCES tenants(id) ON DELETE CASCADE,
+        ordem_servico_id INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
+        modelo_documento VARCHAR(20) NOT NULL DEFAULT 'NFSE',
+        provedor VARCHAR(40) NOT NULL DEFAULT 'nuvem_fiscal',
+        status VARCHAR(40) NOT NULL DEFAULT 'configuracao_pendente',
+        id_provedor VARCHAR(120),
+        chave_acesso VARCHAR(60),
+        numero VARCHAR(50),
+        serie VARCHAR(20),
+        protocolo VARCHAR(120),
+        valor_total DECIMAL(12,2) NOT NULL DEFAULT 0,
+        tributos JSONB NOT NULL DEFAULT '{}'::jsonb,
+        dados_envio JSONB NOT NULL DEFAULT '{}'::jsonb,
+        dados_resposta JSONB NOT NULL DEFAULT '{}'::jsonb,
+        link_pdf TEXT,
+        link_xml TEXT,
+        mensagem_status TEXT,
+        data_emissao TIMESTAMPTZ,
+        criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT uq_notas_fiscais_tenant_os UNIQUE (tenant_id, ordem_servico_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_notas_fiscais_tenant ON notas_fiscais(tenant_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_notas_fiscais_status ON notas_fiscais(status)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_notas_fiscais_provedor_id ON notas_fiscais(id_provedor)
+    `);
+
+    await client.query(`
+      ALTER TABLE notas_fiscais
+      DROP CONSTRAINT IF EXISTS uq_notas_fiscais_tenant_os
+    `);
+    await client.query(`
+      ALTER TABLE notas_fiscais
+      DROP CONSTRAINT IF EXISTS uq_notas_fiscais_tenant_os_modelo
+    `);
+    await client.query(`
+      ALTER TABLE notas_fiscais
+      ADD CONSTRAINT uq_notas_fiscais_tenant_os_modelo
+      UNIQUE (tenant_id, ordem_servico_id, modelo_documento)
+    `);
+
+    await client.query(`
+      ALTER TABLE ordens_servico
+      ADD COLUMN IF NOT EXISTS nf_id INTEGER REFERENCES notas_fiscais(id) ON DELETE SET NULL
+    `);
+    await client.query(`
+      ALTER TABLE ordens_servico
+      ADD COLUMN IF NOT EXISTS nf_nfe_id INTEGER REFERENCES notas_fiscais(id) ON DELETE SET NULL
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_nf_id ON ordens_servico(nf_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_nf_nfe_id ON ordens_servico(nf_nfe_id)
+    `);
+
     // ── Adicionar tenant_id em todas as tabelas principais ───────────────────
     const tabelasComTenant = [
       "clientes",
@@ -502,6 +610,38 @@ async function initDatabase() {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_servicos_codigo_tenant ON servicos(codigo, tenant_id)
     `);
 
+    // Sequences de numeração ORC/OS (idempotente; ver também migrations/007)
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS seq_orcamento_numero`);
+    await client.query(`
+      SELECT setval(
+        'seq_orcamento_numero',
+        GREATEST(
+          1,
+          COALESCE(
+            (SELECT MAX(SUBSTRING(numero FROM 5)::integer)
+             FROM orcamentos WHERE numero ~ '^ORC-[0-9]+$'),
+            0
+          ) + 1
+        ),
+        false
+      )
+    `);
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS seq_os_numero`);
+    await client.query(`
+      SELECT setval(
+        'seq_os_numero',
+        GREATEST(
+          1,
+          COALESCE(
+            (SELECT MAX(SUBSTRING(numero FROM 4)::integer)
+             FROM ordens_servico WHERE numero ~ '^OS-[0-9]+$'),
+            0
+          ) + 1
+        ),
+        false
+      )
+    `);
+
     console.log("✓ Tabelas do banco de dados criadas/verificadas com sucesso!");
   } catch (error) {
     console.error("Erro ao inicializar banco de dados:", error);
@@ -511,7 +651,11 @@ async function initDatabase() {
   }
 }
 
-// Inicializar banco de dados
-initDatabase().catch(console.error);
+// Inicializar banco de dados (desligar em produção com SKIP_DB_INIT_DDL=true + npm run migrate)
+if (process.env.SKIP_DB_INIT_DDL !== "true") {
+  initDatabase().catch(console.error);
+} else {
+  console.log("[INFO] SKIP_DB_INIT_DDL=true — DDL de boot ignorado; use npm run migrate");
+}
 
 export default pool;

@@ -1,12 +1,10 @@
 import express from "express";
 import relatoriosController from "../controllers/relatoriosController.js";
+import { ah } from "../lib/routeUtils.js";
 
 const router = express.Router();
 
-router.get(
-  "/dashboard",
-  relatoriosController.dashboard.bind(relatoriosController),
-);
-router.get("/vendas", relatoriosController.vendas.bind(relatoriosController));
+router.get("/dashboard", ah(relatoriosController, "dashboard"));
+router.get("/vendas", ah(relatoriosController, "vendas"));
 
 export default router;

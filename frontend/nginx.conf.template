@@ -1,0 +1,26 @@
+server {
+    # Só IPv4 — [::] pode falhar em redes Docker sem IPv6 e derruba o nginx
+    listen __LISTEN_PORT__;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    charset utf-8;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    location = /health {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok\n';
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+}

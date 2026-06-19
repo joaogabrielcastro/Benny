@@ -1,18 +1,11 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import { randomBytes } from "crypto";
 import pool from "../../database.js";
+import { calcularTotais } from "../domain/calcularTotais.js";
+import { proximoNumeroOrcamento, proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
-
-async function gerarNumeroOrcamento() {
-  const result = await pool.query(
-    "SELECT numero FROM orcamentos ORDER BY id DESC LIMIT 1",
-  );
-  if (result.rows.length === 0) return "ORC-0001";
-  const n = parseInt(result.rows[0].numero.split("-")[1]) + 1;
-  return `ORC-${n.toString().padStart(4, "0")}`;
-}
 
 async function gerarTokenPublico() {
   let token;
@@ -26,16 +19,6 @@ async function gerarTokenPublico() {
     existe = result.rows.length > 0;
   }
   return token;
-}
-
-function calcularTotais(produtos = [], servicos = []) {
-  const valor_produtos = produtos.reduce((s, i) => s + i.valor_total, 0);
-  const valor_servicos = servicos.reduce((s, i) => s + i.valor_total, 0);
-  return {
-    valor_produtos,
-    valor_servicos,
-    valor_total: valor_produtos + valor_servicos,
-  };
 }
 
 async function inserirItens(
@@ -102,33 +85,170 @@ async function darBaixaEstoque(client, orcamento_id) {
   }
 }
 
+/**
+ * Cria OS a partir de orçamento aprovado. Com excluirOrcamentoApos, remove o orçamento
+ * (mantém movimentações de estoque, sem FK no orçamento excluído).
+ */
+async function converterEmOSInterno(
+  client,
+  tenantId,
+  orcamentoId,
+  { excluirOrcamentoApos = false } = {},
+) {
+  const existente = await client.query(
+    "SELECT id, numero FROM ordens_servico WHERE orcamento_id = $1 LIMIT 1",
+    [orcamentoId],
+  );
+  if (existente.rows.length > 0) {
+    const row = existente.rows[0];
+    if (excluirOrcamentoApos) {
+      await client.query(
+        "UPDATE movimentacoes_estoque SET orcamento_id = NULL WHERE orcamento_id = $1",
+        [orcamentoId],
+      );
+      await client.query(
+        "UPDATE ordens_servico SET orcamento_id = NULL WHERE id = $1",
+        [row.id],
+      );
+      await client.query("DELETE FROM orcamentos WHERE id = $1", [orcamentoId]);
+    }
+    return { id: row.id, numero: row.numero, jaExistia: true };
+  }
+
+  const orc = await client.query(
+    "SELECT * FROM orcamentos WHERE id = $1 AND tenant_id = $2",
+    [orcamentoId, tenantId],
+  );
+  if (!orc.rows[0]) return null;
+  if (orc.rows[0].status !== "Aprovado") {
+    const err = new Error(
+      "Apenas orçamentos aprovados podem ser convertidos em OS",
+    );
+    err.code = "STATUS_INVALIDO";
+    throw err;
+  }
+
+  const numero = await proximoNumeroOS(client);
+  const o = orc.rows[0];
+  const osResult = await client.query(
+    `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total, orcamento_id, status, tenant_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'Aberta',$12) RETURNING id`,
+    [
+      numero,
+      o.cliente_id,
+      o.veiculo_id,
+      o.km,
+      o.previsao_entrega || null,
+      o.observacoes_veiculo,
+      o.observacoes_gerais,
+      o.valor_produtos,
+      o.valor_servicos,
+      o.valor_total,
+      o.id,
+      tenantId,
+    ],
+  );
+  const os_id = osResult.rows[0].id;
+
+  const [produtosOrc, servicosOrc] = await Promise.all([
+    client.query("SELECT * FROM orcamento_produtos WHERE orcamento_id = $1", [
+      orcamentoId,
+    ]),
+    client.query("SELECT * FROM orcamento_servicos WHERE orcamento_id = $1", [
+      orcamentoId,
+    ]),
+  ]);
+
+  for (const p of produtosOrc.rows) {
+    await client.query(
+      `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
+      [
+        os_id,
+        p.produto_id,
+        p.codigo,
+        p.descricao,
+        p.quantidade,
+        p.valor_unitario,
+        p.valor_total,
+      ],
+    );
+  }
+  for (const s of servicosOrc.rows) {
+    await client.query(
+      `INSERT INTO os_servicos (os_id, codigo, descricao, quantidade, valor_unitario, valor_total)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [
+        os_id,
+        s.codigo,
+        s.descricao,
+        s.quantidade,
+        s.valor_unitario,
+        s.valor_total,
+      ],
+    );
+  }
+
+  if (excluirOrcamentoApos) {
+    await client.query(
+      "UPDATE movimentacoes_estoque SET orcamento_id = NULL WHERE orcamento_id = $1",
+      [orcamentoId],
+    );
+    await client.query(
+      "UPDATE ordens_servico SET orcamento_id = NULL WHERE id = $1",
+      [os_id],
+    );
+    await client.query("DELETE FROM orcamentos WHERE id = $1", [orcamentoId]);
+  }
+
+  return { id: os_id, numero };
+}
+
 // ─── Operações públicas ───────────────────────────────────────────────────────
 
-const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
-  let query = `
-    SELECT o.*,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           v.modelo as veiculo_modelo, v.placa as veiculo_placa
-    FROM orcamentos o
-    LEFT JOIN clientes c ON o.cliente_id = c.id
-    LEFT JOIN veiculos v ON o.veiculo_id = v.id
-    WHERE o.tenant_id = $1
-  `;
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { status, busca, limit = 20, offset = 0 } = {},
+) => {
+  let where = "WHERE o.tenant_id = $1";
   const params = [tenantId];
   let i = 2;
 
   if (status) {
-    query += ` AND o.status = $${i++}`;
+    where += ` AND o.status = $${i++}`;
     params.push(status);
   }
   if (busca) {
-    query += ` AND (o.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
+    where += ` AND (o.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
     params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`);
   }
 
-  query += " ORDER BY o.id DESC";
-  const result = await pool.query(query, params);
-  return result.rows;
+  const fromJoin = `
+    FROM orcamentos o
+    LEFT JOIN clientes c ON o.cliente_id = c.id
+    LEFT JOIN veiculos v ON o.veiculo_id = v.id
+  `;
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total ${fromJoin} ${where}`,
+    params,
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const limitIdx = params.length + 1;
+  const offsetIdx = params.length + 2;
+  const dataResult = await pool.query(
+    `SELECT o.*,
+            c.nome as cliente_nome, c.telefone as cliente_telefone,
+            v.modelo as veiculo_modelo, v.placa as veiculo_placa
+     ${fromJoin}
+     ${where}
+     ORDER BY o.id DESC
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    [...params, limit, offset],
+  );
+
+  return { rows: dataResult.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
@@ -195,7 +315,7 @@ const criar = async (
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const numero = await gerarNumeroOrcamento();
+    const numero = await proximoNumeroOrcamento(client);
     const tokenPublico = await gerarTokenPublico();
     const { valor_produtos, valor_servicos, valor_total } = calcularTotais(
       produtos,
@@ -261,6 +381,14 @@ const atualizar = async (
       return null;
     }
 
+    if (prev.rows[0].status !== "Pendente") {
+      const err = new Error(
+        "Só é possível editar orçamentos com status Pendente.",
+      );
+      err.code = "EDICAO_NAO_PERMITIDA";
+      throw err;
+    }
+
     const { valor_produtos, valor_servicos, valor_total } = calcularTotais(
       produtos,
       servicos,
@@ -310,12 +438,16 @@ const atualizar = async (
       client,
     );
 
+    let os = null;
     if (status === "Aprovado" && prev.rows[0].status !== "Aprovado") {
       await darBaixaEstoque(client, id);
+      os = await converterEmOSInterno(client, tenantId, id, {
+        excluirOrcamentoApos: true,
+      });
     }
 
     await client.query("COMMIT");
-    return true;
+    return { updated: true, os };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -330,7 +462,7 @@ const aprovarPorToken = async (token) => {
     await client.query("BEGIN");
 
     const statusAtual = await client.query(
-      "SELECT id, status FROM orcamentos WHERE token_publico = $1",
+      "SELECT id, status, tenant_id FROM orcamentos WHERE token_publico = $1",
       [token],
     );
     if (!statusAtual.rows[0]) {
@@ -338,7 +470,9 @@ const aprovarPorToken = async (token) => {
       return null;
     }
 
-    const { id: orcamentoId, status } = statusAtual.rows[0];
+    const { id: orcamentoId, status, tenant_id: tenantId } =
+      statusAtual.rows[0];
+    const tenant = tenantId ?? SINGLE_TENANT_ID;
     const jaAprovado = status === "Aprovado";
 
     const result = await client.query(
@@ -346,12 +480,22 @@ const aprovarPorToken = async (token) => {
       [token],
     );
 
+    let os = null;
     if (!jaAprovado) {
       await darBaixaEstoque(client, orcamentoId);
+      os = await converterEmOSInterno(client, tenant, orcamentoId, {
+        excluirOrcamentoApos: true,
+      });
+    } else {
+      const osRow = await client.query(
+        "SELECT id, numero FROM ordens_servico WHERE orcamento_id = $1 LIMIT 1",
+        [orcamentoId],
+      );
+      os = osRow.rows[0] || null;
     }
 
     await client.query("COMMIT");
-    return result.rows[0];
+    return { orcamento: result.rows[0], os };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -372,97 +516,93 @@ const converterEmOS = async (tenantId = SINGLE_TENANT_ID, id) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-
-    const orc = await client.query(
-      "SELECT * FROM orcamentos WHERE id = $1 AND tenant_id = $2",
-      [id, tenantId],
-    );
-    if (!orc.rows[0]) {
+    const os = await converterEmOSInterno(client, tenantId, id, {
+      excluirOrcamentoApos: false,
+    });
+    if (!os) {
       await client.query("ROLLBACK");
       return null;
     }
-    if (orc.rows[0].status !== "Aprovado") {
-      const err = new Error(
-        "Apenas orçamentos aprovados podem ser convertidos em OS",
+    await client.query("COMMIT");
+    return os;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+async function reverterMovimentacoesEstoquePorOrcamento(client, orcamentoId) {
+  const { rows } = await client.query(
+    "SELECT produto_id, tipo, quantidade FROM movimentacoes_estoque WHERE orcamento_id = $1",
+    [orcamentoId],
+  );
+  for (const m of rows) {
+    if (m.tipo === "SAIDA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
       );
-      err.code = "STATUS_INVALIDO";
+    } else if (m.tipo === "ENTRADA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    }
+  }
+  await client.query(
+    "DELETE FROM movimentacoes_estoque WHERE orcamento_id = $1",
+    [orcamentoId],
+  );
+}
+
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const prev = await client.query(
+      "SELECT * FROM orcamentos WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    if (!prev.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const osVinc = await client.query(
+      "SELECT id, numero FROM ordens_servico WHERE orcamento_id = $1 LIMIT 1",
+      [id],
+    );
+    if (osVinc.rows.length > 0) {
+      await client.query("ROLLBACK");
+      const err = new Error(
+        `Este orçamento possui OS vinculada (${osVinc.rows[0].numero}). Exclua a OS antes de excluir o orçamento.`,
+      );
+      err.code = "OS_VINCULADA";
       throw err;
     }
 
-    // Gerar número de OS
-    const osNumResult = await client.query(
-      "SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1",
+    await reverterMovimentacoesEstoquePorOrcamento(client, id);
+
+    await registrarAuditoria(
+      "orcamentos",
+      id,
+      "DELETE",
+      prev.rows[0],
+      null,
+      "sistema",
+      client,
     );
-    let numero;
-    if (osNumResult.rows.length === 0) {
-      numero = "OS-0001";
-    } else {
-      const n = parseInt(osNumResult.rows[0].numero.split("-")[1]) + 1;
-      numero = `OS-${n.toString().padStart(4, "0")}`;
-    }
 
-    const o = orc.rows[0];
-    const osResult = await client.query(
-      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total, orcamento_id, status, tenant_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'Aberta',$12) RETURNING id`,
-      [
-        numero,
-        o.cliente_id,
-        o.veiculo_id,
-        o.km,
-        o.previsao_entrega || null,
-        o.observacoes_veiculo,
-        o.observacoes_gerais,
-        o.valor_produtos,
-        o.valor_servicos,
-        o.valor_total,
-        o.id,
-        tenantId,
-      ],
+    await client.query(
+      "DELETE FROM orcamentos WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
     );
-    const os_id = osResult.rows[0].id;
-
-    const [produtosOrc, servicosOrc] = await Promise.all([
-      client.query("SELECT * FROM orcamento_produtos WHERE orcamento_id = $1", [
-        id,
-      ]),
-      client.query("SELECT * FROM orcamento_servicos WHERE orcamento_id = $1", [
-        id,
-      ]),
-    ]);
-
-    for (const p of produtosOrc.rows) {
-      await client.query(
-        `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
-        [
-          os_id,
-          p.produto_id,
-          p.codigo,
-          p.descricao,
-          p.quantidade,
-          p.valor_unitario,
-          p.valor_total,
-        ],
-      );
-    }
-    for (const s of servicosOrc.rows) {
-      await client.query(
-        `INSERT INTO os_servicos (os_id, codigo, descricao, quantidade, valor_unitario, valor_total)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [
-          os_id,
-          s.codigo,
-          s.descricao,
-          s.quantidade,
-          s.valor_unitario,
-          s.valor_total,
-        ],
-      );
-    }
 
     await client.query("COMMIT");
-    return { id: os_id, numero };
+    return true;
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -480,4 +620,5 @@ export default {
   aprovarPorToken,
   reprovarPorToken,
   converterEmOS,
+  deletar,
 };

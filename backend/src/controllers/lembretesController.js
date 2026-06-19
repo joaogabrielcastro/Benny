@@ -1,39 +1,29 @@
-import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
+import { resolveTenantId } from "../config/singleTenant.js";
 import lembretesService from "../services/lembretesService.js";
-import logger from "../config/logger.js";
+import { assertFound } from "../lib/controllerHelpers.js";
+import { sendPaginated } from "../lib/paginationResponse.js";
 
 class LembretesController {
   async listar(req, res) {
-    try {
-      const filtros = req.query || {};
-      const rows = await lembretesService.listar(SINGLE_TENANT_ID, filtros);
-      res.json(rows);
-    } catch (error) {
-      logger.error("Erro ao listar lembretes:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const tenantId = resolveTenantId(req);
+    const { limit, offset, page } = req.pagination;
+    const { rows, total } = await lembretesService.listar(tenantId, {
+      ...req.query,
+      limit,
+      offset,
+    });
+    sendPaginated(res, { rows, total, page, limit });
   }
 
   async hoje(req, res) {
-    try {
-      const rows = await lembretesService.hoje(SINGLE_TENANT_ID);
-      res.json(rows);
-    } catch (error) {
-      logger.error("Erro ao listar lembretes de hoje:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const rows = await lembretesService.hoje(resolveTenantId(req));
+    res.json(rows);
   }
 
   async marcarEnviado(req, res) {
-    try {
-      const lembrete = await lembretesService.marcarEnviado(req.params.id);
-      if (!lembrete)
-        return res.status(404).json({ error: "Lembrete não encontrado" });
-      res.json({ message: "Lembrete marcado como enviado", lembrete });
-    } catch (error) {
-      logger.error("Erro ao marcar lembrete como enviado:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const lembrete = await lembretesService.marcarEnviado(req.params.id);
+    assertFound(lembrete, "Lembrete não encontrado");
+    res.json({ message: "Lembrete marcado como enviado", lembrete });
   }
 }
 

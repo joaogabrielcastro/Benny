@@ -2,11 +2,17 @@
 import cors from "cors";
 import bodyParser from "body-parser";
 import compression from "compression";
+import helmet from "helmet";
 import dotenv from "dotenv";
 import path from "path";
 import pool from "./database.js";
 import apiRoutes from "./src/routes/index.js";
 import { initScheduler } from "./src/jobs/scheduler.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./src/middleware/errorHandler.js";
+import "./src/config/jwt.js";
 
 dotenv.config();
 
@@ -16,6 +22,7 @@ const PORT = process.env.PORT || 3011;
 
 // ─── Middlewares ──────────────────────────────────────────────────────────────
 
+app.use(helmet());
 app.use(compression());
 
 const allowedOrigins = [
@@ -81,32 +88,8 @@ app.get("/api/health", async (req, res) => {
 
 app.use("/api", apiRoutes);
 
-// ─── Tratamento de erros ──────────────────────────────────────────────────────
-
-app.use((err, req, res, next) => {
-  console.error("[ERROR]", err.message, {
-    url: req.originalUrl,
-    method: req.method,
-  });
-
-  if (err.code === "23505")
-    return res.status(409).json({ error: "Registro duplicado" });
-  if (err.code === "23503")
-    return res.status(400).json({ error: "Referência inválida" });
-  if (err.code === "23502")
-    return res.status(400).json({ error: "Campo obrigatório não preenchido" });
-
-  res.status(500).json({
-    error:
-      process.env.NODE_ENV === "production"
-        ? "Erro interno do servidor"
-        : err.message,
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ error: "Endpoint não encontrado" });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // ─── Inicialização ────────────────────────────────────────────────────────────
 

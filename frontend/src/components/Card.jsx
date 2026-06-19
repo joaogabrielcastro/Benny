@@ -29,19 +29,19 @@ const Card = ({
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 rounded-lg ${shadows[shadow]} ${hoverEffect} ${className}`}
+      className={`pro-card ${shadows[shadow] !== "" ? shadows[shadow] : ""} ${hoverEffect} ${className}`}
     >
       {(title || subtitle) && (
         <div
-          className={`border-b border-gray-200 dark:border-gray-700 ${paddings[padding]}`}
+          className={`border-b border-slate-200/80 dark:border-slate-800 ${paddings[padding]}`}
         >
           {title && (
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
               {title}
             </h3>
           )}
           {subtitle && (
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {subtitle}
             </p>
           )}
@@ -50,7 +50,7 @@ const Card = ({
       <div className={paddings[padding]}>{children}</div>
       {footer && (
         <div
-          className={`border-t border-gray-200 dark:border-gray-700 ${paddings[padding]} bg-gray-50 dark:bg-gray-900/50`}
+          className={`border-t border-slate-200/80 dark:border-slate-800 ${paddings[padding]} bg-slate-50/80 dark:bg-slate-900/50 rounded-b-xl`}
         >
           {footer}
         </div>

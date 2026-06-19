@@ -1,19 +1,38 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
+import { resolveCodigoIbgeCliente } from "../domain/clienteIbge.js";
 
-const listar = async (tenantId = SINGLE_TENANT_ID, busca) => {
-  let query = "SELECT * FROM clientes WHERE tenant_id = $1";
+function onlyDigits(s) {
+  return String(s || "").replace(/\D/g, "");
+}
+
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { busca, limit = 20, offset = 0 } = {},
+) => {
   const params = [tenantId];
+  let where = "WHERE tenant_id = $1";
 
   if (busca) {
-    query +=
-      " AND (LOWER(nome) LIKE LOWER($2) OR LOWER(telefone) LIKE LOWER($2) OR LOWER(cpf_cnpj) LIKE LOWER($2))";
     params.push(`%${busca}%`);
+    where +=
+      " AND (LOWER(nome) LIKE LOWER($2) OR LOWER(telefone) LIKE LOWER($2) OR LOWER(cpf_cnpj) LIKE LOWER($2))";
   }
 
-  query += " ORDER BY nome LIMIT 50";
-  const result = await pool.query(query, params);
-  return result.rows;
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM clientes ${where}`,
+    params,
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const limitIdx = params.length + 1;
+  const offsetIdx = params.length + 2;
+  const dataResult = await pool.query(
+    `SELECT * FROM clientes ${where} ORDER BY nome LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    [...params, limit, offset],
+  );
+
+  return { rows: dataResult.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
@@ -38,23 +57,26 @@ const criar = async (
     bairro,
     cidade,
     estado,
+    codigo_ibge,
   },
 ) => {
+  const ibge = await resolveCodigoIbgeCliente(cep, codigo_ibge);
   const result = await pool.query(
-    `INSERT INTO clientes (nome, telefone, cpf_cnpj, email, endereco, cep, numero, complemento, bairro, cidade, estado, tenant_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+    `INSERT INTO clientes (nome, telefone, cpf_cnpj, email, endereco, cep, numero, complemento, bairro, cidade, estado, codigo_ibge, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
     [
       nome,
       telefone,
       cpf_cnpj,
       email,
       endereco,
-      cep,
+      onlyDigits(cep) || cep,
       numero,
       complemento,
       bairro,
       cidade,
       estado,
+      ibge,
       tenantId,
     ],
   );
@@ -76,26 +98,29 @@ const atualizar = async (
     bairro,
     cidade,
     estado,
+    codigo_ibge,
   },
 ) => {
+  const ibge = await resolveCodigoIbgeCliente(cep, codigo_ibge);
   await pool.query(
     `UPDATE clientes
      SET nome=$1, telefone=$2, cpf_cnpj=$3, email=$4, endereco=$5,
          cep=$6, numero=$7, complemento=$8, bairro=$9, cidade=$10, estado=$11,
-         atualizado_em=CURRENT_TIMESTAMP
-     WHERE id=$12 AND tenant_id=$13`,
+         codigo_ibge=$12, atualizado_em=CURRENT_TIMESTAMP
+     WHERE id=$13 AND tenant_id=$14`,
     [
       nome,
       telefone,
       cpf_cnpj,
       email,
       endereco,
-      cep,
+      onlyDigits(cep) || cep,
       numero,
       complemento,
       bairro,
       cidade,
       estado,
+      ibge,
       id,
       tenantId,
     ],

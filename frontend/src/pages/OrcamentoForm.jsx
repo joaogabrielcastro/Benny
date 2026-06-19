@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
+import { unwrapListResponse } from "../utils/apiList";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import NovoClienteModal from "../components/NovoClienteModal";
 import NovoVeiculoModal from "../components/NovoVeiculoModal";
@@ -13,6 +14,9 @@ import ServicoFormModal from "../components/ServicoFormModal";
 
 export default function OrcamentoForm() {
   const navigate = useNavigate();
+  const { id: orcamentoId } = useParams();
+  const editando = Boolean(orcamentoId);
+  const [carregandoOrcamento, setCarregandoOrcamento] = useState(editando);
   const [clientes, setClientes] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [produtos, setProdutos] = useState([]);
@@ -44,6 +48,41 @@ export default function OrcamentoForm() {
   }, []);
 
   useEffect(() => {
+    if (!editando) return;
+    const carregar = async () => {
+      try {
+        const response = await api.get(`/orcamentos/${orcamentoId}`);
+        const o = response.data;
+        if (o.status !== "Pendente") {
+          showError("Só é possível editar orçamentos pendentes.");
+          navigate(`/orcamentos/${orcamentoId}`);
+          return;
+        }
+        setFormData({
+          cliente_id: String(o.cliente_id || ""),
+          veiculo_id: String(o.veiculo_id || ""),
+          km: o.km ?? "",
+          previsao_entrega: o.previsao_entrega
+            ? String(o.previsao_entrega).slice(0, 10)
+            : "",
+          observacoes_veiculo: o.observacoes_veiculo || "",
+          responsavel_tecnico: o.responsavel_tecnico || "",
+          observacoes_gerais: o.observacoes_gerais || "",
+        });
+        setItensProdutos(o.produtos || []);
+        setItensServicos(o.servicos || []);
+        if (o.cliente_id) await carregarVeiculos(o.cliente_id);
+      } catch {
+        showError("Erro ao carregar orçamento");
+        navigate("/orcamentos");
+      } finally {
+        setCarregandoOrcamento(false);
+      }
+    };
+    carregar();
+  }, [editando, orcamentoId, navigate]);
+
+  useEffect(() => {
     if (formData.cliente_id) {
       carregarVeiculos(formData.cliente_id);
     }
@@ -51,8 +90,8 @@ export default function OrcamentoForm() {
 
   const carregarClientes = async () => {
     try {
-      const response = await api.get("/clientes");
-      setClientes(response.data);
+      const response = await api.get("/clientes", { params: { limit: 500 } });
+      setClientes(unwrapListResponse(response.data));
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
     }
@@ -76,7 +115,9 @@ export default function OrcamentoForm() {
 
   const carregarProdutos = async () => {
     try {
-      const response = await api.get("/produtos");
+      const response = await api.get("/produtos", {
+        params: { limit: 50000 },
+      });
       // A API agora retorna { data: [...], pagination: {...} }
       setProdutos(
         Array.isArray(response.data) ? response.data : response.data.data || [],
@@ -149,9 +190,14 @@ export default function OrcamentoForm() {
       }
     }
 
-    if (campo === "quantidade" || campo === "valor_unitario") {
-      novosProdutos[index].valor_total =
-        novosProdutos[index].quantidade * novosProdutos[index].valor_unitario;
+    const recalcularTotalLinhaProduto =
+      campo === "quantidade" ||
+      campo === "valor_unitario" ||
+      (campo === "produto_id" && valor && valor !== "__add_new__");
+    if (recalcularTotalLinhaProduto) {
+      const q = Number(novosProdutos[index].quantidade) || 0;
+      const vu = Number(novosProdutos[index].valor_unitario) || 0;
+      novosProdutos[index].valor_total = q * vu;
     }
 
     setItensProdutos(novosProdutos);
@@ -166,8 +212,9 @@ export default function OrcamentoForm() {
       novos[idx].codigo = novoProduto.codigo || "";
       novos[idx].descricao = novoProduto.nome || "";
       novos[idx].valor_unitario = novoProduto.valor_venda || 0;
-      novos[idx].valor_total =
-        novos[idx].quantidade * novos[idx].valor_unitario;
+      const q = Number(novos[idx].quantidade) || 0;
+      const vu = Number(novos[idx].valor_unitario) || 0;
+      novos[idx].valor_total = q * vu;
       setItensProdutos(novos);
       setProdutoModalIndex(null);
     }
@@ -178,8 +225,9 @@ export default function OrcamentoForm() {
     novosServicos[index][campo] = valor;
 
     if (campo === "quantidade" || campo === "valor_unitario") {
-      novosServicos[index].valor_total =
-        novosServicos[index].quantidade * novosServicos[index].valor_unitario;
+      const q = Number(novosServicos[index].quantidade) || 0;
+      const vu = Number(novosServicos[index].valor_unitario) || 0;
+      novosServicos[index].valor_total = q * vu;
     }
 
     setItensServicos(novosServicos);
@@ -198,8 +246,9 @@ export default function OrcamentoForm() {
       novos[index].descricao = servico.nome;
       novos[index].valor_unitario = servico.valor_unitario || 0;
       novos[index].servico_id = servico.id;
-      novos[index].valor_total =
-        novos[index].quantidade * novos[index].valor_unitario;
+      const q = Number(novos[index].quantidade) || 0;
+      const vu = Number(novos[index].valor_unitario) || 0;
+      novos[index].valor_total = q * vu;
       setItensServicos(novos);
     }
   };
@@ -213,8 +262,9 @@ export default function OrcamentoForm() {
       novos[idx].descricao = novoServico.nome || "";
       novos[idx].valor_unitario = novoServico.valor_unitario || 0;
       novos[idx].servico_id = novoServico.id;
-      novos[idx].valor_total =
-        novos[idx].quantidade * novos[idx].valor_unitario;
+      const q = Number(novos[idx].quantidade) || 0;
+      const vu = Number(novos[idx].valor_unitario) || 0;
+      novos[idx].valor_total = q * vu;
       setItensServicos(novos);
       setServicoModalIndex(null);
     }
@@ -222,11 +272,11 @@ export default function OrcamentoForm() {
 
   const calcularTotal = () => {
     const totalProdutos = itensProdutos.reduce(
-      (sum, item) => sum + item.valor_total,
+      (sum, item) => sum + (Number(item.valor_total) || 0),
       0,
     );
     const totalServicos = itensServicos.reduce(
-      (sum, item) => sum + item.valor_total,
+      (sum, item) => sum + (Number(item.valor_total) || 0),
       0,
     );
     return totalProdutos + totalServicos;
@@ -242,28 +292,41 @@ export default function OrcamentoForm() {
 
     const dados = {
       ...formData,
+      status: "Pendente",
       produtos: itensProdutos,
       servicos: itensServicos,
     };
 
-    showPromise(api.post("/orcamentos", dados), {
-      loading: "Criando orçamento...",
-      success: "Orçamento criado com sucesso!",
-      error: (err) => err.response?.data?.error || "Erro ao criar orçamento",
+    const request = editando
+      ? api.put(`/orcamentos/${orcamentoId}`, dados)
+      : api.post("/orcamentos", dados);
+
+    showPromise(request, {
+      loading: editando ? "Salvando orçamento..." : "Criando orçamento...",
+      success: editando
+        ? "Orçamento atualizado com sucesso!"
+        : "Orçamento criado com sucesso!",
+      error: (err) =>
+        err.response?.data?.error ||
+        (editando ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento"),
     })
       .then(() => {
-        navigate("/orcamentos");
+        navigate(editando ? `/orcamentos/${orcamentoId}` : "/orcamentos");
       })
       .catch((error) => {
-        console.error("Erro ao criar orçamento:", error);
+        console.error("Erro ao salvar orçamento:", error);
       });
   };
+
+  if (carregandoOrcamento) {
+    return <div className="text-center py-8">Carregando orçamento...</div>;
+  }
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Novo Orçamento
+          {editando ? "Editar Orçamento" : "Novo Orçamento"}
         </h1>
       </div>
 
@@ -690,7 +753,7 @@ export default function OrcamentoForm() {
             type="submit"
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
-            Salvar Orçamento
+            {editando ? "Salvar alterações" : "Salvar Orçamento"}
           </button>
         </div>
       </form>

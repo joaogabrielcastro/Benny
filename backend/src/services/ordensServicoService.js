@@ -1,25 +1,8 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
+import { calcularTotais } from "../domain/calcularTotais.js";
+import { proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
-
-async function gerarNumeroOS() {
-  const result = await pool.query(
-    "SELECT numero FROM ordens_servico ORDER BY id DESC LIMIT 1",
-  );
-  if (result.rows.length === 0) return "OS-0001";
-  const n = parseInt(result.rows[0].numero.split("-")[1]) + 1;
-  return `OS-${n.toString().padStart(4, "0")}`;
-}
-
-function calcularTotais(produtos = [], servicos = []) {
-  const valor_produtos = produtos.reduce((s, i) => s + i.valor_total, 0);
-  const valor_servicos = servicos.reduce((s, i) => s + i.valor_total, 0);
-  return {
-    valor_produtos,
-    valor_servicos,
-    valor_total: valor_produtos + valor_servicos,
-  };
-}
 
 async function deducaoEstoque(client, os_id, produtos = []) {
   for (const p of produtos) {
@@ -36,34 +19,110 @@ async function deducaoEstoque(client, os_id, produtos = []) {
   }
 }
 
+/** Desfaz movimentações de estoque ligadas à OS antes de excluir o registro. */
+async function reverterMovimentacoesEstoquePorOs(client, osId) {
+  const { rows } = await client.query(
+    "SELECT produto_id, tipo, quantidade FROM movimentacoes_estoque WHERE os_id = $1",
+    [osId],
+  );
+  for (const m of rows) {
+    if (m.tipo === "SAIDA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    } else if (m.tipo === "ENTRADA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    }
+  }
+  await client.query("DELETE FROM movimentacoes_estoque WHERE os_id = $1", [
+    osId,
+  ]);
+}
+
 // ─── Listagem ─────────────────────────────────────────────────────────────────
 
-const listar = async (tenantId = SINGLE_TENANT_ID, { status, busca } = {}) => {
-  let query = `
-    SELECT os.*,
-           c.nome as cliente_nome, c.telefone as cliente_telefone,
-           v.modelo as veiculo_modelo, v.placa as veiculo_placa,
-           v.cor as veiculo_cor, v.ano as veiculo_ano
-    FROM ordens_servico os
-    LEFT JOIN clientes c ON os.cliente_id = c.id
-    LEFT JOIN veiculos v ON os.veiculo_id = v.id
-    WHERE os.tenant_id = $1
-  `;
+const ORDENAR_COLUNAS = {
+  numero: "os.numero",
+  cliente_nome: "c.nome",
+  valor_total: "os.valor_total",
+  status: "os.status",
+  criado_em: "os.criado_em",
+};
+
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  {
+    status,
+    busca,
+    cliente_id,
+    data_inicio,
+    data_fim,
+    ordenar = "criado_em",
+    direcao = "desc",
+    limit = 20,
+    offset = 0,
+  } = {},
+) => {
+  let where = "WHERE os.tenant_id = $1";
   const params = [tenantId];
   let i = 2;
 
   if (status) {
-    query += ` AND os.status = $${i++}`;
+    where += ` AND os.status = $${i++}`;
     params.push(status);
   }
   if (busca) {
-    query += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
+    where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
     params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`);
+    i += 3;
+  }
+  if (cliente_id) {
+    where += ` AND os.cliente_id = $${i++}`;
+    params.push(cliente_id);
+  }
+  if (data_inicio) {
+    where += ` AND os.criado_em >= $${i++}::date`;
+    params.push(data_inicio);
+  }
+  if (data_fim) {
+    where += ` AND os.criado_em < ($${i++}::date + INTERVAL '1 day')`;
+    params.push(data_fim);
   }
 
-  query += " ORDER BY os.id DESC";
-  const result = await pool.query(query, params);
-  return result.rows;
+  const fromJoin = `
+    FROM ordens_servico os
+    LEFT JOIN clientes c ON os.cliente_id = c.id
+    LEFT JOIN veiculos v ON os.veiculo_id = v.id
+  `;
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total ${fromJoin} ${where}`,
+    params,
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const sortCol = ORDENAR_COLUNAS[ordenar] || ORDENAR_COLUNAS.criado_em;
+  const sortDir = String(direcao).toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const limitIdx = params.length + 1;
+  const offsetIdx = params.length + 2;
+  const dataResult = await pool.query(
+    `SELECT os.*,
+            c.nome as cliente_nome, c.telefone as cliente_telefone,
+            v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+            v.cor as veiculo_cor, v.ano as veiculo_ano
+     ${fromJoin}
+     ${where}
+     ORDER BY ${sortCol} ${sortDir}
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+    [...params, limit, offset],
+  );
+
+  return { rows: dataResult.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
@@ -71,6 +130,10 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
     pool.query(
       `SELECT os.*,
               c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
+              c.email as cliente_email, c.endereco as cliente_endereco, c.numero as cliente_numero,
+              c.complemento as cliente_complemento, c.bairro as cliente_bairro,
+              c.cidade as cliente_cidade, c.estado as cliente_estado, c.cep as cliente_cep,
+              c.codigo_ibge as cliente_codigo_ibge,
               v.modelo as veiculo_modelo, v.placa as veiculo_placa,
               v.cor as veiculo_cor, v.ano as veiculo_ano
        FROM ordens_servico os
@@ -105,7 +168,7 @@ const criar = async (
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const numero = await gerarNumeroOS();
+    const numero = await proximoNumeroOS(client);
     const { valor_produtos, valor_servicos, valor_total } = calcularTotais(
       produtos,
       servicos,
@@ -296,4 +359,45 @@ const atualizar = async (
   }
 };
 
-export default { listar, buscarPorId, criar, atualizar };
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const prev = await client.query(
+      "SELECT * FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    if (!prev.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await reverterMovimentacoesEstoquePorOs(client, id);
+
+    await registrarAuditoria(
+      "ordens_servico",
+      id,
+      "DELETE",
+      prev.rows[0],
+      null,
+      "sistema",
+      client,
+    );
+
+    await client.query(
+      "DELETE FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+export default { listar, buscarPorId, criar, atualizar, deletar };

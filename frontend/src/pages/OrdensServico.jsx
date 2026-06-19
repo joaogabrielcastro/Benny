@@ -1,146 +1,120 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
+import { useDebounce } from "../hooks/useDebounce";
+import {
+  useOrdensServicoPaginated,
+  useClientesList,
+} from "../hooks/queries/useOrdensServicoList";
 import { formatarMoeda } from "../utils/formatters";
 import AdvancedFilters from "../components/AdvancedFilters";
 import LoadingSpinner from "../components/LoadingSpinner";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import SortableHeader from "../components/SortableHeader";
+import PageHeader from "../components/layout/PageHeader";
+import { useAuth } from "../contexts/AuthContext";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function OrdensServico() {
-  const [ordens, setOrdens] = useState([]);
-  const [ordensFiltered, setOrdensFiltered] = useState([]);
-  const [clientes, setClientes] = useState([]);
+  const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const { confirm, dialogState, handleClose } = useConfirm();
+  const { data: clientes = [] } = useClientesList();
   const [busca, setBusca] = useState("");
+  const buscaDebounced = useDebounce(busca);
   const [filtroStatus, setFiltroStatus] = useState("");
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({
     field: "criado_em",
     direction: "desc",
+  });
+  const [advanced, setAdvanced] = useState({
+    cliente_id: "",
+    data_inicio: "",
+    data_fim: "",
   });
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const status = searchParams.get("status");
     if (status) setFiltroStatus(status);
-    carregarDados();
   }, [searchParams]);
 
   useEffect(() => {
-    aplicarFiltros();
-  }, [busca, filtroStatus, ordens, sortConfig]);
+    setCurrentPage(1);
+  }, [buscaDebounced, filtroStatus, advanced, sortConfig]);
 
-  const carregarDados = async () => {
+  const listParams = useMemo(() => {
+    const p = {
+      page: currentPage,
+      limit: ITEMS_PER_PAGE,
+      ordenar: sortConfig.field,
+      direcao: sortConfig.direction,
+    };
+    if (buscaDebounced) p.busca = buscaDebounced;
+    if (filtroStatus) p.status = filtroStatus;
+    if (advanced.cliente_id) p.cliente_id = advanced.cliente_id;
+    if (advanced.data_inicio) p.data_inicio = advanced.data_inicio;
+    if (advanced.data_fim) p.data_fim = advanced.data_fim;
+    return p;
+  }, [currentPage, buscaDebounced, filtroStatus, advanced, sortConfig]);
+
+  const { data, isLoading, isError, refetch } =
+    useOrdensServicoPaginated(listParams);
+
+  const ordens = data?.rows ?? [];
+  const pagination = data?.pagination;
+  const totalItems = pagination?.total ?? 0;
+  const totalPages = pagination?.pages ?? 1;
+
+  useEffect(() => {
+    if (isError) toast.error("Erro ao carregar ordens de serviço");
+  }, [isError]);
+
+  const handleExcluirOs = async (os) => {
+    const ok = await confirm({
+      title: "Excluir ordem de serviço",
+      message: `Excluir a ordem ${os.numero}? Movimentações de estoque desta OS serão desfeitas.`,
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
     try {
-      setLoading(true);
-      const [ordensRes, clientesRes] = await Promise.all([
-        api.get("/ordens-servico"),
-        api.get("/clientes"),
-      ]);
-      setOrdens(ordensRes.data);
-      setClientes(clientesRes.data);
+      await api.delete(`/ordens-servico/${os.id}`);
+      toast.success("Ordem de serviço excluída.");
+      queryClient.invalidateQueries({ queryKey: ["ordens-servico"] });
+      refetch();
     } catch (error) {
-      toast.error("Erro ao carregar dados");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const aplicarFiltros = () => {
-    let resultado = ordens;
-
-    if (busca) {
-      resultado = resultado.filter(
-        (os) =>
-          os.numero.toLowerCase().includes(busca.toLowerCase()) ||
-          os.cliente_nome?.toLowerCase().includes(busca.toLowerCase()) ||
-          os.veiculo_placa?.toLowerCase().includes(busca.toLowerCase()) ||
-          os.veiculo_modelo?.toLowerCase().includes(busca.toLowerCase())
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.erro ||
+          "Erro ao excluir OS",
       );
     }
-
-    if (filtroStatus) {
-      resultado = resultado.filter((os) => os.status === filtroStatus);
-    }
-
-    // Aplicar ordenação
-    resultado.sort((a, b) => {
-      const { field, direction } = sortConfig;
-      let aVal = a[field];
-      let bVal = b[field];
-
-      // Tratamento especial para datas
-      if (field === "criado_em") {
-        aVal = new Date(aVal);
-        bVal = new Date(bVal);
-      }
-
-      // Tratamento para números
-      if (field === "valor_total") {
-        aVal = parseFloat(aVal) || 0;
-        bVal = parseFloat(bVal) || 0;
-      }
-
-      if (aVal < bVal) return direction === "asc" ? -1 : 1;
-      if (aVal > bVal) return direction === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    setOrdensFiltered(resultado);
-    setCurrentPage(1); // Reset para primeira página ao filtrar
   };
 
   const handleAdvancedFilter = (filters) => {
-    let resultado = ordens;
-
-    if (filters.dataInicio && filters.dataFim) {
-      resultado = resultado.filter((os) => {
-        const osDate = new Date(os.criado_em);
-        return (
-          osDate >= new Date(filters.dataInicio) &&
-          osDate <= new Date(filters.dataFim + "T23:59:59")
-        );
-      });
-    }
-
-    if (filters.status) {
-      resultado = resultado.filter((os) => os.status === filters.status);
-      setFiltroStatus(filters.status);
-    }
-
-    if (filters.cliente) {
-      resultado = resultado.filter(
-        (os) => os.cliente_id === parseInt(filters.cliente)
-      );
-    }
-
-    setOrdensFiltered(resultado);
-    toast.success("Filtros aplicados com sucesso");
+    setAdvanced({
+      cliente_id: filters.cliente || "",
+      data_inicio: filters.dataInicio || "",
+      data_fim: filters.dataFim || "",
+    });
+    if (filters.status) setFiltroStatus(filters.status);
+    toast.success("Filtros aplicados");
   };
 
   const handleSort = (field, direction) => {
     setSortConfig({ field, direction });
   };
 
-  const handleSearch = (term) => {
-    setBusca(term);
-  };
+  if (isLoading && !data) return <LoadingSpinner size="xl" />;
 
-  // Paginação
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = ordensFiltered.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(ordensFiltered.length / itemsPerPage);
-
-  if (loading) return <LoadingSpinner size="xl" />;
-
-  const formatarData = (data) => {
-    return new Date(data).toLocaleString("pt-BR");
-  };
+  const formatarData = (d) => new Date(d).toLocaleString("pt-BR");
 
   const getStatusColor = (status) => {
     const colors = {
@@ -153,33 +127,31 @@ export default function OrdensServico() {
   };
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200">
-          Ordens de Serviço
-        </h1>
-        <div className="flex gap-3 w-full sm:w-auto">
-          <Link
-            to="/orcamentos/novo"
-            className="w-full sm:w-auto text-center bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            + Nova OS
-          </Link>
-        </div>
-      </div>
+    <div className="page-enter">
+      <PageHeader
+        title="Ordens de serviço"
+        subtitle="Gerencie atendimentos, status e faturamento."
+        actions={
+          isAdmin ? (
+            <Link to="/orcamentos/novo" className="btn-brand w-full sm:w-auto">
+              Nova OS
+            </Link>
+          ) : null
+        }
+      />
 
       <AdvancedFilters onFilter={handleAdvancedFilter} clientes={clientes} />
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
+      <div className="pro-card p-4 sm:p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SearchBar
-            onSearch={handleSearch}
+            onSearch={setBusca}
             placeholder="Buscar por número, cliente, placa ou modelo..."
           />
           <select
             value={filtroStatus}
             onChange={(e) => setFiltroStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-pro"
           >
             <option value="">Todos os status</option>
             <option value="Aberta">Aberta</option>
@@ -190,90 +162,125 @@ export default function OrdensServico() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-100 dark:bg-gray-700">
+      <div className="pro-card overflow-hidden relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        )}
+
+        <div className="hidden md:block">
+          <table className="table-pro table-fixed w-full">
+            <colgroup>
+              <col className="w-[7rem]" />
+              <col className="w-[26%]" />
+              <col className="w-[18%]" />
+              <col className="w-[8rem]" />
+              <col className="w-[8.5rem]" />
+              <col className="w-[10.5rem]" />
+              <col className="w-[9rem]" />
+            </colgroup>
+            <thead>
               <tr>
                 <SortableHeader
                   label="Número"
                   field="numero"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
                 <SortableHeader
                   label="Cliente"
                   field="cliente_nome"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Veículo
                 </th>
                 <SortableHeader
-                  label="Valor Total"
+                  label="Valor"
                   field="valor_total"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
                 <SortableHeader
                   label="Status"
                   field="status"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
                 <SortableHeader
                   label="Data"
                   field="criado_em"
                   currentSort={sortConfig}
                   onSort={handleSort}
+                  className="!px-3"
                 />
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Ações
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {currentItems.map((os) => (
+              {ordens.map((os) => (
                 <tr
                   key={os.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
+                  <td className="px-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-200">
                     {os.numero}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td
+                    className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 max-w-0 truncate"
+                    title={os.cliente_nome}
+                  >
                     {os.cliente_nome}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td
+                    className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 max-w-0 truncate"
+                    title={`${os.veiculo_modelo} - ${os.veiculo_placa}`}
+                  >
                     {os.veiculo_modelo} - {os.veiculo_placa}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-200">
+                  <td className="px-3 py-4 text-sm font-semibold text-gray-900 dark:text-gray-200 whitespace-nowrap">
                     {formatarMoeda(os.valor_total)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-4">
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                        os.status
-                      )}`}
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(os.status)}`}
                     >
                       {os.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                     {formatarData(os.criado_em)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Link
-                      to={`/ordens-servico/${os.id}`}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                    >
-                      Ver Detalhes
-                    </Link>
+                  <td className="px-3 py-4 text-sm whitespace-nowrap">
+                    <div className="flex flex-col gap-1">
+                      <Link
+                        to={`/ordens-servico/${os.id}`}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium"
+                      >
+                        Detalhes
+                      </Link>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleExcluirOs(os)}
+                          className="text-left text-red-600 dark:text-red-400 hover:text-red-800 font-medium"
+                        >
+                          Excluir
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
-              {currentItems.length === 0 && (
+              {ordens.length === 0 && !isLoading && (
                 <tr>
                   <td
                     colSpan="7"
@@ -288,76 +295,60 @@ export default function OrdensServico() {
         </div>
 
         <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
-          {currentItems.map((os) => (
+          {ordens.map((os) => (
             <div key={os.id} className="p-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Número</p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {os.numero}
-                  </p>
-                </div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {os.numero}
+                </p>
                 <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                    os.status,
-                  )}`}
+                  className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(os.status)}`}
                 >
                   {os.status}
                 </span>
               </div>
-
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Cliente</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">
-                  {os.cliente_nome}
-                </p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                {os.cliente_nome} · {formatarMoeda(os.valor_total)}
+              </p>
+              <div className="flex gap-3">
+                <Link
+                  to={`/ordens-servico/${os.id}`}
+                  className="text-sm font-medium text-blue-600"
+                >
+                  Ver Detalhes
+                </Link>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => handleExcluirOs(os)}
+                    className="text-sm font-medium text-red-600"
+                  >
+                    Excluir
+                  </button>
+                )}
               </div>
-
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Veículo</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">
-                  {os.veiculo_modelo} - {os.veiculo_placa}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Valor</p>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {formatarMoeda(os.valor_total)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Data</p>
-                  <p className="text-xs text-gray-700 dark:text-gray-300">
-                    {formatarData(os.criado_em)}
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                to={`/ordens-servico/${os.id}`}
-                className="inline-block text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-              >
-                Ver Detalhes
-              </Link>
             </div>
           ))}
-          {currentItems.length === 0 && (
-            <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-              Nenhuma ordem de serviço encontrada
-            </div>
-          )}
         </div>
 
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          totalItems={ordensFiltered.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          totalItems={totalItems}
         />
       </div>
+
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel={dialogState?.cancelLabel}
+        onCancel={() => handleClose(false)}
+        onConfirm={() => handleClose(true)}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import Modal from "./Modal";
@@ -31,17 +31,46 @@ export default function ProdutoFormModal({
   onSaved,
   produtosExistentes = [],
 }) {
-  const [formData, setFormData] = useState(
-    produto || {
-      codigo: "",
-      nome: "",
-      descricao: "",
-      quantidade: 0,
-      valor_custo: 0,
-      valor_venda: 0,
-      estoque_minimo: 5,
-    },
+  const emptyForm = {
+    codigo: "",
+    nome: "",
+    descricao: "",
+    quantidade: 0,
+    valor_custo: 0,
+    valor_venda: 0,
+    estoque_minimo: 5,
+  };
+
+  const [formData, setFormData] = useState(() =>
+    produto?.id
+      ? {
+          codigo: produto.codigo ?? "",
+          nome: produto.nome ?? "",
+          descricao: produto.descricao ?? "",
+          quantidade: produto.quantidade ?? 0,
+          valor_custo: produto.valor_custo ?? 0,
+          valor_venda: produto.valor_venda ?? 0,
+          estoque_minimo: produto.estoque_minimo ?? 5,
+        }
+      : { ...emptyForm },
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (produto?.id) {
+      setFormData({
+        codigo: produto.codigo ?? "",
+        nome: produto.nome ?? "",
+        descricao: produto.descricao ?? "",
+        quantidade: produto.quantidade ?? 0,
+        valor_custo: produto.valor_custo ?? 0,
+        valor_venda: produto.valor_venda ?? 0,
+        estoque_minimo: produto.estoque_minimo ?? 5,
+      });
+    } else {
+      setFormData({ ...emptyForm });
+    }
+  }, [isOpen, produto]);
 
   if (!isOpen) return null;
 
@@ -67,7 +96,9 @@ export default function ProdutoFormModal({
       const codigoNormalizado = codigoInformado.toUpperCase();
       const codigoDuplicado = produtosExistentes.some((item) => {
         if (!item || item.id === produto?.id) return false;
-        return (item.codigo || "").trim().toUpperCase() === codigoNormalizado;
+        return (
+          String(item.codigo ?? "").trim().toUpperCase() === codigoNormalizado
+        );
       });
 
       if (codigoDuplicado) {
@@ -84,7 +115,10 @@ export default function ProdutoFormModal({
         res = await api.put(`/produtos/${produto.id}`, formData);
         toast.success("Produto atualizado com sucesso!");
       } else {
-        res = await api.post("/produtos", formData);
+        const payload = { ...formData };
+        const c = String(payload.codigo ?? "").trim();
+        if (!c) delete payload.codigo;
+        res = await api.post("/produtos", payload);
         toast.success("Produto criado com sucesso!");
       }
       onSaved && onSaved(res.data.produto || res.data);

@@ -40,10 +40,35 @@ const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
     paramIndex++;
   }
 
-  query += ` ORDER BY a.data_agendamento DESC, a.hora_inicio ASC`;
+  let countQuery = `SELECT COUNT(*)::int AS total FROM agendamentos a WHERE a.tenant_id = $1`;
+  const countParams = [tenantId];
+  let ci = 2;
+  if (data_inicio) {
+    countQuery += ` AND a.data_agendamento >= $${ci++}`;
+    countParams.push(data_inicio);
+  }
+  if (data_fim) {
+    countQuery += ` AND a.data_agendamento <= $${ci++}`;
+    countParams.push(data_fim);
+  }
+  if (status) {
+    countQuery += ` AND a.status = $${ci++}`;
+    countParams.push(status);
+  }
+  if (cliente_id) {
+    countQuery += ` AND a.cliente_id = $${ci++}`;
+    countParams.push(cliente_id);
+  }
+  const countRes = await pool.query(countQuery, countParams);
+  const total = countRes.rows[0]?.total ?? 0;
+
+  const limit = filtros.limit ?? 20;
+  const offset = filtros.offset ?? 0;
+  query += ` ORDER BY a.data_agendamento DESC, a.hora_inicio ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+  params.push(limit, offset);
 
   const result = await pool.query(query, params);
-  return result.rows;
+  return { rows: result.rows, total };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {

@@ -9,6 +9,8 @@ const dashboard = async (tenantId = SINGLE_TENANT_ID) => {
     produtosMaisVendidos,
     osAbertas,
     orcamentosAtivos,
+    osPorStatus,
+    estoqueBaixo,
   ] = await Promise.all([
     pool.query(
       `SELECT COALESCE(SUM(valor_total), 0) as faturamento
@@ -56,6 +58,17 @@ const dashboard = async (tenantId = SINGLE_TENANT_ID) => {
       `SELECT COUNT(*) as total FROM orcamentos WHERE status = 'Pendente' AND tenant_id = $1`,
       [tenantId],
     ),
+    pool.query(
+      `SELECT status, COUNT(*)::int AS total
+       FROM ordens_servico WHERE tenant_id = $1
+       GROUP BY status`,
+      [tenantId],
+    ),
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM produtos
+       WHERE tenant_id = $1 AND quantidade <= estoque_minimo`,
+      [tenantId],
+    ),
   ]);
 
   return {
@@ -71,6 +84,11 @@ const dashboard = async (tenantId = SINGLE_TENANT_ID) => {
     })),
     osAbertas: parseInt(osAbertas.rows[0]?.total || 0),
     orcamentosAtivos: parseInt(orcamentosAtivos.rows[0]?.total || 0),
+    osPorStatus: osPorStatus.rows.map((r) => ({
+      status: r.status,
+      total: r.total,
+    })),
+    estoqueBaixo: parseInt(estoqueBaixo.rows[0]?.total || 0),
   };
 };
 

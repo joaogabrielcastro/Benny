@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "benny-change-this-in-production";
-const DEFAULT_TENANT_ID = Number(process.env.DEFAULT_TENANT_ID || 1);
+import { JWT_SECRET } from "../config/jwt.js";
+import { resolveTenantId } from "../config/singleTenant.js";
+import { normalizeRole } from "../config/roles.js";
 
 export const requireAuth = (req, res, next) => {
   const header = req.headers.authorization;
@@ -14,12 +14,12 @@ export const requireAuth = (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.tenantId = payload.tenantId || DEFAULT_TENANT_ID;
+    req.tenantId = resolveTenantId(req);
     req.user = {
       id: payload.userId,
       email: payload.email,
       nome: payload.nome,
-      role: payload.role,
+      role: normalizeRole(payload.role),
     };
     next();
   } catch (err) {

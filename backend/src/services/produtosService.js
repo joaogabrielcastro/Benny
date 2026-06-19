@@ -1,22 +1,39 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
-const isUniqueCodigoError = (error) =>
-  error?.code === "23505" &&
-  typeof error?.constraint === "string" &&
-  error.constraint.includes("produtos_codigo");
+const listar = async (
+  tenantId = SINGLE_TENANT_ID,
+  { limit = 20, offset = 0, busca, estoque } = {},
+) => {
+  let where = "WHERE tenant_id = $1";
+  const params = [tenantId];
+  let i = 2;
 
-const listar = async (tenantId = SINGLE_TENANT_ID, { limit = 20, offset = 0 }) => {
+  if (busca) {
+    where += ` AND (nome ILIKE $${i} OR codigo ILIKE $${i})`;
+    params.push(`%${busca}%`);
+    i++;
+  }
+  if (estoque === "baixo") {
+    where += " AND quantidade <= estoque_minimo";
+  } else if (estoque === "zerado") {
+    where += " AND quantidade = 0";
+  }
+
+  const limitIdx = i;
+  const offsetIdx = i + 1;
+
   const [result, countResult] = await Promise.all([
     pool.query(
-      "SELECT * FROM produtos WHERE tenant_id = $1 ORDER BY nome LIMIT $2 OFFSET $3",
-      [tenantId, limit, offset],
+      `SELECT * FROM produtos ${where} ORDER BY nome LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...params, limit, offset],
     ),
-    pool.query("SELECT COUNT(*) FROM produtos WHERE tenant_id = $1", [
-      tenantId,
-    ]),
+    pool.query(
+      `SELECT COUNT(*)::int AS total FROM produtos ${where}`,
+      params,
+    ),
   ]);
-  return { rows: result.rows, total: parseInt(countResult.rows[0].count) };
+  return { rows: result.rows, total: countResult.rows[0]?.total ?? 0 };
 };
 
 const estoqueBaixo = async (tenantId = SINGLE_TENANT_ID) => {
@@ -66,6 +83,11 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   return result.rows[0] || null;
 };
 
+const normalizeCodigoOpcional = (codigo) => {
+  if (codigo === undefined || codigo === null) return "";
+  return String(codigo).trim();
+};
+
 const criar = async (
   tenantId,
   {
@@ -78,13 +100,14 @@ const criar = async (
     estoque_minimo,
   },
 ) => {
-  let result;
-  if (codigo && codigo.toString().trim() !== "") {
-    result = await pool.query(
+  const codigoInformado = normalizeCodigoOpcional(codigo);
+
+  if (codigoInformado !== "") {
+    const result = await pool.query(
       `INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
-        codigo,
+        codigoInformado,
         nome,
         descricao,
         quantidade || 0,
@@ -94,39 +117,42 @@ const criar = async (
         tenantId,
       ],
     );
-  } else {
-    const params = [
-      nome,
-      descricao,
-      quantidade || 0,
-      valor_custo || 0,
-      valor_venda || 0,
-      estoque_minimo || 5,
-      tenantId,
-    ];
+    return result.rows[0];
+  }
 
-    // Retry curto para evitar colisao de codigo gerado em criacoes concorrentes.
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      try {
-        result = await pool.query(
-          `WITH next_num AS (
-             SELECT COALESCE(MAX((regexp_replace(codigo, '\\D', '', 'g'))::int), 0) + 1 AS n FROM produtos WHERE tenant_id = $7
-           )
-           INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
-           SELECT ('P-' || lpad(next_num.n::text, 4, '0')), $1, $2, $3, $4, $5, $6, $7
-           FROM next_num
-           RETURNING *`,
-          params,
-        );
-        break;
-      } catch (error) {
-        if (!isUniqueCodigoError(error) || attempt === 4) {
-          throw error;
-        }
-      }
+  const sqlAuto = `
+    WITH next_num AS (
+      SELECT COALESCE(MAX((regexp_match(codigo, '^P-([0-9]+)$'))[1]::int), 0) + 1 AS n
+      FROM produtos WHERE tenant_id = $7 AND codigo ~ '^P-[0-9]+$'
+    )
+    INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
+    SELECT (
+      'P-' || lpad(next_num.n::text, GREATEST(4, length(next_num.n::text)), '0')
+    ), $1, $2, $3, $4, $5, $6, $7
+    FROM next_num
+    RETURNING *`;
+
+  const params = [
+    nome,
+    descricao,
+    quantidade || 0,
+    valor_custo || 0,
+    valor_venda || 0,
+    estoque_minimo || 5,
+    tenantId,
+  ];
+
+  let lastErr;
+  for (let i = 0; i < 25; i++) {
+    try {
+      const result = await pool.query(sqlAuto, params);
+      return result.rows[0];
+    } catch (e) {
+      if (e.code !== "23505") throw e;
+      lastErr = e;
     }
   }
-  return result.rows[0];
+  throw lastErr ?? new Error("Não foi possível gerar um código de produto único");
 };
 
 const atualizar = async (

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: benny
+          POSTGRES_PASSWORD: benny
+          POSTGRES_DB: benny_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U benny -d benny_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://benny:benny@localhost:5432/benny_test?sslmode=disable
+      JWT_SECRET: ci-jwt-secret-minimum-32-characters-long
+      SKIP_DB_INIT_DDL: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Aguardar schema (database.js no boot dos testes)
+        run: node -e "import pool from './database.js'; await new Promise(r=>setTimeout(r,8000)); await pool.end();"
+      - run: npm test
+      - run: npm run test:integration
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build

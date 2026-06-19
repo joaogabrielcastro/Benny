@@ -1,292 +1,66 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
+import BuscaPlacaVeiculoButton from "../components/BuscaPlacaVeiculoButton";
+import { mascaraPlaca } from "../utils/masks";
+import { validarPlaca } from "../utils/validators";
+import toast from "react-hot-toast";
+import PageHeader from "../components/layout/PageHeader";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { formatarMoeda } from "../utils/formatters";
+import { useAuth } from "../contexts/AuthContext";
+import { useOSForm } from "../hooks/os/useOSForm";
+import OSFormItensProdutos from "../features/os/OSFormItensProdutos";
+import OSFormItensServicos from "../features/os/OSFormItensServicos";
 
 export default function OSForm() {
-  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { id } = useParams();
-  const modoEdicao = !!id;
-  const [clientes, setClientes] = useState([]);
-  const [veiculos, setVeiculos] = useState([]);
-  const [produtos, setProdutos] = useState([]);
-  const [mostrarClienteForm, setMostrarClienteForm] = useState(false);
-  const [mostrarVeiculoForm, setMostrarVeiculoForm] = useState(false);
-  const [carregando, setCarregando] = useState(modoEdicao);
-
-  const [formData, setFormData] = useState({
-    cliente_id: "",
-    veiculo_id: "",
-    km: "",
-    previsao_entrega: "",
-    observacoes_veiculo: "",
-    observacoes_gerais: "",
-    responsavel_tecnico: "",
-    status: "Aberta",
-  });
-
-  const [itensProdutos, setItensProdutos] = useState([]);
-  const [itensServicos, setItensServicos] = useState([]);
-
-  useEffect(() => {
-    carregarClientes();
-    carregarProdutos();
-    if (modoEdicao) {
-      carregarOS();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (formData.cliente_id) {
-      carregarVeiculos(formData.cliente_id);
-    }
-  }, [formData.cliente_id]);
-
-  const carregarClientes = async () => {
-    try {
-      const response = await api.get("/clientes");
-      setClientes(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar clientes:", error);
-    }
-  };
-
-  const carregarVeiculos = async (clienteId) => {
-    try {
-      const response = await api.get(`/veiculos/cliente/${clienteId}`);
-      setVeiculos(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar veículos:", error);
-    }
-  };
-
-  const carregarProdutos = async () => {
-    try {
-      const response = await api.get("/produtos");
-      // A API agora retorna { data: [...], pagination: {...} }
-      setProdutos(
-        Array.isArray(response.data) ? response.data : response.data.data || []
-      );
-    } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
-    }
-  };
-
-  const carregarOS = async () => {
-    try {
-      setCarregando(true);
-      const response = await api.get(`/ordens-servico/${id}`);
-      const os = response.data;
-      
-      setFormData({
-        cliente_id: os.cliente_id,
-        veiculo_id: os.veiculo_id,
-        km: os.km || "",
-        previsao_entrega: os.previsao_entrega ? os.previsao_entrega.split('T')[0] : "",
-        observacoes_veiculo: os.observacoes_veiculo || "",
-        observacoes_gerais: os.observacoes_gerais || "",
-        responsavel_tecnico: os.responsavel_tecnico || "",
-        status: os.status || "Aberta",
-      });
-
-      if (os.cliente_id) {
-        await carregarVeiculos(os.cliente_id);
-      }
-
-      if (os.produtos && os.produtos.length > 0) {
-        setItensProdutos(os.produtos.map(p => ({
-          produto_id: p.produto_id || "",
-          codigo: p.codigo,
-          descricao: p.descricao,
-          quantidade: p.quantidade,
-          valor_unitario: p.valor_unitario,
-          valor_total: p.valor_total,
-        })));
-      }
-
-      if (os.servicos && os.servicos.length > 0) {
-        setItensServicos(os.servicos.map(s => ({
-          codigo: s.codigo,
-          descricao: s.descricao,
-          quantidade: s.quantidade,
-          valor_unitario: s.valor_unitario,
-          valor_total: s.valor_total,
-        })));
-      }
-
-      setCarregando(false);
-    } catch (error) {
-      console.error("Erro ao carregar OS:", error);
-      alert("Erro ao carregar OS");
-      navigate("/ordens-servico");
-    }
-  };
-
-  const adicionarProduto = () => {
-    setItensProdutos([
-      ...itensProdutos,
-      {
-        produto_id: "",
-        codigo: "",
-        descricao: "",
-        quantidade: 1,
-        valor_unitario: 0,
-        valor_total: 0,
-      },
-    ]);
-  };
-
-  const adicionarServico = () => {
-    setItensServicos([
-      ...itensServicos,
-      {
-        codigo: "",
-        descricao: "",
-        quantidade: 1,
-        valor_unitario: 0,
-        valor_total: 0,
-      },
-    ]);
-  };
-
-  const removerProduto = (index) => {
-    setItensProdutos(itensProdutos.filter((_, i) => i !== index));
-  };
-
-  const removerServico = (index) => {
-    setItensServicos(itensServicos.filter((_, i) => i !== index));
-  };
-
-  const atualizarProduto = (index, campo, valor) => {
-    const novosProdutos = [...itensProdutos];
-    novosProdutos[index][campo] = valor;
-
-    if (campo === "produto_id" && valor) {
-      const produto = produtos.find((p) => p.id == valor);
-      if (produto) {
-        novosProdutos[index].codigo = produto.codigo;
-        novosProdutos[index].descricao = produto.nome;
-        novosProdutos[index].valor_unitario = produto.valor_venda;
-
-        // Alertar se não há estoque suficiente
-        if (produto.quantidade < novosProdutos[index].quantidade) {
-          alert(
-            `ATENÇÃO: Produto ${produto.nome} tem apenas ${produto.quantidade} unidades em estoque!`
-          );
-        }
-      }
-    }
-
-    if (campo === "quantidade" || campo === "valor_unitario") {
-      novosProdutos[index].valor_total =
-        novosProdutos[index].quantidade * novosProdutos[index].valor_unitario;
-
-      // Verificar estoque ao alterar quantidade
-      if (campo === "quantidade" && novosProdutos[index].produto_id) {
-        const produto = produtos.find(
-          (p) => p.id == novosProdutos[index].produto_id
-        );
-        if (produto && produto.quantidade < novosProdutos[index].quantidade) {
-          alert(
-            `ATENÇÃO: Produto ${produto.nome} tem apenas ${produto.quantidade} unidades em estoque!`
-          );
-        }
-      }
-    }
-
-    setItensProdutos(novosProdutos);
-  };
-
-  const atualizarServico = (index, campo, valor) => {
-    const novosServicos = [...itensServicos];
-    novosServicos[index][campo] = valor;
-
-    if (campo === "quantidade" || campo === "valor_unitario") {
-      novosServicos[index].valor_total =
-        novosServicos[index].quantidade * novosServicos[index].valor_unitario;
-    }
-
-    setItensServicos(novosServicos);
-  };
-
-  const calcularTotal = () => {
-    const totalProdutos = itensProdutos.reduce(
-      (sum, item) => sum + item.valor_total,
-      0
-    );
-    const totalServicos = itensServicos.reduce(
-      (sum, item) => sum + item.valor_total,
-      0
-    );
-    return totalProdutos + totalServicos;
-  };
-
-  const validarEstoque = () => {
-    for (const item of itensProdutos) {
-      if (item.produto_id) {
-        const produto = produtos.find((p) => p.id == item.produto_id);
-        if (produto && produto.quantidade < item.quantidade) {
-          return `Estoque insuficiente para ${produto.nome}. Disponível: ${produto.quantidade}`;
-        }
-      }
-    }
-    return null;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.cliente_id || !formData.veiculo_id) {
-      alert("Selecione o cliente e o veículo");
-      return;
-    }
-
-    const erroEstoque = validarEstoque();
-    if (erroEstoque) {
-      if (!confirm(`${erroEstoque}\n\nDeseja continuar mesmo assim?`)) {
-        return;
-      }
-    }
-
-    try {
-      const dados = {
-        ...formData,
-        produtos: itensProdutos,
-        servicos: itensServicos,
-      };
-
-      if (modoEdicao) {
-        await api.put(`/ordens-servico/${id}`, dados);
-        alert("OS atualizada com sucesso!");
-        navigate(`/ordens-servico/${id}`);
-      } else {
-        const response = await api.post("/ordens-servico", dados);
-        alert("OS criada com sucesso!");
-        navigate(`/ordens-servico/${response.data.id}`);
-      }
-    } catch (error) {
-      alert(
-        `Erro ao ${modoEdicao ? 'atualizar' : 'criar'} OS: ` + (error.response?.data?.error || error.message)
-      );
-    }
-  };
+  const queryClient = useQueryClient();
+  const f = useOSForm(id);
+  const {
+    modoEdicao,
+    navigate,
+    veiculos,
+    produtos,
+    mostrarClienteForm,
+    setMostrarClienteForm,
+    mostrarVeiculoForm,
+    setMostrarVeiculoForm,
+    carregando,
+    formData,
+    setFormData,
+    itensProdutos,
+    itensServicos,
+    adicionarProduto,
+    adicionarServico,
+    removerProduto,
+    removerServico,
+    atualizarProduto,
+    atualizarServico,
+    calcularTotal,
+    handleSubmit,
+    carregarVeiculos,
+  } = f;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          {modoEdicao ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}
-        </h1>
-      </div>
+    <div className="page-enter">
+      <PageHeader
+        title={modoEdicao ? "Editar ordem de serviço" : "Nova ordem de serviço"}
+        subtitle={
+          modoEdicao
+            ? "Atualize cliente, itens e observações da OS."
+            : "Preencha os dados do cliente e adicione produtos e serviços."
+        }
+      />
 
       {carregando ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
+        <LoadingSpinner size="xl" />
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Dados do Cliente e Veículo */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="pro-card p-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Cliente e Veículo
           </h2>
@@ -316,13 +90,15 @@ export default function OSForm() {
                     required
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMostrarClienteForm(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  + Novo
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarClienteForm(true)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    + Novo
+                  </button>
+                )}
               </div>
             </div>
 
@@ -347,14 +123,16 @@ export default function OSForm() {
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() => setMostrarVeiculoForm(true)}
-                  disabled={!formData.cliente_id}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
-                >
-                  + Novo
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarVeiculoForm(true)}
+                    disabled={!formData.cliente_id}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
+                  >
+                    + Novo
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -429,259 +207,22 @@ export default function OSForm() {
           </div>
         </div>
 
-        {/* Produtos */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Produtos
-            </h2>
-            <button
-              type="button"
-              onClick={adicionarProduto}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              + Adicionar Produto
-            </button>
-          </div>
+        <OSFormItensProdutos
+          itensProdutos={itensProdutos}
+          produtos={produtos}
+          onAdicionar={adicionarProduto}
+          onRemover={removerProduto}
+          onAtualizar={atualizarProduto}
+        />
 
-          <div className="space-y-3">
-            {itensProdutos.map((item, index) => {
-              const produto = produtos.find((p) => p.id == item.produto_id);
-              const estoqueInsuficiente =
-                produto && produto.quantidade < item.quantidade;
+        <OSFormItensServicos
+          itensServicos={itensServicos}
+          onAdicionar={adicionarServico}
+          onRemover={removerServico}
+          onAtualizar={atualizarServico}
+        />
 
-              return (
-                <div
-                  key={index}
-                  className={`grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3 ${
-                    estoqueInsuficiente ? "bg-red-50 dark:bg-red-900/20" : ""
-                  }`}
-                >
-                  <div className="col-span-3">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Produto
-                    </label>
-                    <select
-                      value={item.produto_id}
-                      onChange={(e) =>
-                        atualizarProduto(index, "produto_id", e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Selecione...</option>
-                      {produtos.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nome} (Estoque: {p.quantidade})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Código
-                    </label>
-                    <input
-                      type="text"
-                      value={item.codigo}
-                      onChange={(e) =>
-                        atualizarProduto(index, "codigo", e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Descrição
-                    </label>
-                    <input
-                      type="text"
-                      value={item.descricao}
-                      onChange={(e) =>
-                        atualizarProduto(index, "descricao", e.target.value)
-                      }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Qtd
-                    </label>
-                    <input
-                      type="number"
-                      value={item.quantidade}
-                      onChange={(e) =>
-                        atualizarProduto(
-                          index,
-                          "quantidade",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                      min="0"
-                      step="1"
-                      className={`w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 ${
-                        estoqueInsuficiente
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:ring-blue-500"
-                      }`}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Valor Unit.
-                    </label>
-                    <input
-                      type="number"
-                      value={item.valor_unitario}
-                      onChange={(e) =>
-                        atualizarProduto(
-                          index,
-                          "valor_unitario",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                      min="0"
-                      step="0.01"
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Total
-                    </label>
-                    <input
-                      type="text"
-                      value={`R$ ${item.valor_total.toFixed(2)}`}
-                      readOnly
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded bg-gray-50"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <button
-                      type="button"
-                      onClick={() => removerProduto(index)}
-                      className="w-full px-2 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                    >
-                      X
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Serviços */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Serviços
-            </h2>
-            <button
-              type="button"
-              onClick={adicionarServico}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              + Adicionar Serviço
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {itensServicos.map((item, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
-              >
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Código
-                  </label>
-                  <input
-                    type="text"
-                    value={item.codigo}
-                    onChange={(e) =>
-                      atualizarServico(index, "codigo", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Descrição
-                  </label>
-                  <input
-                    type="text"
-                    value={item.descricao}
-                    onChange={(e) =>
-                      atualizarServico(index, "descricao", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Qtd/Horas
-                  </label>
-                  <input
-                    type="number"
-                    value={item.quantidade}
-                    onChange={(e) =>
-                      atualizarServico(
-                        index,
-                        "quantidade",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    min="0"
-                    step="0.5"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Valor Unit.
-                  </label>
-                  <input
-                    type="number"
-                    value={item.valor_unitario}
-                    onChange={(e) =>
-                      atualizarServico(
-                        index,
-                        "valor_unitario",
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Total
-                  </label>
-                  <input
-                    type="text"
-                    value={`R$ ${item.valor_total.toFixed(2)}`}
-                    readOnly
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded bg-gray-50"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <button
-                    type="button"
-                    onClick={() => removerServico(index)}
-                    className="w-full px-2 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                  >
-                    X
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Observações e Total */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="pro-card p-6">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Observações Gerais
@@ -700,25 +241,21 @@ export default function OSForm() {
             <span className="text-2xl font-bold text-gray-800 dark:text-white">
               Valor Total:
             </span>
-            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              R$ {calcularTotal().toFixed(2)}
+            <span className="text-3xl font-bold text-brand-600 dark:text-brand-400">
+              {formatarMoeda(calcularTotal())}
             </span>
           </div>
         </div>
 
-        {/* Botões */}
-        <div className="flex justify-end space-x-4">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
             type="button"
             onClick={() => navigate("/ordens-servico")}
-            className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="btn-secondary"
           >
             Cancelar
           </button>
-          <button
-            type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
+          <button type="submit" className="btn-brand">
             {modoEdicao ? "Atualizar OS" : "Salvar OS"}
           </button>
         </div>
@@ -731,7 +268,7 @@ export default function OSForm() {
           onClose={(clienteId) => {
             setMostrarClienteForm(false);
             if (clienteId) {
-              carregarClientes();
+              queryClient.invalidateQueries({ queryKey: ["clientes"] });
               setFormData({ ...formData, cliente_id: clienteId });
             }
           }}
@@ -846,6 +383,7 @@ function ClienteFormModal({ onClose }) {
 function VeiculoFormModal({ clienteId, onClose }) {
   const [formData, setFormData] = useState({
     cliente_id: clienteId,
+    marca: "",
     modelo: "",
     cor: "",
     placa: "",
@@ -854,12 +392,20 @@ function VeiculoFormModal({ clienteId, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validarPlaca(formData.placa.replace(/[^A-Z0-9]/gi, ""))) {
+      toast.error("Placa inválida.");
+      return;
+    }
     try {
-      const response = await api.post("/veiculos", formData);
-      alert("Veículo criado com sucesso!");
+      const payload = {
+        ...formData,
+        placa: formData.placa.replace(/[^A-Z0-9]/g, "").toUpperCase(),
+      };
+      const response = await api.post("/veiculos", payload);
+      toast.success("Veículo criado com sucesso!");
       onClose(response.data.id);
     } catch (error) {
-      alert("Erro ao criar veículo");
+      toast.error(error.response?.data?.error || "Erro ao criar veículo");
     }
   };
 
@@ -871,19 +417,35 @@ function VeiculoFormModal({ clienteId, onClose }) {
             Novo Veículo
           </h2>
           <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Modelo *
-              </label>
-              <input
-                type="text"
-                value={formData.modelo}
-                onChange={(e) =>
-                  setFormData({ ...formData, modelo: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Marca *
+                </label>
+                <input
+                  type="text"
+                  value={formData.marca}
+                  onChange={(e) =>
+                    setFormData({ ...formData, marca: e.target.value })
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Modelo *
+                </label>
+                <input
+                  type="text"
+                  value={formData.modelo}
+                  onChange={(e) =>
+                    setFormData({ ...formData, modelo: e.target.value })
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -913,18 +475,35 @@ function VeiculoFormModal({ clienteId, onClose }) {
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Placa *
-              </label>
-              <input
-                type="text"
-                value={formData.placa}
-                onChange={(e) =>
-                  setFormData({ ...formData, placa: e.target.value })
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Placa *
+                </label>
+                <input
+                  type="text"
+                  value={formData.placa}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      placa: mascaraPlaca(e.target.value),
+                    })
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <BuscaPlacaVeiculoButton
+                placa={formData.placa}
+                onDados={(d) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    marca: d.marca || prev.marca,
+                    modelo: d.modelo || prev.modelo,
+                    ano: d.ano || prev.ano,
+                    cor: d.cor || prev.cor,
+                  }))
                 }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex justify-end space-x-3 pt-4">

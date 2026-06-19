@@ -1,55 +1,64 @@
-import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
+import { resolveTenantId } from "../config/singleTenant.js";
 import ordensServicoService from "../services/ordensServicoService.js";
-import logger from "../config/logger.js";
+import { notFound } from "../lib/AppError.js";
+import { sendPaginated } from "../lib/paginationResponse.js";
 
 class OrdensServicoController {
   async listar(req, res) {
-    try {
-      const rows = await ordensServicoService.listar(SINGLE_TENANT_ID, req.query);
-      res.json(rows);
-    } catch (error) {
-      logger.error("Erro ao listar ordens de serviço:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const tenantId = resolveTenantId(req);
+    const { limit, offset, page } = req.pagination;
+    const { rows, total } = await ordensServicoService.listar(tenantId, {
+      status: req.query.status,
+      busca: req.query.busca,
+      cliente_id: req.query.cliente_id
+        ? parseInt(req.query.cliente_id, 10)
+        : undefined,
+      data_inicio: req.query.data_inicio,
+      data_fim: req.query.data_fim,
+      ordenar: req.query.ordenar,
+      direcao: req.query.direcao,
+      limit,
+      offset,
+    });
+    sendPaginated(res, { rows, total, page, limit });
   }
 
   async buscar(req, res) {
-    try {
-      const os = await ordensServicoService.buscarPorId(
-        SINGLE_TENANT_ID,
-        req.params.id,
-      );
-      if (!os) return res.status(404).json({ error: "OS não encontrada" });
-      res.json(os);
-    } catch (error) {
-      logger.error(`Erro ao buscar OS ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    const os = await ordensServicoService.buscarPorId(
+      resolveTenantId(req),
+      req.params.id,
+    );
+    if (!os) throw notFound("OS não encontrada");
+    res.json(os);
   }
 
   async criar(req, res) {
-    try {
-      const result = await ordensServicoService.criar(SINGLE_TENANT_ID, req.body);
-      res.status(201).json({ ...result, message: "OS criada com sucesso" });
-    } catch (error) {
-      logger.error("Erro ao criar OS:", error);
-      res.status(500).json({ error: error.message });
-    }
+    const body = req.validated?.body ?? req.body;
+    const result = await ordensServicoService.criar(
+      resolveTenantId(req),
+      body,
+    );
+    res.status(201).json({ ...result, message: "OS criada com sucesso" });
   }
 
   async atualizar(req, res) {
-    try {
-      const result = await ordensServicoService.atualizar(
-        SINGLE_TENANT_ID,
-        req.params.id,
-        req.body,
-      );
-      if (!result) return res.status(404).json({ error: "OS não encontrada" });
-      res.json({ message: "OS atualizada com sucesso" });
-    } catch (error) {
-      logger.error(`Erro ao atualizar OS ${req.params.id}:`, error);
-      res.status(500).json({ error: error.message });
-    }
+    const body = req.validated?.body ?? req.body;
+    const result = await ordensServicoService.atualizar(
+      resolveTenantId(req),
+      req.params.id,
+      body,
+    );
+    if (!result) throw notFound("OS não encontrada");
+    res.json({ message: "OS atualizada com sucesso" });
+  }
+
+  async deletar(req, res) {
+    const ok = await ordensServicoService.deletar(
+      resolveTenantId(req),
+      req.params.id,
+    );
+    if (!ok) throw notFound("OS não encontrada");
+    res.json({ message: "Ordem de serviço excluída com sucesso" });
   }
 }
 
