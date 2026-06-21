@@ -1,0 +1,91 @@
+# Benny — ambiente local com Docker (testes sem deploy em produção)
+#
+# Uso rápido:
+#   cp .env.docker.example .env.docker
+#   docker compose --env-file .env.docker up --build
+#
+# Acessos:
+#   Frontend: http://localhost:8080
+#   API:      http://localhost:3011/api/health
+#   Login:    admin@oficina.com / 123456
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: benny-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-benny}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-benny_dev_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-benny}
+    volumes:
+      - benny_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-benny} -d ${POSTGRES_DB:-benny}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: benny-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-benny}:${POSTGRES_PASSWORD:-benny_dev_secret}@db:5432/${POSTGRES_DB:-benny}?sslmode=disable
+      PORT: 3011
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-docker-dev-jwt-secret-minimo-32-caracteres}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      DEFAULT_TENANT_ID: ${DEFAULT_TENANT_ID:-1}
+      SKIP_DB_INIT_DDL: ${SKIP_DB_INIT_DDL:-true}
+      DOCKER_BOOTSTRAP_DB: ${DOCKER_BOOTSTRAP_DB:-true}
+      DOCKER_ADMIN_EMAIL: ${DOCKER_ADMIN_EMAIL:-admin@oficina.com}
+      DOCKER_ADMIN_PASSWORD: ${DOCKER_ADMIN_PASSWORD:-123456}
+      DOCKER_ADMIN_NOME: ${DOCKER_ADMIN_NOME:-Administrador}
+      STORAGE_DIR: /app/storage
+      NUVEM_FISCAL_CLIENT_ID: ${NUVEM_FISCAL_CLIENT_ID:-}
+      NUVEM_FISCAL_CLIENT_SECRET: ${NUVEM_FISCAL_CLIENT_SECRET:-}
+      NUVEM_FISCAL_CNPJ_EMITENTE: ${NUVEM_FISCAL_CNPJ_EMITENTE:-55961553000100}
+      NUVEM_FISCAL_AMBIENTE: ${NUVEM_FISCAL_AMBIENTE:-homologacao}
+      NUVEM_FISCAL_PROVEDOR: ${NUVEM_FISCAL_PROVEDOR:-nacional}
+      NUVEM_FISCAL_API_URL: ${NUVEM_FISCAL_API_URL:-https://api.sandbox.nuvemfiscal.com.br}
+      NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE: ${NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE:-4105805}
+      NUVEM_FISCAL_C_TRIB_NAC: ${NUVEM_FISCAL_C_TRIB_NAC:-140101}
+      NUVEM_FISCAL_C_NBS: ${NUVEM_FISCAL_C_NBS:-120013110}
+      NUVEM_FISCAL_ALIQUOTA_ISS: ${NUVEM_FISCAL_ALIQUOTA_ISS:-2}
+      NUVEM_FISCAL_EMITENTE_IE: ${NUVEM_FISCAL_EMITENTE_IE:-}
+      NUVEM_FISCAL_NFE_CRT: ${NUVEM_FISCAL_NFE_CRT:-1}
+      NUVEM_FISCAL_NFE_NUMERO_INICIAL: ${NUVEM_FISCAL_NFE_NUMERO_INICIAL:-1}
+    ports:
+      - "3011:3011"
+    volumes:
+      - benny_storage:/app/storage
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3011/api}
+    container_name: benny-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  benny_pgdata:
+  benny_storage:

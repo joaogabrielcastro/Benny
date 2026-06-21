@@ -3,6 +3,21 @@ import pool from "../../database.js";
 import { calcularTotais } from "../domain/calcularTotais.js";
 import { proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
+import { produtosTemColunaNcm } from "../lib/schemaCache.js";
+
+async function queryProdutosOs(osId) {
+  const temNcm = await produtosTemColunaNcm(pool);
+  if (temNcm) {
+    return pool.query(
+      `SELECT op.*, p.ncm AS produto_ncm
+       FROM os_produtos op
+       LEFT JOIN produtos p ON p.id = op.produto_id
+       WHERE op.os_id = $1`,
+      [osId],
+    );
+  }
+  return pool.query("SELECT * FROM os_produtos WHERE os_id = $1", [osId]);
+}
 
 async function deducaoEstoque(client, os_id, produtos = []) {
   for (const p of produtos) {
@@ -142,13 +157,7 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
        WHERE os.id = $1 AND os.tenant_id = $2`,
       [id, tenantId],
     ),
-    pool.query(
-      `SELECT op.*, p.ncm AS produto_ncm
-       FROM os_produtos op
-       LEFT JOIN produtos p ON p.id = op.produto_id
-       WHERE op.os_id = $1`,
-      [id],
-    ),
+    queryProdutosOs(id),
     pool.query("SELECT * FROM os_servicos WHERE os_id = $1", [id]),
   ]);
   if (!os.rows[0]) return null;

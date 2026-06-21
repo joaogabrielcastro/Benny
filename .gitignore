@@ -8,6 +8,7 @@ yarn.lock
 .env.local
 .env.*.local
 .env.production
+.env.docker
 
 # Logs
 logs/

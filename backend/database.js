@@ -663,4 +663,5 @@ if (process.env.SKIP_DB_INIT_DDL !== "true") {
   console.log("[INFO] SKIP_DB_INIT_DDL=true — DDL de boot ignorado; use npm run migrate");
 }
 
+export { initDatabase };
 export default pool;

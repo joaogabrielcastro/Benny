@@ -353,7 +353,7 @@ export default api;
 ### Custos Mensais
 
 - Servidor (Render): R$ 50
-- Banco (Neon Postgres): R$ 100
+- Banco (PostgreSQL no Coolify/servidor): conforme hospedagem
 - Domínio + SSL: R$ 20
 - **Total: R$ 170/mês**
 

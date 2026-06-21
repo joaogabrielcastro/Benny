@@ -112,7 +112,7 @@ Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreS
 ## 📋 Requisitos
 
 - **Node.js** 18 ou superior
-- **PostgreSQL** (recomendado Neon para produção)
+- **PostgreSQL** 14+ (Docker local, Coolify ou servidor próprio)
 - NPM ou Yarn
 
 ## 🔧 Instalação Local
@@ -170,12 +170,12 @@ O frontend estará em `http://localhost:5173`
 4. Configure a variável de ambiente:
    - `VITE_API_URL`: URL do seu backend no Render
 
-### Database (Neon)
+### Banco de dados (PostgreSQL)
 
-1. Crie uma conta no [Neon](https://neon.tech)
-2. Crie um novo projeto PostgreSQL
-3. Copie a connection string
-4. Use no `.env` do backend
+1. **Local / testes:** `docker compose --env-file .env.docker up` (ver `docs/DOCKER.md`)
+2. **Produção:** Postgres no Coolify ou VPS — veja `docs/DEPLOY_COOLIFY.md`
+3. Copie a connection string para `DATABASE_URL` no `.env` do backend
+4. Após deploy: `npm run migrate`
 
 ## 📁 Estrutura do Projeto
 
@@ -358,7 +358,7 @@ Benny/
 ### Backend
 
 - **Node.js** 18+ com Express.js
-- **PostgreSQL** (Neon) com pool de conexões
+- **PostgreSQL** com pool de conexões (`pg`)
 - **Winston** para logging estruturado
 - **node-schedule** para tarefas agendadas (backups, lembretes)
 - **node-cache** para cache em memória

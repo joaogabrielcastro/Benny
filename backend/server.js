@@ -5,6 +5,7 @@ import compression from "compression";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import pool from "./database.js";
 import apiRoutes from "./src/routes/index.js";
 import { initScheduler } from "./src/jobs/scheduler.js";
@@ -68,10 +69,19 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Servir arquivos estáticos do storage local
-app.use(
-  "/api/storage",
-  express.static(path.join(process.cwd(), "backend", "storage")),
-);
+const storageCandidates = [
+  process.env.STORAGE_DIR,
+  path.join(process.cwd(), "storage"),
+  path.join(process.cwd(), "backend", "storage"),
+].filter(Boolean);
+const storageDir =
+  storageCandidates.find((dir) => fs.existsSync(dir)) ||
+  storageCandidates[0] ||
+  path.join(process.cwd(), "storage");
+if (!fs.existsSync(storageDir)) {
+  fs.mkdirSync(storageDir, { recursive: true });
+}
+app.use("/api/storage", express.static(storageDir));
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 

@@ -11,11 +11,17 @@ npm install bcrypt
 
 ## 🗄️ 2. Configurar Banco de Dados
 
-Certifique-se de que o `.env` está configurado:
+Certifique-se de que o `backend/.env` está configurado (copie de `.env.example`):
 
 ```env
-DATABASE_URL=postgresql://neondb_owner:npg_7troCv0OgNFz@ep-steep-mud-ac3ojtw1-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+# Docker local (porta 5433 publicada pelo compose)
+DATABASE_URL=postgresql://benny:benny_dev_secret@localhost:5433/benny?sslmode=disable
+
+# Ou PostgreSQL local / Coolify em produção
+# DATABASE_URL=postgresql://user:password@host:5432/benny?sslmode=disable
 ```
+
+Ambiente Docker completo: veja `docs/DOCKER.md` na raiz do projeto.
 
 ## 🚀 3. Executar Migration
 
