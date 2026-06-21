@@ -9,6 +9,10 @@ describe("montarCorpoEmissaoNfe", () => {
     process.env.NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE = "4105805";
     process.env.NUVEM_FISCAL_CNPJ_EMITENTE = "55961553000100";
     process.env.NUVEM_FISCAL_EMITENTE_IE = "1234567890";
+    process.env.NUVEM_FISCAL_RESP_TEC_CNPJ = "10782612000137";
+    process.env.NUVEM_FISCAL_RESP_TEC_CONTATO = "Suporte Benny ERP";
+    process.env.NUVEM_FISCAL_RESP_TEC_EMAIL = "suporte@exemplo.com.br";
+    process.env.NUVEM_FISCAL_RESP_TEC_FONE = "41999999999";
   });
 
   afterEach(() => {
@@ -41,6 +45,27 @@ describe("montarCorpoEmissaoNfe", () => {
     assert.equal(result.body.infNFe.ide.serie, 1);
     assert.equal(result.body.infNFe.emit.IE, "1234567890");
     assert.equal(result.body.infNFe.emit.CRT, 1);
+    assert.equal(result.body.infNFe.infRespTec.CNPJ, "10782612000137");
+    assert.equal(result.body.infNFe.infRespTec.xContato, "Suporte Benny ERP");
+  });
+
+  it("falha sem responsável técnico (infRespTec)", () => {
+    delete process.env.NUVEM_FISCAL_RESP_TEC_CNPJ;
+    const result = montarCorpoEmissaoNfe(
+      { id: 1, numero: "OS-1" },
+      {
+        nome: "Cliente",
+        cep: "83411100",
+        cpf_cnpj: "12345678909",
+        cidade: "Colombo",
+        estado: "PR",
+        codigo_ibge: "4105805",
+      },
+      [{ codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 }],
+      { nNF: 1 },
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.erro, /972|infRespTec|Responsável técnico/i);
   });
 
   it("falha sem IE do emitente", () => {

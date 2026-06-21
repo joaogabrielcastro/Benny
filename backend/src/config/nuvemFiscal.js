@@ -25,6 +25,8 @@
  * - NUVEM_FISCAL_ALIQUOTA_PIS / NUVEM_FISCAL_ALIQUOTA_COFINS: opcionais (0 = não estimar)
  * - NF-e (peças): NUVEM_FISCAL_EMITENTE_IE (obrigatório na SEFAZ), NUVEM_FISCAL_NFE_CRT (1=Simples),
  *   NUVEM_FISCAL_NFE_CFOP (5102), NUVEM_FISCAL_NFE_CSOSN (103), NUVEM_FISCAL_NFE_NCM, série, CUF
+ * - NF-e PR (NT 2018.005): NUVEM_FISCAL_RESP_TEC_CNPJ, _CONTATO, _EMAIL, _FONE (infRespTec — obrigatório)
+ *   Opcional PR: NUVEM_FISCAL_RESP_TEC_CSRT_ID + NUVEM_FISCAL_RESP_TEC_CSRT (Nuvem calcula hashCSRT)
  * - NUVEM_FISCAL_AUTH_URL / NUVEM_FISCAL_API_URL / NUVEM_FISCAL_SCOPE (opcionais; veja defaults abaixo)
  * - NUVEM_FISCAL_TOMADOR_CPF / NUVEM_FISCAL_TOMADOR_CNPJ / NUVEM_FISCAL_TOMADOR_CEP / NUVEM_FISCAL_TOMADOR_C_MUN:
  *   fallbacks para OS de teste quando o cliente ainda não tiver documento ou CEP completos.
@@ -128,6 +130,24 @@ export function getNuvemFiscalConfig() {
       parseInt(process.env.NUVEM_FISCAL_NFE_NUMERO_INICIAL || "1", 10) || 1,
     nfeNatOp:
       process.env.NUVEM_FISCAL_NFE_NAT_OP || "VENDA DE MERCADORIA ADQUIRIDA",
+    /** Responsável técnico do ERP (infRespTec) — CNPJ do desenvolvedor do software, não da oficina */
+    respTecCnpj: (process.env.NUVEM_FISCAL_RESP_TEC_CNPJ || "").replace(
+      /\D/g,
+      "",
+    ),
+    respTecContato: String(
+      process.env.NUVEM_FISCAL_RESP_TEC_CONTATO || "",
+    ).trim(),
+    respTecEmail: String(process.env.NUVEM_FISCAL_RESP_TEC_EMAIL || "").trim(),
+    respTecFone: (process.env.NUVEM_FISCAL_RESP_TEC_FONE || "").replace(
+      /\D/g,
+      "",
+    ),
+    respTecCsrtId: parseInt(
+      process.env.NUVEM_FISCAL_RESP_TEC_CSRT_ID || "0",
+      10,
+    ) || 0,
+    respTecCsrt: String(process.env.NUVEM_FISCAL_RESP_TEC_CSRT || "").trim(),
   };
 }
 

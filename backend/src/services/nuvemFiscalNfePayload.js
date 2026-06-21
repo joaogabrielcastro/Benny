@@ -72,6 +72,26 @@ function buildDest(cliente, cfg) {
   return dest;
 }
 
+function buildInfRespTec(cfg) {
+  const cnpj = cfg.respTecCnpj;
+  if (cnpj.length !== 14) return null;
+
+  const xContato = trunc(cfg.respTecContato, 60);
+  const email = trunc(cfg.respTecEmail, 60);
+  const fone = cfg.respTecFone.slice(0, 14);
+
+  if (!xContato || !email || fone.length < 10) return null;
+
+  const infRespTec = { CNPJ: cnpj, xContato, email, fone };
+
+  if (cfg.respTecCsrtId > 0 && cfg.respTecCsrt) {
+    infRespTec.idCSRT = cfg.respTecCsrtId;
+    infRespTec.CSRT = cfg.respTecCsrt;
+  }
+
+  return infRespTec;
+}
+
 function buildDetItens(produtos, cfg) {
   const cfop = cfg.nfeCfop.length === 4 ? cfg.nfeCfop : "5102";
   const csosn = cfg.nfeCsosn.length === 3 ? cfg.nfeCsosn : "103";
@@ -160,6 +180,16 @@ export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
         "Inscrição Estadual (IE) do emitente é obrigatória na NF-e. Defina NUVEM_FISCAL_EMITENTE_IE no servidor (somente dígitos, igual ao cadastro SEFAZ / painel Nuvem).",
     };
   }
+
+  const infRespTec = buildInfRespTec(cfg);
+  if (!infRespTec) {
+    return {
+      ok: false,
+      erro:
+        "Responsável técnico (infRespTec) é obrigatório na NF-e (SEFAZ PR — rejeição 972). Defina NUVEM_FISCAL_RESP_TEC_CNPJ (CNPJ do desenvolvedor do ERP), NUVEM_FISCAL_RESP_TEC_CONTATO, NUVEM_FISCAL_RESP_TEC_EMAIL e NUVEM_FISCAL_RESP_TEC_FONE no servidor.",
+    };
+  }
+
   const { valor_produtos } = totaisFiscaisOs({ ...os, produtos });
 
   if (!produtos?.length || valor_produtos <= 0) {
@@ -254,6 +284,7 @@ export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
       infAdic: {
         infCpl: trunc(`Referente a pecas da OS ${os.numero}`, 5000),
       },
+      infRespTec,
     },
   };
 

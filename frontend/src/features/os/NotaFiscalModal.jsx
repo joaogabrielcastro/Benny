@@ -236,10 +236,24 @@ export default function NotaFiscalModal({
             </p>
             {isNfe && (
               <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-3">
-                Confira no Coolify: <strong>NUVEM_FISCAL_EMITENTE_IE</strong> (IE da
-                oficina), certificado A1 no painel Nuvem (NF-e homologação) e dados do
-                cliente (CPF/CNPJ, CEP, IBGE). Depois use <strong>Reemitir NF-e</strong> na
-                OS.
+                {/972|responsavel tecnico|infRespTec/i.test(
+                  nota.detalhe_rejeicao || "",
+                ) ? (
+                  <>
+                    Configure no Coolify:{" "}
+                    <strong>NUVEM_FISCAL_RESP_TEC_CNPJ</strong> (CNPJ do
+                    desenvolvedor do ERP), <strong>RESP_TEC_CONTATO</strong>,{" "}
+                    <strong>RESP_TEC_EMAIL</strong>,{" "}
+                    <strong>RESP_TEC_FONE</strong>. Depois{" "}
+                    <strong>Reemitir NF-e</strong>.
+                  </>
+                ) : (
+                  <>
+                    Confira: <strong>NUVEM_FISCAL_EMITENTE_IE</strong>, certificado
+                    A1 no painel Nuvem (NF-e homologação) e dados do cliente. Depois{" "}
+                    <strong>Reemitir NF-e</strong>.
+                  </>
+                )}
               </p>
             )}
           </div>
