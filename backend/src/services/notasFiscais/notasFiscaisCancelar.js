@@ -72,7 +72,7 @@ export const cancelar = async (
   const consulta = await consultarFn(nf.id_provedor);
   let campos;
   if (consulta.ok) {
-    campos = camposFromRespostaNuvem(consulta.data, valorOs);
+    campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
     if (campos.status !== "cancelada") {
       campos.status = "cancelada";
       campos.mensagem = `${label} cancelada na Nuvem Fiscal.`;

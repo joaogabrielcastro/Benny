@@ -34,7 +34,7 @@ export const sincronizarPorOs = async (
   if (nf.status === "autorizada" && nf.id_provedor && isNuvemFiscalConfigured()) {
     const consulta = await consultarFn(nf.id_provedor);
     if (consulta.ok) {
-      const campos = camposFromRespostaNuvem(consulta.data, valorOs);
+      const campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
       const atualizada = await persistirAtualizacaoNf(
         nf.id,
         tenantId,
@@ -74,7 +74,7 @@ export const sincronizarPorOs = async (
     };
   }
 
-  let campos = camposFromRespostaNuvem(consulta.data, valorOs);
+  let campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
 
   if (campos.status === "processamento") {
     const sync = await sincronizarFn(nf.id_provedor);
@@ -83,7 +83,7 @@ export const sincronizarPorOs = async (
     } else if (sync.ok) {
       consulta = await consultarFn(nf.id_provedor);
     }
-    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs);
+    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
     else if (!sync.ok && sync.mensagem) {
       return { erro: sync.mensagem };
     }

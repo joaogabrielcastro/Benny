@@ -161,7 +161,7 @@ export const gerarParaOs = async (
             auth_error: Boolean(api.authError),
           };
         } else {
-          const parsed = camposFromRespostaNuvem(api.data, valorNota);
+          const parsed = camposFromRespostaNuvem(api.data, valorNota, modelo);
           dadosResposta = parsed.dadosResposta;
           status = parsed.status;
           idProvedor = parsed.idProvedor;

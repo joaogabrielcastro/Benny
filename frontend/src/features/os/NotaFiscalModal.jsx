@@ -226,6 +226,25 @@ export default function NotaFiscalModal({
           </div>
         )}
 
+        {nota.detalhe_rejeicao && nota.status_nf === "rejeitada" && (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/40">
+            <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">
+              Motivo da rejeição (SEFAZ / Nuvem)
+            </h4>
+            <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">
+              {nota.detalhe_rejeicao}
+            </p>
+            {isNfe && (
+              <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-3">
+                Confira no Coolify: <strong>NUVEM_FISCAL_EMITENTE_IE</strong> (IE da
+                oficina), certificado A1 no painel Nuvem (NF-e homologação) e dados do
+                cliente (CPF/CNPJ, CEP, IBGE). Depois use <strong>Reemitir NF-e</strong> na
+                OS.
+              </p>
+            )}
+          </div>
+        )}
+
         {nota.observacoes && (
           <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <h4 className="font-semibold text-gray-800 dark:text-white mb-2">
@@ -237,7 +256,7 @@ export default function NotaFiscalModal({
           </div>
         )}
 
-        <StatusBadge status={nota.status_nf} />
+        <StatusBadge status={nota.status_nf} modelo={modelo} />
 
         <div className="flex flex-wrap gap-3 pt-4">
           {onCorrigirEndereco && (
@@ -300,7 +319,8 @@ export default function NotaFiscalModal({
   );
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, modelo = "NFSE" }) {
+  const labelDoc = modelo === "NFE" ? "NF-e" : "NFS-e";
   const cfg = {
     autorizada: {
       bg: "bg-green-100 dark:bg-green-900/30",
@@ -332,7 +352,7 @@ function StatusBadge({ status }) {
       bg: "bg-red-100 dark:bg-red-900/30",
       text: "text-red-700 dark:text-red-400",
       icon: "✕",
-      label: "Emissão rejeitada ou com erro. Veja a mensagem acima (detalhes da API).",
+      label: `${labelDoc} rejeitada na SEFAZ — veja o motivo acima e reemita`,
     },
     cancelada: {
       bg: "bg-gray-200 dark:bg-gray-700/50",

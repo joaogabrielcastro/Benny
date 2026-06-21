@@ -1,4 +1,4 @@
-import { extrairStatusBrutoNuvem } from "./nuvemRespostaParser.js";
+import { extrairStatusBrutoNuvem, extrairDetalheRejeicaoNuvem } from "./nuvemRespostaParser.js";
 
 /** Formato esperado pelo modal em OSDetalhes.jsx */
 export function mapNfParaRespostaApi(row) {
@@ -24,6 +24,8 @@ export function mapNfParaRespostaApi(row) {
         : {};
 
   const statusProvedor = extrairStatusBrutoNuvem(dr);
+  const detalheRejeicao =
+    row.status === "rejeitada" ? extrairDetalheRejeicaoNuvem(dr) : null;
 
   let numero = row.numero;
   if (!numero) {
@@ -57,6 +59,7 @@ export function mapNfParaRespostaApi(row) {
     fonte_pis: t.fonte_pis || null,
     fonte_cofins: t.fonte_cofins || null,
     observacoes: row.mensagem_status || null,
+    detalhe_rejeicao: detalheRejeicao,
     link_pdf: row.link_pdf || null,
     link_xml: row.link_xml || null,
     pdf_path: row.link_pdf || null,
