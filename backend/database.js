@@ -455,6 +455,11 @@ async function initDatabase() {
     `);
 
     await client.query(`
+      ALTER TABLE produtos
+      ADD COLUMN IF NOT EXISTS ncm VARCHAR(8)
+    `);
+
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_agendamentos_data 
       ON agendamentos(data_agendamento DESC);
     `);
