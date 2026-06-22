@@ -93,8 +93,64 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2 p-4 rounded-lg border border-blue-200/60 dark:border-blue-800/50 bg-blue-50/50 dark:bg-blue-950/20">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+            <div className="flex-1 min-w-0">
+              <Input
+                label="Placa"
+                value={formData.placa}
+                onChange={(e) =>
+                  setFormData({ ...formData, placa: e.target.value })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.form?.querySelector("[data-busca-placa]")?.click();
+                  }
+                }}
+                mask={mascaraPlaca}
+                validator={validarPlaca}
+                placeholder="ABC-1234 ou ABC1D23"
+                required
+              />
+            </div>
+            <BuscaPlacaVeiculoButton
+              placa={formData.placa}
+              className="w-full sm:w-auto shrink-0"
+              onDados={(d) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  marca: d.marca || prev.marca,
+                  modelo: d.modelo || prev.modelo,
+                  ano: d.ano ? String(d.ano) : prev.ano,
+                  cor: d.cor || prev.cor,
+                  chassi: d.chassi || prev.chassi,
+                }))
+              }
+            />
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            Comece pela placa — clique em <strong>Buscar pela placa</strong> ou
+            pressione Enter para preencher os demais campos.
+          </p>
+        </div>
+
+        <Input
+          label="Chassi"
+          value={formData.chassi}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              chassi: e.target.value.toUpperCase(),
+            })
+          }
+          validator={validarChassiOpcional}
+          helperText="Chassi inválido (17 caracteres ou parcial da consulta)"
+          placeholder="Preenchido ao buscar pela placa"
+          maxLength={20}
+        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Marca */}
           <Input
             label="Marca"
             value={formData.marca}
@@ -106,7 +162,6 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
             required
           />
 
-          {/* Modelo */}
           <Input
             label="Modelo"
             value={formData.modelo}
@@ -144,62 +199,6 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
             }
             placeholder="Ex: Prata, Preto, Branco"
           />
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-            <div className="flex-1 min-w-0">
-              <Input
-                label="Placa"
-                value={formData.placa}
-                onChange={(e) =>
-                  setFormData({ ...formData, placa: e.target.value })
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.currentTarget.form?.querySelector("[data-busca-placa]")?.click();
-                  }
-                }}
-                mask={mascaraPlaca}
-                validator={validarPlaca}
-                placeholder="ABC-1234 ou ABC1D23"
-                required
-              />
-            </div>
-            <BuscaPlacaVeiculoButton
-              placa={formData.placa}
-              className="w-full sm:w-auto shrink-0"
-              onDados={(d) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  marca: d.marca || prev.marca,
-                  modelo: d.modelo || prev.modelo,
-                  ano: d.ano ? String(d.ano) : prev.ano,
-                  cor: d.cor || prev.cor,
-                  chassi: d.chassi || prev.chassi,
-                }))
-              }
-            />
-          </div>
-          <Input
-            label="Chassi"
-            value={formData.chassi}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                chassi: e.target.value.toUpperCase(),
-              })
-            }
-            validator={validarChassiOpcional}
-            helperText="Chassi inválido (17 caracteres ou parcial da consulta)"
-            placeholder="Preenchido ao buscar pela placa"
-            maxLength={20}
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
-            Preencha a placa completa (7 caracteres) e clique em{" "}
-            <strong>Buscar pela placa</strong> ou pressione Enter.
-          </p>
         </div>
       </form>
     </Modal>

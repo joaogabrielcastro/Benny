@@ -419,6 +419,73 @@ function VeiculoFormModal({ clienteId, onClose }) {
             Novo Veículo
           </h2>
           <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/80 space-y-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Placa *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.placa}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        placa: mascaraPlaca(e.target.value),
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.currentTarget
+                          .closest("form")
+                          ?.querySelector("[data-busca-placa]")
+                          ?.click();
+                      }
+                    }}
+                    required
+                    placeholder="ABC-1234 ou ABC1D23"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <BuscaPlacaVeiculoButton
+                  className="w-full sm:w-auto shrink-0"
+                  placa={formData.placa}
+                  onDados={(d) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      marca: d.marca || prev.marca,
+                      modelo: d.modelo || prev.modelo,
+                      ano: d.ano ? String(d.ano) : prev.ano,
+                      cor: d.cor || prev.cor,
+                      chassi: d.chassi || prev.chassi,
+                    }))
+                  }
+                />
+              </div>
+              <p className="text-xs text-gray-600">
+                Comece pela placa — busque para preencher marca, modelo e demais
+                dados.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Chassi
+              </label>
+              <input
+                type="text"
+                value={formData.chassi}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    chassi: e.target.value.toUpperCase(),
+                  })
+                }
+                maxLength={20}
+                placeholder="Preenchido ao buscar pela placa"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -476,64 +543,6 @@ function VeiculoFormModal({ clienteId, onClose }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-              <div className="flex-1 min-w-0">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Placa *
-                </label>
-                <input
-                  type="text"
-                  value={formData.placa}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      placa: mascaraPlaca(e.target.value),
-                    })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      document.querySelector("[data-busca-placa]")?.click();
-                    }
-                  }}
-                  required
-                  placeholder="ABC-1234 ou ABC1D23"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <BuscaPlacaVeiculoButton
-                className="w-full sm:w-auto shrink-0"
-                placa={formData.placa}
-                onDados={(d) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    marca: d.marca || prev.marca,
-                    modelo: d.modelo || prev.modelo,
-                    ano: d.ano ? String(d.ano) : prev.ano,
-                    cor: d.cor || prev.cor,
-                    chassi: d.chassi || prev.chassi,
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chassi
-              </label>
-              <input
-                type="text"
-                value={formData.chassi}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    chassi: e.target.value.toUpperCase(),
-                  })
-                }
-                maxLength={20}
-                placeholder="Preenchido ao buscar pela placa"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
             </div>
             <div className="flex justify-end space-x-3 pt-4">
               <button
