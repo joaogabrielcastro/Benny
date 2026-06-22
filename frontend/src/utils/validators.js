@@ -134,6 +134,16 @@ export const validarNumeroPositivo = (valor) => {
   return !isNaN(num) && num > 0;
 };
 
+// Validação de chassi (17 caracteres) ou parcial mascarado da API (ex.: *****10137)
+export const validarChassiOpcional = (chassi) => {
+  if (!chassi) return true;
+
+  const bruto = String(chassi).trim().toUpperCase();
+  if (bruto.includes("*")) return bruto.length >= 4;
+
+  return validarChassi(bruto);
+};
+
 // Validação de chassi (17 caracteres alfanuméricos)
 export const validarChassi = (chassi) => {
   if (!chassi) return true;

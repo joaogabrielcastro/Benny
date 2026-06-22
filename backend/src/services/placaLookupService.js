@@ -14,6 +14,13 @@ export function placaFormatoValido(placa) {
   return formatoAntigo.test(placa) || formatoMercosul.test(placa);
 }
 
+function normalizarChassi(val) {
+  const s = String(val || "").trim().toUpperCase();
+  if (!s) return "";
+  if (s.includes("*")) return s;
+  return s.replace(/[^A-Z0-9]/g, "").slice(0, 17);
+}
+
 function pick(root, ...keys) {
   if (!root || typeof root !== "object") return "";
   for (const k of keys) {
@@ -82,11 +89,21 @@ function parseAlvoVeiculo(alvo, rootFallback) {
 
   if (!marca && !modelo) return null;
 
+  let chassi = normalizarChassi(
+    pick(alvo, "chassi", "CHASSI", "Chassi", "numero_chassi", "nr_chassi"),
+  );
+  if (!chassi && rootFallback) {
+    chassi = normalizarChassi(
+      pick(rootFallback, "chassi", "CHASSI", "Chassi", "numero_chassi"),
+    );
+  }
+
   return {
     marca,
     modelo,
     ano: ano ? String(ano).replace(/\D/g, "").slice(0, 4) : "",
     cor,
+    chassi,
   };
 }
 
@@ -134,10 +151,11 @@ function extrairEstiloApiCarros(data) {
       ? String(anoBruto).replace(/\D/g, "").slice(0, 4)
       : "";
   const cor = String(root.cor || "").trim();
-  return { marca, modelo, ano, cor };
+  const chassi = normalizarChassi(pick(root, "chassi", "CHASSI", "Chassi"));
+  return { marca, modelo, ano, cor, chassi };
 }
 
-function extrairVeiculoDeJson(data) {
+export function extrairVeiculoDeJson(data) {
   return extrairDadosDePayload(data) || extrairEstiloApiCarros(data);
 }
 

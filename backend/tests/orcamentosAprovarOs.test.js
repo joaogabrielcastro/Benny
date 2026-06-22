@@ -22,6 +22,9 @@ describe("fluxo orçamento → OS (integração DB)", { skip: !hasDb }, () => {
   };
 
   before(async () => {
+    await pool.query(
+      `ALTER TABLE veiculos ADD COLUMN IF NOT EXISTS chassi VARCHAR(20)`,
+    );
     const tag = `T${Date.now()}`;
     const cliente = await pool.query(
       `INSERT INTO clientes (nome, telefone, tenant_id)

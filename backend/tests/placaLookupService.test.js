@@ -4,6 +4,7 @@ import {
   montarUrlWdapi2Consulta,
   placaFormatoValido,
   consultarVeiculoPorPlaca,
+  extrairVeiculoDeJson,
 } from "../src/services/placaLookupService.js";
 
 describe("placaLookupService", () => {
@@ -18,6 +19,18 @@ describe("placaLookupService", () => {
     assert.equal(placaFormatoValido("ABC1234"), true);
     assert.equal(placaFormatoValido("ABC1D23"), true);
     assert.equal(placaFormatoValido("AB123"), false);
+  });
+
+  it("extrai chassi da resposta WDAPI2 (inclusive mascarado)", () => {
+    const dados = extrairVeiculoDeJson({
+      MARCA: "VW",
+      MODELO: "CROSSFOX",
+      ano: "2007",
+      cor: "Prata",
+      chassi: "*****10137",
+    });
+    assert.equal(dados.marca, "VW");
+    assert.equal(dados.chassi, "*****10137");
   });
 
   it("falha sem WDAPI2_TOKEN configurado", async () => {

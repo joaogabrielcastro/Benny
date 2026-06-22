@@ -129,7 +129,7 @@ const listar = async (
     `SELECT os.*,
             c.nome as cliente_nome, c.telefone as cliente_telefone,
             v.modelo as veiculo_modelo, v.placa as veiculo_placa,
-            v.cor as veiculo_cor, v.ano as veiculo_ano
+            v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi
      ${fromJoin}
      ${where}
      ORDER BY ${sortCol} ${sortDir}
@@ -150,7 +150,7 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
               c.cidade as cliente_cidade, c.estado as cliente_estado, c.cep as cliente_cep,
               c.codigo_ibge as cliente_codigo_ibge,
               v.modelo as veiculo_modelo, v.placa as veiculo_placa,
-              v.cor as veiculo_cor, v.ano as veiculo_ano
+              v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi
        FROM ordens_servico os
        LEFT JOIN clientes c ON os.cliente_id = c.id
        LEFT JOIN veiculos v ON os.veiculo_id = v.id

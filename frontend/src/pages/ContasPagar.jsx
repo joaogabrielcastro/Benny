@@ -266,6 +266,7 @@ export default function ContasPagar() {
           >
             <option value="">Todos</option>
             <option value="Pendente">Pendente</option>
+            <option value="Vencida">Vencida</option>
             <option value="Pago">Pago</option>
             <option value="Cancelado">Cancelado</option>
           </Select>

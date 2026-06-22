@@ -321,9 +321,9 @@ async function initDatabase() {
       ON orcamentos(status);
     `);
 
-    // Remover colunas chassi das tabelas (não mais necessário)
+    // Chassi (consulta por placa WDAPI ou cadastro manual)
     await client.query(`
-      ALTER TABLE veiculos DROP COLUMN IF EXISTS chassi;
+      ALTER TABLE veiculos ADD COLUMN IF NOT EXISTS chassi VARCHAR(20);
     `);
 
     await client.query(`

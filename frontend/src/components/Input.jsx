@@ -28,15 +28,15 @@ const Input = forwardRef(
     const handleChange = (e) => {
       let newValue = e.target.value;
 
-      // Aplica máscara se fornecida
       if (mask) {
         newValue = mask(newValue);
       }
 
-      // Atualiza valor
-      onChange(e);
+      onChange({
+        ...e,
+        target: { ...e.target, value: newValue, name: e.target.name },
+      });
 
-      // Valida se touched
       if (touched && validator) {
         const isValid = validator(newValue);
         setLocalError(isValid ? "" : helperText || "Valor inválido");

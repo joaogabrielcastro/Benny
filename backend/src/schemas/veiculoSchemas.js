@@ -7,4 +7,5 @@ export const createVeiculoSchema = z.object({
   cor: z.string().optional().nullable(),
   placa: z.string().min(1, "Placa é obrigatória"),
   ano: z.coerce.number().int().optional().nullable(),
+  chassi: z.string().max(20).optional().nullable(),
 });

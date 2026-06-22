@@ -8,7 +8,12 @@ const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   const params = [tenantId];
   let paramIndex = 2;
 
-  if (status) {
+  if (status === "Vencida") {
+    const hoje = new Date().toISOString().split("T")[0];
+    query += ` AND status = 'Pendente' AND data_vencimento < $${paramIndex}`;
+    params.push(hoje);
+    paramIndex++;
+  } else if (status) {
     query += ` AND status = $${paramIndex}`;
     params.push(status);
     paramIndex++;
@@ -35,7 +40,11 @@ const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   let countQuery = "SELECT COUNT(*)::int AS total FROM contas_pagar WHERE tenant_id = $1";
   const countParams = [tenantId];
   let ci = 2;
-  if (status) {
+  if (status === "Vencida") {
+    const hoje = new Date().toISOString().split("T")[0];
+    countQuery += ` AND status = 'Pendente' AND data_vencimento < $${ci++}`;
+    countParams.push(hoje);
+  } else if (status) {
     countQuery += ` AND status = $${ci++}`;
     countParams.push(status);
   }

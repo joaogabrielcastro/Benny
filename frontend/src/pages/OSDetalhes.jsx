@@ -246,6 +246,16 @@ export default function OSDetalhes() {
                 </p>
               </div>
             </div>
+            {os.veiculo_chassi && (
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  Chassi:
+                </span>
+                <p className="text-lg text-gray-800 dark:text-gray-200 font-mono text-sm break-all">
+                  {os.veiculo_chassi}
+                </p>
+              </div>
+            )}
             {os.km && (
               <div>
                 <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">

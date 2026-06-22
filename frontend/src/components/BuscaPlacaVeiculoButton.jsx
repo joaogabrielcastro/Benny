@@ -32,6 +32,7 @@ export default function BuscaPlacaVeiculoButton({ placa, onDados, className = ""
         modelo: data.modelo || "",
         ano: data.ano ? String(data.ano) : "",
         cor: data.cor || "",
+        chassi: data.chassi || "",
       });
       toast.success(
         data.provedor
@@ -54,12 +55,20 @@ export default function BuscaPlacaVeiculoButton({ placa, onDados, className = ""
     <div className={`flex items-end ${className}`}>
       <Button
         type="button"
+        data-busca-placa
         onClick={buscar}
         disabled={buscando || !validarPlaca(placaLimpa(placa))}
         loading={buscando}
         icon={FiSearch}
         variant="outline"
         size="md"
+        fullWidth={className.includes("w-full")}
+        className="sm:whitespace-nowrap"
+        title={
+          validarPlaca(placaLimpa(placa))
+            ? "Buscar marca, modelo, ano e cor"
+            : "Informe a placa completa (7 caracteres)"
+        }
       >
         Buscar pela placa
       </Button>
