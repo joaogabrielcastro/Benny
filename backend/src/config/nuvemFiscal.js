@@ -26,7 +26,7 @@
  * - NF-e (peças): NUVEM_FISCAL_EMITENTE_IE (obrigatório na SEFAZ), NUVEM_FISCAL_NFE_CRT (1=Simples),
  *   NUVEM_FISCAL_NFE_CFOP (5102), NUVEM_FISCAL_NFE_CSOSN (103), NUVEM_FISCAL_NFE_NCM, série, CUF
  * - NF-e PR (NT 2018.005): NUVEM_FISCAL_RESP_TEC_CNPJ, _CONTATO, _EMAIL, _FONE (infRespTec — obrigatório)
- *   Opcional PR: NUVEM_FISCAL_RESP_TEC_CSRT_ID + NUVEM_FISCAL_RESP_TEC_CSRT (Nuvem calcula hashCSRT)
+ *   PR também exige CSRT: NUVEM_FISCAL_RESP_TEC_CSRT_ID + NUVEM_FISCAL_RESP_TEC_CSRT (token UPD/Receita PR; Nuvem calcula hashCSRT)
  * - NUVEM_FISCAL_AUTH_URL / NUVEM_FISCAL_API_URL / NUVEM_FISCAL_SCOPE (opcionais; veja defaults abaixo)
  * - NUVEM_FISCAL_TOMADOR_CPF / NUVEM_FISCAL_TOMADOR_CNPJ / NUVEM_FISCAL_TOMADOR_CEP / NUVEM_FISCAL_TOMADOR_C_MUN:
  *   fallbacks para OS de teste quando o cliente ainda não tiver documento ou CEP completos.

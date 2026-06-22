@@ -25,19 +25,15 @@ function pick(root, ...keys) {
   return "";
 }
 
-function extrairDadosDePayload(data) {
-  const root = Array.isArray(data) ? data[0] : data;
-  const alvo =
-    root?.dados ||
-    root?.data ||
-    root?.veiculo ||
-    root?.resultado ||
-    root?.fipe ||
-    root?.extra ||
-    root;
+function parseAlvoVeiculo(alvo, rootFallback) {
   if (!alvo || typeof alvo !== "object") return null;
 
-  const marcaModeloJunto = pick(alvo, "marcaModelo", "MARCA_MODELO", "textoMarcaModelo");
+  const marcaModeloJunto = pick(
+    alvo,
+    "marcaModelo",
+    "MARCA_MODELO",
+    "textoMarcaModelo",
+  );
   let marca = pick(alvo, "marca", "MARCA", "Marca", "nome_marca", "nomeMarca");
   let modelo = pick(
     alvo,
@@ -77,6 +73,13 @@ function extrairDadosDePayload(data) {
     }
   }
 
+  if ((!marca || !modelo) && rootFallback?.fipe?.dados?.[0]) {
+    const fipe0 = rootFallback.fipe.dados[0];
+    if (!marca) marca = pick(fipe0, "texto_marca", "marca");
+    if (!modelo) modelo = pick(fipe0, "texto_modelo", "modelo");
+    if (!ano) ano = pick(fipe0, "ano_modelo");
+  }
+
   if (!marca && !modelo) return null;
 
   return {
@@ -85,6 +88,25 @@ function extrairDadosDePayload(data) {
     ano: ano ? String(ano).replace(/\D/g, "").slice(0, 4) : "",
     cor,
   };
+}
+
+function extrairDadosDePayload(data) {
+  const root = Array.isArray(data) ? data[0] : data;
+  if (!root || typeof root !== "object") return null;
+
+  const fontes = [
+    root,
+    root.extra,
+    root.dados,
+    root.data,
+    root.veiculo,
+    root.resultado,
+  ];
+  for (const alvo of fontes) {
+    const parsed = parseAlvoVeiculo(alvo, root);
+    if (parsed) return parsed;
+  }
+  return null;
 }
 
 /** Mesmo formato histórico da API-Carros (codigoRetorno "0"). */
@@ -166,15 +188,30 @@ async function consultarUrlGratis(placa, template) {
   return { ok: true, ...veiculo };
 }
 
-/** WDAPI2 costuma oferecer cadastro com créditos gratuitos; token obrigatório na query. */
-async function consultarWdapi2Gratis(placa, token) {
-  const url = `https://wdapi2.com.br/consulta/${encodeURIComponent(placa)}/json?token=${encodeURIComponent(token)}`;
+/** URL oficial: https://wdapi2.com.br/consulta/{placa}/{token} */
+export function montarUrlWdapi2Consulta(placa, token) {
+  return `https://wdapi2.com.br/consulta/${encodeURIComponent(placa)}/${encodeURIComponent(token)}`;
+}
+
+function mensagemErroWdapi2(status, data) {
+  if (data && typeof data === "object" && data.message) {
+    return String(data.message);
+  }
+  const map = {
+    400: "URL da consulta WDAPI2 incorreta.",
+    401: "Placa inválida na WDAPI2.",
+    402: "Token WDAPI2 inválido. Confira WDAPI2_TOKEN no servidor (Painel do Usuário).",
+    406: "WDAPI2: sem resultados para esta placa.",
+    429: "Limite diário de consultas WDAPI2 atingido.",
+  };
+  return map[status] || `WDAPI2 HTTP ${status}`;
+}
+
+async function consultarWdapi2(placa, token) {
+  const url = montarUrlWdapi2Consulta(placa, token);
   const { data, status } = await axios.get(url, { timeout: 25_000, validateStatus: () => true });
   if (status !== 200) {
-    const msg =
-      (data && typeof data === "object" && (data.message || data.msg || data.erro)) ||
-      `HTTP ${status}`;
-    return { ok: false, erro: String(msg) };
+    return { ok: false, erro: mensagemErroWdapi2(status, data) };
   }
   const veiculo = extrairVeiculoDeJson(data);
   if (!veiculo) {
@@ -204,7 +241,7 @@ function temAlgumProvedor(placaFipeToken, fipeKey) {
  * Consulta marca/modelo/ano/cor pela placa (somente identificação do veículo; sem valor de mercado).
  * Modo gratuito / baixo custo: defina um ou ambos:
  * - CONSULTA_PLACA_GRATIS_URL — GET para URL com {placa}, retorno JSON (marca/modelo/ano/cor ou aninhado em dados).
- * - WDAPI2_TOKEN — token em https://wdapi2.com.br (cadastro; costuma incluir cota gratuita).
+ * - WDAPI2_TOKEN — token normal em https://wdapi2.com.br (Painel do Usuário; URL /consulta/{placa}/{token})
  * Opcional (provedores comerciais por placa; nomes legados no .env): FIPE_PLACA_API_KEY, PLACAFIPE_TOKEN
  * (ignorados se CONSULTA_PLACA_SOMENTE_GRATIS=1).
  */
@@ -251,7 +288,7 @@ export async function consultarVeiculoPorPlaca(placaBruta) {
 
   if (wdToken) {
     try {
-      const r = await consultarWdapi2Gratis(placa, wdToken);
+      const r = await consultarWdapi2(placa, wdToken);
       if (r.ok) return { ok: true, placa, provedor: "wdapi2.com.br", ...r };
       erros.push(`wdapi2: ${r.erro}`);
     } catch (e) {

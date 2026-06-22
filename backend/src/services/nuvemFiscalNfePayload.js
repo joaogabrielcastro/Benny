@@ -190,6 +190,14 @@ export function montarCorpoEmissaoNfe(os, cliente, produtos, opcoes = {}) {
     };
   }
 
+  if (!infRespTec.idCSRT || !infRespTec.CSRT) {
+    return {
+      ok: false,
+      erro:
+        "CSRT do responsável técnico é obrigatório na NF-e (SEFAZ PR — rejeição 975). Solicite o token em Receita/PR → UPD → Sistema → CSRT (Fornecedor), com o CNPJ do desenvolvedor do ERP. Depois defina NUVEM_FISCAL_RESP_TEC_CSRT_ID (identificador numérico) e NUVEM_FISCAL_RESP_TEC_CSRT (código alfanumérico) no servidor.",
+    };
+  }
+
   const { valor_produtos } = totaisFiscaisOs({ ...os, produtos });
 
   if (!produtos?.length || valor_produtos <= 0) {

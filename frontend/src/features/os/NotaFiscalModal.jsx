@@ -236,9 +236,18 @@ export default function NotaFiscalModal({
             </p>
             {isNfe && (
               <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-3">
-                {/972|responsavel tecnico|infRespTec/i.test(
-                  nota.detalhe_rejeicao || "",
-                ) ? (
+                {/975|CSRT|hashCSRT/i.test(nota.detalhe_rejeicao || "") ? (
+                  <>
+                    Solicite o token CSRT na Receita/PR (UPD → Sistema → CSRT,
+                    CNPJ do desenvolvedor do ERP). No Coolify:{" "}
+                    <strong>NUVEM_FISCAL_RESP_TEC_CSRT_ID</strong> e{" "}
+                    <strong>NUVEM_FISCAL_RESP_TEC_CSRT</strong>. A oficina pode
+                    precisar autorizar o fornecedor no portal da Receita/PR.
+                    Depois <strong>Reemitir NF-e</strong>.
+                  </>
+                ) : /972|responsavel tecnico|infRespTec/i.test(
+                    nota.detalhe_rejeicao || "",
+                  ) ? (
                   <>
                     Configure no Coolify:{" "}
                     <strong>NUVEM_FISCAL_RESP_TEC_CNPJ</strong> (CNPJ do

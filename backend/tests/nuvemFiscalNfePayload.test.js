@@ -13,6 +13,8 @@ describe("montarCorpoEmissaoNfe", () => {
     process.env.NUVEM_FISCAL_RESP_TEC_CONTATO = "Suporte Benny ERP";
     process.env.NUVEM_FISCAL_RESP_TEC_EMAIL = "suporte@exemplo.com.br";
     process.env.NUVEM_FISCAL_RESP_TEC_FONE = "41999999999";
+    process.env.NUVEM_FISCAL_RESP_TEC_CSRT_ID = "1";
+    process.env.NUVEM_FISCAL_RESP_TEC_CSRT = "TOKENCSRTEXEMPLO123";
   });
 
   afterEach(() => {
@@ -47,6 +49,25 @@ describe("montarCorpoEmissaoNfe", () => {
     assert.equal(result.body.infNFe.emit.CRT, 1);
     assert.equal(result.body.infNFe.infRespTec.CNPJ, "10782612000137");
     assert.equal(result.body.infNFe.infRespTec.xContato, "Suporte Benny ERP");
+  });
+
+  it("falha sem CSRT do responsável técnico (rejeição 975)", () => {
+    delete process.env.NUVEM_FISCAL_RESP_TEC_CSRT;
+    const result = montarCorpoEmissaoNfe(
+      { id: 1, numero: "OS-1" },
+      {
+        nome: "Cliente",
+        cep: "83411100",
+        cpf_cnpj: "12345678909",
+        cidade: "Colombo",
+        estado: "PR",
+        codigo_ibge: "4105805",
+      },
+      [{ codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 }],
+      { nNF: 1 },
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.erro, /975|CSRT/i);
   });
 
   it("falha sem responsável técnico (infRespTec)", () => {
