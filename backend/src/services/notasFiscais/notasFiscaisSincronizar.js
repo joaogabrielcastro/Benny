@@ -6,8 +6,6 @@ import {
 import {
   consultarNfe,
   consultarNfse,
-  sincronizarNfeNaSefaz,
-  sincronizarNfseNaPrefeitura,
 } from "../nuvemFiscalClient.js";
 import { camposFromRespostaNuvem } from "./nuvemRespostaParser.js";
 import { mapNfParaRespostaApi } from "./notasFiscaisMapper.js";
@@ -18,7 +16,6 @@ import {
 } from "./notasFiscaisRepository.js";
 import { SINGLE_TENANT_ID } from "../../config/singleTenant.js";
 import {
-  isNuvemFilaProcessamento,
   isNuvemNotaNaoEncontrada,
   mensagemNotaNaoEncontradaAmbiente,
   mensagemNuvemFilaProcessamento,
@@ -57,8 +54,6 @@ export const sincronizarPorOs = async (
   }
   const valorOs = Number(nf.valor_total) || 0;
   const consultarFn = modelo === "NFE" ? consultarNfe : consultarNfse;
-  const sincronizarFn =
-    modelo === "NFE" ? sincronizarNfeNaSefaz : sincronizarNfseNaPrefeitura;
   const label = modelo === "NFE" ? "NF-e" : "NFS-e";
 
   if (nf.status === "autorizada" && nf.id_provedor && isNuvemFiscalConfigured()) {
@@ -123,29 +118,8 @@ export const sincronizarPorOs = async (
   let campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
 
   if (campos.status === "processamento") {
-    const sync = await sincronizarFn(nf.id_provedor);
-    if (sync.ok && sync.data) {
-      consulta = { ok: true, data: sync.data };
-    } else if (sync.ok) {
-      consulta = await consultarFn(nf.id_provedor);
-    } else if (isNuvemFilaProcessamento(sync)) {
-      // Fila da Nuvem: GET já trouxe o estado — não tratar como erro.
-      campos.mensagem = mensagemNuvemFilaProcessamento();
-    } else if (!sync.ok && sync.mensagem) {
-      const orfa = await tratarNotaOrfaAmbiente(
-        nf,
-        tenantId,
-        osId,
-        modelo,
-        sync,
-      );
-      if (orfa) return orfa;
-      return { erro: sync.mensagem };
-    }
-    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
-    if (isNuvemFilaProcessamento(sync) && campos.status === "processamento") {
-      campos.mensagem = mensagemNuvemFilaProcessamento();
-    }
+    // Enquanto a Nuvem processa, GET já reflete o estado; POST /sincronizar é rejeitado na fila.
+    campos.mensagem = mensagemNuvemFilaProcessamento();
   }
 
   const atualizada = await persistirAtualizacaoNf(

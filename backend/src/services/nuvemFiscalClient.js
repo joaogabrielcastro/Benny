@@ -4,6 +4,7 @@ import {
   isNuvemFiscalConfigured,
 } from "../config/nuvemFiscal.js";
 import logger from "../config/logger.js";
+import { isNuvemFilaProcessamento } from "./notasFiscais/nuvemNotaNaoEncontrada.js";
 
 let cachedAccessToken = null;
 let cachedAccessTokenExpiresAt = 0;
@@ -138,17 +139,24 @@ async function requestNuvemFiscal(method, path, body) {
     });
     return { ok: true, data, statusCode: status };
   } catch (err) {
-    logger.error(
-      `Nuvem Fiscal: ${method} ${path} falhou`,
-      err.response?.data || err.message,
-    );
-    return {
+    const result = {
       ok: false,
       mensagem: formatarErroApi(err),
       statusCode: err.response?.status,
       detalhe: err.response?.data,
       authError: err.response?.status === 401,
     };
+    if (isNuvemFilaProcessamento(result)) {
+      logger.debug(
+        `Nuvem Fiscal: ${method} ${path} — nota na fila de processamento`,
+      );
+    } else {
+      logger.error(
+        `Nuvem Fiscal: ${method} ${path} falhou`,
+        err.response?.data || err.message,
+      );
+    }
+    return result;
   }
 }
 

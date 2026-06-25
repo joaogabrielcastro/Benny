@@ -52,7 +52,7 @@ export function mostrarObservacoesNota(nota) {
 export function dicaRejeicaoNfse(nota) {
   const msg = mensagemRejeicaoNota(nota).toLowerCase();
   if (msg.includes("e2404")) {
-    return "Verifique o cadastro no NFS-e Nacional (CNC), certificado A1 e autorização da Nuvem Fiscal na prefeitura. Teste uma nota manual em nfsenacional.gov.br antes de reemitir.";
+    return "No painel Nuvem (Produção), confira série do DPS 70000 e o próximo número (após a nota manual, ex.: 2). Aguarde 1–2 min entre tentativas antes de Reemitir.";
   }
   if (msg.includes("e0120")) {
     return "No painel Nuvem, deixe a Inscrição Municipal vazia se ainda não houver CNC nacional. Depois use Reemitir.";
