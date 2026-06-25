@@ -132,8 +132,18 @@ export function useNotasFiscaisOs({
         return;
       }
 
-      const precisaForcar =
-        notaAtual?.status_nf === "rejeitada" || nfseIncompleta;
+      if (notaAtual?.status_nf === "rejeitada") {
+        const url = `${baseUrl}?forcar=1`;
+        const response = await api.post(url);
+        const { message, nf } = response.data;
+        setNotaPorModelo(modelo, nf);
+        setShowNFModal(modelo);
+        feedbackNotaFiscal(toast, message, nf);
+        await carregarOS();
+        return;
+      }
+
+      const precisaForcar = nfseIncompleta;
       const url = precisaForcar ? `${baseUrl}?forcar=1` : baseUrl;
       const response = await api.post(url);
       const { message, nf } = response.data;
@@ -152,49 +162,6 @@ export function useNotasFiscaisOs({
       setGerando(false);
     }
   };
-
-  useEffect(() => {
-    if (loading || !osId || !nfseIncluirPecas) return;
-    const nf = notaFiscalServico;
-    if (nf?.status_nf !== "autorizada" || !nf?.id_provedor) return;
-    if (nfseValorIncompleto(os, nf, nfseIncluirPecas)) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await api.post(
-          `/notas-fiscais/sincronizar/os/${osId}/nfse`,
-        );
-        if (!cancelled && data?.nf) {
-          setNotaFiscalServico({ ...data.nf, _syncKey: Date.now() });
-          if (data.nf.status_nf === "rejeitada") {
-            toast.error(
-              data.nf.observacoes ||
-                data.message ||
-                "Nota de teste inválida em produção. Use Reemitir NFS-e.",
-              { duration: 8000 },
-            );
-          }
-        }
-      } catch {
-        /* silencioso */
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    loading,
-    osId,
-    os?.valor_total,
-    nfseIncluirPecas,
-    notaFiscalServico?.id,
-    notaFiscalServico?.status_nf,
-    notaFiscalServico?.id_provedor,
-    notaFiscalServico?.valor_total,
-    setNotaFiscalServico,
-  ]);
 
   useEffect(() => {
     const nfseProc = notaFiscalServico?.status_nf === "processamento";

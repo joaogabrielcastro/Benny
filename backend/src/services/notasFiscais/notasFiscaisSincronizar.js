@@ -18,8 +18,10 @@ import {
 } from "./notasFiscaisRepository.js";
 import { SINGLE_TENANT_ID } from "../../config/singleTenant.js";
 import {
+  isNuvemFilaProcessamento,
   isNuvemNotaNaoEncontrada,
   mensagemNotaNaoEncontradaAmbiente,
+  mensagemNuvemFilaProcessamento,
 } from "./nuvemNotaNaoEncontrada.js";
 
 async function tratarNotaOrfaAmbiente(nf, tenantId, osId, modelo, consulta) {
@@ -126,9 +128,10 @@ export const sincronizarPorOs = async (
       consulta = { ok: true, data: sync.data };
     } else if (sync.ok) {
       consulta = await consultarFn(nf.id_provedor);
-    }
-    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
-    else if (!sync.ok && sync.mensagem) {
+    } else if (isNuvemFilaProcessamento(sync)) {
+      // Fila da Nuvem: GET já trouxe o estado — não tratar como erro.
+      campos.mensagem = mensagemNuvemFilaProcessamento();
+    } else if (!sync.ok && sync.mensagem) {
       const orfa = await tratarNotaOrfaAmbiente(
         nf,
         tenantId,
@@ -138,6 +141,10 @@ export const sincronizarPorOs = async (
       );
       if (orfa) return orfa;
       return { erro: sync.mensagem };
+    }
+    if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
+    if (isNuvemFilaProcessamento(sync) && campos.status === "processamento") {
+      campos.mensagem = mensagemNuvemFilaProcessamento();
     }
   }
 

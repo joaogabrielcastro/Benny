@@ -16,3 +16,20 @@ export function isNuvemNotaNaoEncontrada(res) {
   const texto = String(res.mensagem || "");
   return /NfseNotFound|NfeNotFound|Nota não encontrada/i.test(texto);
 }
+
+/** POST /sincronizar bloqueado enquanto a nota ainda está na fila da Nuvem. */
+export function isNuvemFilaProcessamento(res) {
+  if (!res || res.ok) return false;
+  const detalhe = res.detalhe;
+  const code = detalhe?.error?.code || detalhe?.code;
+  if (code === "ValidationFailed") {
+    const msg = String(detalhe?.error?.message || res.mensagem || "");
+    if (/fila de processamento/i.test(msg)) return true;
+  }
+  const texto = String(res.mensagem || "");
+  return /fila de processamento/i.test(texto);
+}
+
+export function mensagemNuvemFilaProcessamento() {
+  return "NFS-e ainda em processamento na Nuvem Fiscal. Aguarde 1–2 minutos e use Atualizar status, ou Reemitir se continuar rejeitada.";
+}
