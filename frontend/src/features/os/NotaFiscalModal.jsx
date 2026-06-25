@@ -12,6 +12,8 @@ import {
   resolvePdfUrl,
   abrirDanfePdf,
   baixarDanfePdf,
+  urlConsultaPublicaNfse,
+  abrirConsultaPublicaNfse,
 } from "./notaFiscalPdf";
 
 export default function NotaFiscalModal({
@@ -28,6 +30,7 @@ export default function NotaFiscalModal({
   const labelDoc = isNfe ? "NF-e" : "NFS-e";
   const labelDanfe = isNfe ? "DANFE" : "DANFSe";
   const pdf = nota ? resolvePdfUrl(nota) : null;
+  const consultaPortal = nota ? urlConsultaPublicaNfse(nota) : null;
   const pdfFilename = `${labelDoc}_${nota?.numero || nota?.id || "nota"}`;
 
   const handleAbrirDanfe = async () => {
@@ -122,6 +125,15 @@ export default function NotaFiscalModal({
               <p className="text-xs text-gray-700 dark:text-gray-300 break-all mt-1 font-mono">
                 {nota.chave_acesso}
               </p>
+              {consultaPortal && nota.status_nf === "autorizada" && (
+                <button
+                  type="button"
+                  onClick={() => abrirConsultaPublicaNfse(nota)}
+                  className="mt-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Consultar no portal nacional da NFS-e
+                </button>
+              )}
             </div>
           )}
         </div>

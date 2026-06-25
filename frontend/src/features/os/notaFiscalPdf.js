@@ -1,23 +1,56 @@
 import toast from "react-hot-toast";
 import api from "../../services/api";
 
+/** Página HTML de consulta (não é PDF) — fetch no browser falha por CORS. */
+export function isPaginaConsultaNfse(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const u = new URL(url);
+    return (
+      /nfse\.gov\.br$/i.test(u.hostname) &&
+      /consulta/i.test(`${u.pathname}${u.search}`)
+    );
+  } catch {
+    return /nfse\.gov\.br.*consulta/i.test(url);
+  }
+}
+
+/** Abre consulta pública no portal nacional (nova aba). */
+export function urlConsultaPublicaNfse(nota) {
+  const chave = String(nota?.chave_acesso || "").replace(/\D/g, "");
+  if (chave.length >= 44) {
+    return `https://www.nfse.gov.br/consultapublica/?tpc=1&chave=${chave}`;
+  }
+  const raw = nota?.link_pdf || nota?.pdf_path || "";
+  if (isPaginaConsultaNfse(raw)) return raw;
+  return null;
+}
+
+export function abrirConsultaPublicaNfse(nota) {
+  const url = urlConsultaPublicaNfse(nota);
+  if (!url) {
+    toast.error("Chave de acesso da NFS-e indisponível para consulta.");
+    return;
+  }
+  const win = window.open(url, "_blank", "noopener,noreferrer");
+  if (!win) toast.error("Permita pop-ups para abrir o portal da NFS-e.");
+}
+
 /** URL do DANFE/DANFSe oficial (Nuvem Fiscal ou link salvo). */
 export function resolvePdfUrl(nota) {
   if (!nota) return null;
 
-  const raw = nota.link_pdf || nota.pdf_path;
-  if (raw && /^https?:\/\//i.test(raw)) {
-    return { url: raw, auth: false };
+  const prov = String(nota.status_provedor || "").toLowerCase();
+  const provOk = !/rejeit|negad|deneg|erro/.test(prov);
+
+  if (nota.id && nota.id_provedor && nota.status_nf === "autorizada" && provOk) {
+    return { url: `/notas-fiscais/${nota.id}/pdf`, auth: true };
   }
 
-  if (
-    nota.id &&
-    nota.id_provedor &&
-    nota.status_nf === "autorizada"
-  ) {
-    const prov = String(nota.status_provedor || "").toLowerCase();
-    if (/rejeit|negad|deneg|erro/.test(prov)) return null;
-    return { url: `/notas-fiscais/${nota.id}/pdf`, auth: true };
+  const raw = nota.link_pdf || nota.pdf_path;
+  if (raw && /^https?:\/\//i.test(raw)) {
+    if (isPaginaConsultaNfse(raw)) return null;
+    return { url: raw, auth: false };
   }
 
   if (raw) {
