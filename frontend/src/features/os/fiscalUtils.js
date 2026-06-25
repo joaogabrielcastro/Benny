@@ -55,7 +55,7 @@ export function dicaRejeicaoNfse(nota) {
     return "No painel Nuvem (Produção), confira série do DPS 70000 e o próximo número (após a nota manual, ex.: 2). Aguarde 1–2 min entre tentativas antes de Reemitir.";
   }
   if (msg.includes("e0120")) {
-    return "No painel Nuvem, deixe a Inscrição Municipal vazia se ainda não houver CNC nacional. Depois use Reemitir.";
+    return "Painel Nuvem → empresa Bennys → aba Dados → Inscrição Municipal: deixe em branco (CNC nacional ainda sem complemento da IM). Salve e clique em Atualizar Configuração na NFS-e.";
   }
   return null;
 }

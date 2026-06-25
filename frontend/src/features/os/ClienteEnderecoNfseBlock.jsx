@@ -22,10 +22,16 @@ function osParaForm(os) {
 export default function ClienteEnderecoNfseBlock({
   os,
   motivo = "cep_ausente",
+  rejeicaoKey = "",
   onSalvo,
 }) {
   const [form, setForm] = useState(() => osParaForm(os));
   const [salvando, setSalvando] = useState(false);
+  const [ocultoAposSalvar, setOcultoAposSalvar] = useState(false);
+
+  useEffect(() => {
+    setOcultoAposSalvar(false);
+  }, [motivo, rejeicaoKey]);
 
   useEffect(() => {
     setForm(osParaForm(os));
@@ -41,6 +47,7 @@ export default function ClienteEnderecoNfseBlock({
   ]);
 
   if (os?.status !== "Finalizada") return null;
+  if (ocultoAposSalvar) return null;
 
   const cepOk = String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
   if (cepOk && motivo !== "cep_invalido") return null;
@@ -88,6 +95,7 @@ export default function ClienteEnderecoNfseBlock({
         codigo_ibge: form.codigo_ibge || undefined,
       });
       toast.success("Endereço do cliente atualizado. Tente emitir a NFS-e novamente.");
+      setOcultoAposSalvar(true);
       onSalvo?.();
     } catch (error) {
       toast.error(

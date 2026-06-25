@@ -145,6 +145,13 @@ export default function OSDetalhes() {
         <ClienteEnderecoNfseBlock
           os={os}
           motivo={motivoEnderecoNf}
+          rejeicaoKey={[
+            nf.notaFiscalServico?.id,
+            nf.notaFiscalServico?.atualizado_em_nf,
+            nf.notaFiscalServico?.detalhe_rejeicao,
+            nf.notaFiscalPecas?.id,
+            nf.notaFiscalPecas?.atualizado_em_nf,
+          ].join("-")}
           onSalvo={carregarOS}
         />
       )}
