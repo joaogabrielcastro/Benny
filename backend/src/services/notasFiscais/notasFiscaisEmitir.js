@@ -29,6 +29,13 @@ import {
 import { sincronizarPorOs } from "./notasFiscaisSincronizar.js";
 import { resolveCodigoIbgeCliente } from "../../domain/clienteIbge.js";
 
+function nfseAutorizadaIncompleta(nfExistente, valorEsperado) {
+  if (!nfExistente || nfExistente.status !== "autorizada") return false;
+  if (!isNfseIncluirPecas()) return false;
+  const gravado = Number(nfExistente.valor_total) || 0;
+  return gravado + 0.009 < Number(valorEsperado) || 0;
+}
+
 export const gerarParaOs = async (
   tenantId = SINGLE_TENANT_ID,
   osId,
@@ -76,7 +83,12 @@ export const gerarParaOs = async (
       : valorEmissaoNfse(totais, isNfseIncluirPecas());
 
   const nfExistente = await buscarPorOsId(tenantId, osId, modelo);
-  if (nfExistente?.status === "autorizada") {
+  const reemitirNfseIncompleta =
+    modelo === "NFSE" &&
+    forcarNovaEmissao &&
+    nfseAutorizadaIncompleta(nfExistente, valorNota);
+
+  if (nfExistente?.status === "autorizada" && !reemitirNfseIncompleta) {
     return { erro: `Esta OS já possui ${label} autorizada` };
   }
   if (

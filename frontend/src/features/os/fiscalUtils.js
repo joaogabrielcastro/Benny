@@ -24,6 +24,14 @@ export function nfErroEnderecoTomador(nota) {
   );
 }
 
+/** NFS-e autorizada com valor menor que o total da OS (ex.: sandbox só serviços). */
+export function nfseValorIncompleto(os, nota, nfseIncluirPecas) {
+  if (!nfseIncluirPecas || !nota || nota.status_nf !== "autorizada") return false;
+  const esperado = Number(os?.valor_total) || 0;
+  const emitido = Number(nota?.valor_total ?? nota?.valor_liquido) || 0;
+  return esperado > 0 && emitido + 0.009 < esperado;
+}
+
 export function feedbackNotaFiscal(toast, message, nf) {
   const st = nf?.status_nf;
   if (st === "autorizada") {

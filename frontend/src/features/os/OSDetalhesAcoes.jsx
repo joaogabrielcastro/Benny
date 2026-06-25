@@ -23,6 +23,8 @@ function ActionBtn({ children, className = "", icon: Icon, ...props }) {
   );
 }
 
+import { nfseValorIncompleto } from "./fiscalUtils";
+
 export default function OSDetalhesAcoes({
   os,
   osId,
@@ -44,9 +46,16 @@ export default function OSDetalhesAcoes({
     ? Number(os.valor_total) > 0
     : temServicos;
 
+  const nfseIncompleta = nfseValorIncompleto(
+    os,
+    notaFiscalServico,
+    nfseIncluirPecas,
+  );
+
   const labelNfse = () => {
     if (gerandoNfse) return "Processando NFS-e…";
     if (notaFiscalServico?.status_nf === "processamento") return "Consultar NFS-e";
+    if (nfseIncompleta) return "Reemitir NFS-e (valor completo)";
     if (notaFiscalServico?.status_nf === "autorizada") return "NFS-e autorizada";
     if (notaFiscalServico) return "Reemitir NFS-e";
     return nfseIncluirPecas && temPecas
@@ -93,7 +102,11 @@ export default function OSDetalhesAcoes({
               icon={gerandoNfse ? FiRefreshCw : FiFileText}
               onClick={() => onGerarNF("NFSE")}
               disabled={gerandoNfse}
-              className="bg-violet-600 text-white hover:bg-violet-700"
+              className={
+                nfseIncompleta || notaFiscalServico?.status_nf === "rejeitada"
+                  ? "bg-amber-600 text-white hover:bg-amber-700"
+                  : "bg-violet-600 text-white hover:bg-violet-700"
+              }
             >
               {labelNfse()}
             </ActionBtn>

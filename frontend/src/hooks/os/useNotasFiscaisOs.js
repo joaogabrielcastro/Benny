@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../../services/api";
-import { feedbackNotaFiscal } from "../../features/os/fiscalUtils";
+import { feedbackNotaFiscal, nfseValorIncompleto } from "../../features/os/fiscalUtils";
 
 /**
  * Emissão, sincronização e CEP para NFS-e/NF-e de uma OS.
@@ -44,6 +44,8 @@ export function useNotasFiscaisOs({
     if (!silencioso) {
       feedbackNotaFiscal(toast, message, nf);
       setShowNFModal(modelo);
+    } else if (nf?.status_nf === "rejeitada") {
+      toast.error(message || "Nota precisa ser reemitida.");
     } else if (nf?.status_nf === "autorizada") {
       toast.success(message || "Nota autorizada!");
       setShowNFModal(modelo);
@@ -81,13 +83,34 @@ export function useNotasFiscaisOs({
       return;
     }
 
-    if (notaAtual?.status_nf === "autorizada") {
+    const nfseIncompleta =
+      modelo === "NFSE" &&
+      nfseValorIncompleto(os, notaAtual, nfseIncluirPecas);
+
+    if (notaAtual?.status_nf === "autorizada" && !nfseIncompleta) {
+      const setLoading =
+        modelo === "NFE" ? setGerandoNfe : setGerandoNfse;
+      try {
+        setLoading(true);
+        const nf = await sincronizarNotaFiscal(modelo, { silencioso: true });
+        if (nf?.status_nf === "rejeitada") {
+          toast.error(
+            nf.observacoes ||
+              "Nota anterior inválida neste ambiente. Clique novamente para reemitir.",
+            { duration: 8000 },
+          );
+          await carregarOS();
+          return;
+        }
+      } catch {
+        /* consulta falhou — abre modal da nota local */
+      } finally {
+        setLoading(false);
+      }
       toast(
         modelo === "NFE"
           ? "NF-e de peças já autorizada."
-          : nfseIncluirPecas
-            ? "NFS-e já autorizada."
-            : "NFS-e de serviços já autorizada.",
+          : "NFS-e já autorizada.",
         { icon: "ℹ️" },
       );
       setShowNFModal(modelo);
@@ -109,8 +132,9 @@ export function useNotasFiscaisOs({
         return;
       }
 
-      const url =
-        notaAtual?.status_nf === "rejeitada" ? `${baseUrl}?forcar=1` : baseUrl;
+      const precisaForcar =
+        notaAtual?.status_nf === "rejeitada" || nfseIncompleta;
+      const url = precisaForcar ? `${baseUrl}?forcar=1` : baseUrl;
       const response = await api.post(url);
       const { message, nf } = response.data;
       setNotaPorModelo(modelo, nf);
@@ -128,6 +152,49 @@ export function useNotasFiscaisOs({
       setGerando(false);
     }
   };
+
+  useEffect(() => {
+    if (loading || !osId || !nfseIncluirPecas) return;
+    const nf = notaFiscalServico;
+    if (nf?.status_nf !== "autorizada" || !nf?.id_provedor) return;
+    if (nfseValorIncompleto(os, nf, nfseIncluirPecas)) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.post(
+          `/notas-fiscais/sincronizar/os/${osId}/nfse`,
+        );
+        if (!cancelled && data?.nf) {
+          setNotaFiscalServico({ ...data.nf, _syncKey: Date.now() });
+          if (data.nf.status_nf === "rejeitada") {
+            toast.error(
+              data.nf.observacoes ||
+                data.message ||
+                "Nota de teste inválida em produção. Use Reemitir NFS-e.",
+              { duration: 8000 },
+            );
+          }
+        }
+      } catch {
+        /* silencioso */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    loading,
+    osId,
+    os?.valor_total,
+    nfseIncluirPecas,
+    notaFiscalServico?.id,
+    notaFiscalServico?.status_nf,
+    notaFiscalServico?.id_provedor,
+    notaFiscalServico?.valor_total,
+    setNotaFiscalServico,
+  ]);
 
   useEffect(() => {
     const nfseProc = notaFiscalServico?.status_nf === "processamento";
