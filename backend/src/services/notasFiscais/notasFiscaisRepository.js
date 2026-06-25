@@ -116,3 +116,32 @@ export const listarPorOsId = async (tenantId = SINGLE_TENANT_ID, osId) => {
   );
   return r.rows;
 };
+
+/** Limpa vínculo órfão (sandbox × produção) para permitir reemissão. */
+export async function marcarNotaRejeitadaAmbiente(
+  nfId,
+  tenantId,
+  osId,
+  modeloDocumento,
+  mensagem,
+) {
+  const r = await pool.query(
+    `UPDATE notas_fiscais SET
+       status = 'rejeitada',
+       id_provedor = NULL,
+       mensagem_status = $1,
+       atualizado_em = NOW()
+     WHERE id = $2 AND tenant_id = $3
+     RETURNING *`,
+    [mensagem, nfId, tenantId],
+  );
+  if (r.rows[0]) {
+    const col = colunaVinculoOs(modeloDocumento);
+    await pool.query(
+      `UPDATE ordens_servico SET ${col} = $1, atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = $2 AND tenant_id = $3`,
+      [nfId, osId, tenantId],
+    );
+  }
+  return r.rows[0] || null;
+}

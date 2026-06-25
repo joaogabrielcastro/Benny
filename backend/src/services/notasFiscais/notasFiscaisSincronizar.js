@@ -13,9 +13,30 @@ import { camposFromRespostaNuvem } from "./nuvemRespostaParser.js";
 import { mapNfParaRespostaApi } from "./notasFiscaisMapper.js";
 import {
   buscarPorOsId,
+  marcarNotaRejeitadaAmbiente,
   persistirAtualizacaoNf,
 } from "./notasFiscaisRepository.js";
 import { SINGLE_TENANT_ID } from "../../config/singleTenant.js";
+import {
+  isNuvemNotaNaoEncontrada,
+  mensagemNotaNaoEncontradaAmbiente,
+} from "./nuvemNotaNaoEncontrada.js";
+
+async function tratarNotaOrfaAmbiente(nf, tenantId, osId, modelo, consulta) {
+  if (!isNuvemNotaNaoEncontrada(consulta)) return null;
+  const msg = mensagemNotaNaoEncontradaAmbiente();
+  const atualizada = await marcarNotaRejeitadaAmbiente(
+    nf.id,
+    tenantId,
+    osId,
+    modelo,
+    msg,
+  );
+  return {
+    nf: mapNfParaRespostaApi(atualizada || nf),
+    message: msg,
+  };
+}
 
 export const sincronizarPorOs = async (
   tenantId = SINGLE_TENANT_ID,
@@ -54,6 +75,14 @@ export const sincronizarPorOs = async (
         message: `${label}: tributos atualizados na Nuvem Fiscal.`,
       };
     }
+    const orfa = await tratarNotaOrfaAmbiente(
+      nf,
+      tenantId,
+      osId,
+      modelo,
+      consulta,
+    );
+    if (orfa) return orfa;
   }
 
   if (nf.status === "autorizada") {
@@ -76,6 +105,14 @@ export const sincronizarPorOs = async (
 
   let consulta = await consultarFn(nf.id_provedor);
   if (!consulta.ok) {
+    const orfa = await tratarNotaOrfaAmbiente(
+      nf,
+      tenantId,
+      osId,
+      modelo,
+      consulta,
+    );
+    if (orfa) return orfa;
     return {
       erro: consulta.mensagem || `Falha ao consultar ${label} na Nuvem Fiscal`,
     };
@@ -92,6 +129,14 @@ export const sincronizarPorOs = async (
     }
     if (consulta.ok) campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
     else if (!sync.ok && sync.mensagem) {
+      const orfa = await tratarNotaOrfaAmbiente(
+        nf,
+        tenantId,
+        osId,
+        modelo,
+        sync,
+      );
+      if (orfa) return orfa;
       return { erro: sync.mensagem };
     }
   }
