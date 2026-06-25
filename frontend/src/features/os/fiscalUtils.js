@@ -24,6 +24,42 @@ export function nfErroEnderecoTomador(nota) {
   );
 }
 
+function normalizarMsgFiscal(s) {
+  return String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Texto único do motivo de rejeição (prioriza detalhe da SEFAZ/Nuvem). */
+export function mensagemRejeicaoNota(nota) {
+  const detalhe = String(nota?.detalhe_rejeicao || "").trim();
+  const obs = String(nota?.observacoes || "").trim();
+  return detalhe || obs;
+}
+
+/** Observações só quando não repetem o motivo de rejeição. */
+export function mostrarObservacoesNota(nota) {
+  const obs = String(nota?.observacoes || "").trim();
+  if (!obs) return false;
+  if (nota?.status_nf !== "rejeitada") return true;
+  const motivo = mensagemRejeicaoNota(nota);
+  if (!motivo) return true;
+  const a = normalizarMsgFiscal(motivo);
+  const b = normalizarMsgFiscal(obs);
+  if (b.startsWith(a) || b.includes(a)) return false;
+  return a !== b;
+}
+
+/** Dica operacional para códigos comuns de rejeição NFS-e. */
+export function dicaRejeicaoNfse(nota) {
+  const msg = mensagemRejeicaoNota(nota).toLowerCase();
+  if (msg.includes("e2404")) {
+    return "Verifique o cadastro no NFS-e Nacional (CNC), certificado A1 e autorização da Nuvem Fiscal na prefeitura. Teste uma nota manual em nfsenacional.gov.br antes de reemitir.";
+  }
+  if (msg.includes("e0120")) {
+    return "No painel Nuvem, deixe a Inscrição Municipal vazia se ainda não houver CNC nacional. Depois use Reemitir.";
+  }
+  return null;
+}
+
 /** NFS-e autorizada com valor menor que o total da OS (ex.: sandbox só serviços). */
 export function nfseValorIncompleto(os, nota, nfseIncluirPecas) {
   if (!nfseIncluirPecas || !nota || nota.status_nf !== "autorizada") return false;

@@ -197,7 +197,7 @@ export function useNotasFiscaisOs({
     };
 
     atualizarStatus();
-    const timer = setInterval(atualizarStatus, 20000);
+    const timer = setInterval(atualizarStatus, 60000);
     return () => clearInterval(timer);
   }, [
     osId,

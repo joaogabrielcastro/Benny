@@ -4,6 +4,9 @@ import { formatarMoeda } from "../../utils/formatters";
 import {
   rotuloFonteTributo,
   formatarAliquota,
+  mensagemRejeicaoNota,
+  mostrarObservacoesNota,
+  dicaRejeicaoNfse,
 } from "./fiscalUtils";
 import {
   resolvePdfUrl,
@@ -56,6 +59,10 @@ export default function NotaFiscalModal({
   };
 
   if (!isOpen || !nota || !modelo) return null;
+
+  const mensagemRejeicao =
+    nota.status_nf === "rejeitada" ? mensagemRejeicaoNota(nota) : "";
+  const dicaNfse = !isNfe && mensagemRejeicao ? dicaRejeicaoNfse(nota) : null;
 
   return (
     <Modal
@@ -226,17 +233,22 @@ export default function NotaFiscalModal({
           </div>
         )}
 
-        {nota.detalhe_rejeicao && nota.status_nf === "rejeitada" && (
+        {mensagemRejeicao && (
           <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/40">
             <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">
               Motivo da rejeição (SEFAZ / Nuvem)
             </h4>
             <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">
-              {nota.detalhe_rejeicao}
+              {mensagemRejeicao}
             </p>
+            {dicaNfse && (
+              <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-3">
+                {dicaNfse} Depois use <strong>Reemitir</strong> na tela da OS.
+              </p>
+            )}
             {isNfe && (
               <p className="text-xs text-red-800/80 dark:text-red-300/80 mt-3">
-                {/975|CSRT|hashCSRT/i.test(nota.detalhe_rejeicao || "") ? (
+                {/975|CSRT|hashCSRT/i.test(mensagemRejeicao) ? (
                   <>
                     Solicite o token CSRT na Receita/PR (UPD → Sistema → CSRT,
                     CNPJ do desenvolvedor do ERP). No Coolify:{" "}
@@ -245,9 +257,7 @@ export default function NotaFiscalModal({
                     precisar autorizar o fornecedor no portal da Receita/PR.
                     Depois <strong>Reemitir NF-e</strong>.
                   </>
-                ) : /972|responsavel tecnico|infRespTec/i.test(
-                    nota.detalhe_rejeicao || "",
-                  ) ? (
+                ) : /972|responsavel tecnico|infRespTec/i.test(mensagemRejeicao) ? (
                   <>
                     Configure no Coolify:{" "}
                     <strong>NUVEM_FISCAL_RESP_TEC_CNPJ</strong> (CNPJ do
@@ -268,7 +278,7 @@ export default function NotaFiscalModal({
           </div>
         )}
 
-        {nota.observacoes && (
+        {mostrarObservacoesNota(nota) && (
           <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <h4 className="font-semibold text-gray-800 dark:text-white mb-2">
               Observações:
@@ -363,7 +373,7 @@ function StatusBadge({ status, modelo = "NFSE" }) {
       text: "text-amber-800 dark:text-amber-200",
       icon: "⏳",
       label:
-        "Em processamento na Nuvem Fiscal — o status é atualizado automaticamente a cada ~20s ou use Atualizar status.",
+        "Em processamento na Nuvem Fiscal — o status é atualizado automaticamente a cada ~60s ou use Atualizar status.",
     },
     erro_autenticacao: {
       bg: "bg-red-100 dark:bg-red-900/30",
@@ -375,7 +385,7 @@ function StatusBadge({ status, modelo = "NFSE" }) {
       bg: "bg-red-100 dark:bg-red-900/30",
       text: "text-red-700 dark:text-red-400",
       icon: "✕",
-      label: `${labelDoc} rejeitada na SEFAZ — veja o motivo acima e reemita`,
+      label: `${labelDoc} rejeitada — feche e use Reemitir na tela da OS`,
     },
     cancelada: {
       bg: "bg-gray-200 dark:bg-gray-700/50",
