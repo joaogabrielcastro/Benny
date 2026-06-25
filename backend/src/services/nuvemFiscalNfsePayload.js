@@ -85,23 +85,24 @@ function resolveDocTomador(cliente, cfg) {
 }
 
 function buildDescricaoNfse(os, servicos, produtos, incluirPecas) {
-  const linhas = [];
-  if (servicos?.length) {
-    for (const s of servicos) {
-      linhas.push(`Serv: ${s.codigo} ${s.descricao} (${s.quantidade}x)`);
-    }
+  const itens = [];
+  for (const s of servicos || []) {
+    const qtd = Number(s.quantidade) > 1 ? ` (${s.quantidade}x)` : "";
+    itens.push(`${String(s.descricao || "").trim()}${qtd}`);
   }
   if (incluirPecas && produtos?.length) {
     for (const p of produtos) {
-      linhas.push(`Peca: ${p.codigo} ${p.descricao} (${p.quantidade}x)`);
+      const qtd = Number(p.quantidade) > 1 ? ` (${p.quantidade}x)` : "";
+      itens.push(`${String(p.descricao || "").trim()}${qtd}`);
     }
   }
-  const bloco = linhas.length
-    ? linhas.join("; ")
-    : incluirPecas
-      ? "Servicos e pecas conforme ordem de servico."
-      : "Mao de obra conforme ordem de servico.";
-  return trunc(`OS ${os.numero} — ${bloco}`, 2000);
+  const detalhe = itens.length
+    ? itens.join("; ")
+    : "manutencao e reparo veicular";
+  return trunc(
+    `Servicos prestados conforme OS ${os.numero}: ${detalhe}`,
+    2000,
+  );
 }
 
 function logradouroCliente(cliente) {

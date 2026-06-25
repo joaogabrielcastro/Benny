@@ -126,8 +126,11 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
     );
     assert.equal(result.ok, true);
     assert.equal(result.body.infDPS.valores.vServPrest.vServ, 280);
-    assert.match(result.body.infDPS.serv.cServ.xDescServ, /Peca: P1/);
-    assert.match(result.body.infDPS.serv.cServ.xDescServ, /Serv: S1/);
+    const desc = result.body.infDPS.serv.cServ.xDescServ;
+    assert.match(desc, /Servicos prestados conforme OS OS-001/);
+    assert.match(desc, /Filtro oleo/);
+    assert.match(desc, /Servico/);
+    assert.equal(desc.includes("Peca:"), false);
   });
 
   it("com NF-e ligada: NFS-e só com valor de serviços", () => {

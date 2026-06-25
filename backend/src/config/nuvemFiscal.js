@@ -16,8 +16,8 @@
  * - NUVEM_FISCAL_AMBIENTE=homologacao (testes) ou producao
  * - NUVEM_FISCAL_PROVEDOR: padrao | nacional (default nacional — ADN)
  * - NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE: 7 dígitos (ex. Colombo/PR 4105805 — local da prestação no JSON)
- * - NUVEM_FISCAL_C_TRIB_NAC: código nacional ISSQN, 6 dígitos (ajuste ao serviço; default 140101)
- * - NUVEM_FISCAL_C_NBS: Nomenclatura Brasileira de Serviços, 9 dígitos (obrigatório no layout Nacional; default 120013110 = manutenção/reparação veículos — ajuste pela tabela do município/Anexo VIII)
+ * - NUVEM_FISCAL_C_TRIB_NAC: código nacional ISSQN, 6 dígitos (Colombo/Bennys: 310103 = 31.01.03 mecânica)
+ * - NUVEM_FISCAL_C_NBS: Nomenclatura Brasileira de Serviços, 9 dígitos (Colombo/Bennys: 1200131110)
  * - NUVEM_FISCAL_ALIQUOTA_ISS: % ISS na DPS e na tela (ex.: 2 para Colombo)
  * - Simples Nacional (opSimpNac / regApTribSN): configure no PAINEL Nuvem Fiscal
  *   (empresa → Serviços → NFS-e → regime tributário), não no JSON da DPS nacional.
@@ -48,11 +48,11 @@ export function getNuvemFiscalConfig() {
   );
   const ambiente = process.env.NUVEM_FISCAL_AMBIENTE || "homologacao";
   const provedor = process.env.NUVEM_FISCAL_PROVEDOR || "nacional";
-  const cTribNac = (process.env.NUVEM_FISCAL_C_TRIB_NAC || "140101").replace(
+  const cTribNac = (process.env.NUVEM_FISCAL_C_TRIB_NAC || "310103").replace(
     /\D/g,
     "",
   );
-  const cNbs = (process.env.NUVEM_FISCAL_C_NBS || "120013110").replace(
+  const cNbs = (process.env.NUVEM_FISCAL_C_NBS || "1200131110").replace(
     /\D/g,
     "",
   );
