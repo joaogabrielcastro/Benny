@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import toast from "react-hot-toast";
 import api from "../services/api";
+import { useFiscalFeatures } from "../hooks/os/useFiscalFeatures";
 import { useOrdemServicoQuery } from "../hooks/os/useOrdemServicoQuery";
 import { useNotasFiscaisOs } from "../hooks/os/useNotasFiscaisOs";
 import OSImpressao from "../components/OSImpressao";
@@ -31,6 +32,7 @@ export default function OSDetalhes() {
   const [textosImpressao, setTextosImpressao] = useState(() =>
     carregarDefaultsImpressao("os"),
   );
+  const { nfeHabilitada } = useFiscalFeatures();
   const {
     os,
     loading,
@@ -50,6 +52,7 @@ export default function OSDetalhes() {
     notaFiscalPecas,
     setNotaFiscalPecas,
     carregarOS,
+    nfeHabilitada,
   });
 
   const componentRef = useRef();
@@ -89,12 +92,13 @@ export default function OSDetalhes() {
     const nfRejeitada =
       (nf.notaFiscalServico?.status_nf === "rejeitada" &&
         nfErroEnderecoTomador(nf.notaFiscalServico)) ||
-      (nf.notaFiscalPecas?.status_nf === "rejeitada" &&
+      (nfeHabilitada &&
+        nf.notaFiscalPecas?.status_nf === "rejeitada" &&
         nfErroEnderecoTomador(nf.notaFiscalPecas));
     if (nfRejeitada) return "cep_invalido";
     if (!cepOk) return "cep_ausente";
     return null;
-  }, [os?.cliente_cep, nf.notaFiscalServico, nf.notaFiscalPecas]);
+  }, [os?.cliente_cep, nf.notaFiscalServico, nf.notaFiscalPecas, nfeHabilitada]);
 
   if (loading) {
     return <LoadingSpinner size="xl" />;
@@ -132,6 +136,7 @@ export default function OSDetalhes() {
         onAtualizarStatus={handleAtualizarStatus}
         onImprimir={handleAbrirImpressao}
         isAdmin={isAdmin}
+        nfeHabilitada={nfeHabilitada}
       />
 
       {isAdmin && motivoEnderecoNf && (

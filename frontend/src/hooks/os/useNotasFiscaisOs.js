@@ -15,6 +15,7 @@ export function useNotasFiscaisOs({
   notaFiscalPecas,
   setNotaFiscalPecas,
   carregarOS,
+  nfeHabilitada = false,
 }) {
   const [showNFModal, setShowNFModal] = useState(null);
   const [gerandoNfse, setGerandoNfse] = useState(false);
@@ -50,6 +51,12 @@ export function useNotasFiscaisOs({
   };
 
   const handleGerarNF = async (modelo = "NFSE") => {
+    if (modelo === "NFE" && !nfeHabilitada) {
+      toast.error(
+        "Emissão de NF-e (peças) desativada. Aguardando credenciamento SEFAZ/PR. Use NFS-e para serviços.",
+      );
+      return;
+    }
     if (os.status !== "Finalizada") {
       toast.error("A OS precisa estar finalizada para gerar nota fiscal");
       return;
@@ -115,7 +122,8 @@ export function useNotasFiscaisOs({
 
   useEffect(() => {
     const nfseProc = notaFiscalServico?.status_nf === "processamento";
-    const nfeProc = notaFiscalPecas?.status_nf === "processamento";
+    const nfeProc =
+      nfeHabilitada && notaFiscalPecas?.status_nf === "processamento";
     if (loading || !osId || (!nfseProc && !nfeProc)) return;
 
     const atualizarStatus = async () => {
@@ -153,6 +161,7 @@ export function useNotasFiscaisOs({
     loading,
     notaFiscalServico?.status_nf,
     notaFiscalPecas?.status_nf,
+    nfeHabilitada,
     setNotaFiscalServico,
     setNotaFiscalPecas,
   ]);
@@ -194,7 +203,10 @@ export function useNotasFiscaisOs({
     }
   };
 
-  const notaFiscalModal = showNFModal ? notaPorModelo(showNFModal) : null;
+  const notaFiscalModal =
+    showNFModal && (showNFModal !== "NFE" || nfeHabilitada)
+      ? notaPorModelo(showNFModal)
+      : null;
 
   return {
     showNFModal,

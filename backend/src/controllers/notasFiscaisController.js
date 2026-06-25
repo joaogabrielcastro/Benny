@@ -1,9 +1,17 @@
 import { resolveTenantId } from "../config/singleTenant.js";
+import {
+  isNfeEmissaoHabilitada,
+  mensagemNfeDesabilitada,
+} from "../config/nuvemFiscal.js";
 import notasFiscaisService from "../services/notasFiscaisService.js";
 import { AppError, notFound } from "../lib/AppError.js";
 import { sendPaginated } from "../lib/paginationResponse.js";
 
 class NotasFiscaisController {
+  async features(_req, res) {
+    res.json({ nfeHabilitada: isNfeEmissaoHabilitada() });
+  }
+
   async listar(req, res) {
     const tenantId = resolveTenantId(req);
     const { limit, offset, page } = req.pagination;
@@ -34,6 +42,9 @@ class NotasFiscaisController {
   async sincronizarPorOs(req, res) {
     const modelo =
       req.params.modelo?.toUpperCase() === "NFE" ? "NFE" : "NFSE";
+    if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
+      throw new AppError(403, mensagemNfeDesabilitada());
+    }
     const result = await notasFiscaisService.sincronizarPorOs(
       resolveTenantId(req),
       req.params.osId,
@@ -52,6 +63,9 @@ class NotasFiscaisController {
       "NFSE"
     ).toUpperCase();
     const modeloDocumento = modeloParam === "NFE" ? "NFE" : "NFSE";
+    if (modeloDocumento === "NFE" && !isNfeEmissaoHabilitada()) {
+      throw new AppError(403, mensagemNfeDesabilitada());
+    }
     const result = await notasFiscaisService.gerarParaOs(
       resolveTenantId(req),
       req.params.osId,

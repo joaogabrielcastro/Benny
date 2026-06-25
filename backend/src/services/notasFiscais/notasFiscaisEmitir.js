@@ -3,6 +3,8 @@ import { SINGLE_TENANT_ID } from "../../config/singleTenant.js";
 import {
   getNuvemFiscalConfig,
   isNuvemFiscalConfigured,
+  isNfeEmissaoHabilitada,
+  mensagemNfeDesabilitada,
 } from "../../config/nuvemFiscal.js";
 import { emitirNfe, emitirNfseDps } from "../nuvemFiscalClient.js";
 import {
@@ -33,6 +35,10 @@ export const gerarParaOs = async (
 ) => {
   const modelo = modeloDocumento === "NFE" ? "NFE" : "NFSE";
   const label = modelo === "NFE" ? "NF-e" : "NFS-e";
+
+  if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
+    return { erro: mensagemNfeDesabilitada() };
+  }
 
   const osCompleta = await ordensServicoService.buscarPorId(tenantId, osId);
   if (!osCompleta) return { erro: "OS não encontrada" };

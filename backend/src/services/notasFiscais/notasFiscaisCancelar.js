@@ -1,4 +1,8 @@
-import { isNuvemFiscalConfigured } from "../../config/nuvemFiscal.js";
+import {
+  isNuvemFiscalConfigured,
+  isNfeEmissaoHabilitada,
+  mensagemNfeDesabilitada,
+} from "../../config/nuvemFiscal.js";
 import {
   cancelarNfe,
   cancelarNfse,
@@ -48,6 +52,9 @@ export const cancelar = async (
   }
 
   const modelo = nf.modelo_documento === "NFE" ? "NFE" : "NFSE";
+  if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
+    return { erro: mensagemNfeDesabilitada() };
+  }
   const label = modelo === "NFE" ? "NF-e" : "NFS-e";
   const valorOs = Number(nf.valor_total) || 0;
 

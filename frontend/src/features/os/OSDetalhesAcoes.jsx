@@ -35,6 +35,7 @@ export default function OSDetalhesAcoes({
   onAtualizarStatus,
   onImprimir,
   isAdmin = true,
+  nfeHabilitada = false,
 }) {
   const temServicos = Number(os.valor_servicos) > 0;
   const temPecas = Number(os.valor_produtos) > 0;
@@ -92,7 +93,7 @@ export default function OSDetalhesAcoes({
             </ActionBtn>
           )}
 
-          {isAdmin && os.status === "Finalizada" && temPecas && (
+          {isAdmin && nfeHabilitada && os.status === "Finalizada" && temPecas && (
             <ActionBtn
               icon={gerandoNfe ? FiRefreshCw : FiFileText}
               onClick={() => onGerarNF("NFE")}
@@ -113,7 +114,7 @@ export default function OSDetalhesAcoes({
             </ActionBtn>
           )}
 
-          {isAdmin && notaFiscalPecas?.status_nf === "autorizada" && (
+          {isAdmin && nfeHabilitada && notaFiscalPecas?.status_nf === "autorizada" && (
             <ActionBtn
               icon={FiFileText}
               onClick={() => onShowNFModal("NFE")}

@@ -12,6 +12,7 @@ const setModelo = (modelo) => (req, _res, next) => {
   next();
 };
 
+router.get("/features", ah(notasFiscaisController, "features"));
 router.get("/os/:osId", ah(notasFiscaisController, "listarPorOs"));
 router.post("/gerar/:osId/nfse", ah(notasFiscaisController, "gerar"));
 router.post(

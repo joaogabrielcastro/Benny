@@ -1,4 +1,8 @@
-import { isNuvemFiscalConfigured } from "../../config/nuvemFiscal.js";
+import {
+  isNuvemFiscalConfigured,
+  isNfeEmissaoHabilitada,
+  mensagemNfeDesabilitada,
+} from "../../config/nuvemFiscal.js";
 import {
   consultarNfe,
   consultarNfse,
@@ -19,6 +23,9 @@ export const sincronizarPorOs = async (
   modeloDocumento = "NFSE",
 ) => {
   const modelo = modeloDocumento === "NFE" ? "NFE" : "NFSE";
+  if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
+    return { erro: mensagemNfeDesabilitada() };
+  }
   const nf = await buscarPorOsId(tenantId, osId, modelo);
   if (!nf) {
     return {

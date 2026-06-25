@@ -155,3 +155,15 @@ export function isNuvemFiscalConfigured() {
   const c = getNuvemFiscalConfig();
   return !!(c.clientId && c.clientSecret && c.empresaCnpj.length === 14);
 }
+
+/** NF-e de peças — desligada até credenciamento SEFAZ/PR (CSRT). Ativar: NUVEM_FISCAL_NFE_ENABLED=1 */
+export function isNfeEmissaoHabilitada() {
+  const v = String(process.env.NUVEM_FISCAL_NFE_ENABLED || "")
+    .trim()
+    .toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+export function mensagemNfeDesabilitada() {
+  return "Emissão de NF-e (peças) está desativada. Aguardando credenciamento na SEFAZ/PR (CSRT). Use NFS-e para serviços.";
+}
