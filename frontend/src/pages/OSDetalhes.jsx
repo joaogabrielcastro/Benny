@@ -32,7 +32,7 @@ export default function OSDetalhes() {
   const [textosImpressao, setTextosImpressao] = useState(() =>
     carregarDefaultsImpressao("os"),
   );
-  const { nfeHabilitada } = useFiscalFeatures();
+  const { nfeHabilitada, nfseIncluirPecas } = useFiscalFeatures();
   const {
     os,
     loading,
@@ -53,6 +53,7 @@ export default function OSDetalhes() {
     setNotaFiscalPecas,
     carregarOS,
     nfeHabilitada,
+    nfseIncluirPecas,
   });
 
   const componentRef = useRef();
@@ -137,6 +138,7 @@ export default function OSDetalhes() {
         onImprimir={handleAbrirImpressao}
         isAdmin={isAdmin}
         nfeHabilitada={nfeHabilitada}
+        nfseIncluirPecas={nfseIncluirPecas}
       />
 
       {isAdmin && motivoEnderecoNf && (

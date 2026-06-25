@@ -16,6 +16,7 @@ export function useNotasFiscaisOs({
   setNotaFiscalPecas,
   carregarOS,
   nfeHabilitada = false,
+  nfseIncluirPecas = false,
 }) {
   const [showNFModal, setShowNFModal] = useState(null);
   const [gerandoNfse, setGerandoNfse] = useState(false);
@@ -64,12 +65,18 @@ export function useNotasFiscaisOs({
 
     const notaAtual = notaPorModelo(modelo);
     const valorMinimo =
-      modelo === "NFE" ? Number(os.valor_produtos) : Number(os.valor_servicos);
+      modelo === "NFE"
+        ? Number(os.valor_produtos)
+        : nfseIncluirPecas
+          ? Number(os.valor_total)
+          : Number(os.valor_servicos);
     if (valorMinimo <= 0) {
       toast.error(
         modelo === "NFE"
           ? "Esta OS não tem valor de peças para NF-e."
-          : "Esta OS não tem valor de serviços para NFS-e.",
+          : nfseIncluirPecas
+            ? "Esta OS não tem valor para emitir NFS-e."
+            : "Esta OS não tem valor de serviços para NFS-e.",
       );
       return;
     }
@@ -78,7 +85,9 @@ export function useNotasFiscaisOs({
       toast(
         modelo === "NFE"
           ? "NF-e de peças já autorizada."
-          : "NFS-e de serviços já autorizada.",
+          : nfseIncluirPecas
+            ? "NFS-e já autorizada."
+            : "NFS-e de serviços já autorizada.",
         { icon: "ℹ️" },
       );
       setShowNFModal(modelo);

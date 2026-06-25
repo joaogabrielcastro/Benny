@@ -4,6 +4,7 @@ import {
   getNuvemFiscalConfig,
   isNuvemFiscalConfigured,
   isNfeEmissaoHabilitada,
+  isNfseIncluirPecas,
   mensagemNfeDesabilitada,
 } from "../../config/nuvemFiscal.js";
 import { emitirNfe, emitirNfseDps } from "../nuvemFiscalClient.js";
@@ -15,7 +16,7 @@ import {
   montarCorpoEmissaoNfe,
   obterProximoNumeroNfe,
 } from "../nuvemFiscalNfePayload.js";
-import { totaisFiscaisOs } from "../osValoresFiscais.js";
+import { totaisFiscaisOs, valorEmissaoNfse } from "../osValoresFiscais.js";
 import ordensServicoService from "../ordensServicoService.js";
 import { tributosEstimadosDaOs } from "../tributosNfse.js";
 import { camposFromRespostaNuvem } from "./nuvemRespostaParser.js";
@@ -70,7 +71,9 @@ export const gerarParaOs = async (
 
   const totais = totaisFiscaisOs(osCompleta);
   const valorNota =
-    modelo === "NFE" ? totais.valor_produtos : totais.valor_servicos;
+    modelo === "NFE"
+      ? totais.valor_produtos
+      : valorEmissaoNfse(totais, isNfseIncluirPecas());
 
   const nfExistente = await buscarPorOsId(tenantId, osId, modelo);
   if (nfExistente?.status === "autorizada") {

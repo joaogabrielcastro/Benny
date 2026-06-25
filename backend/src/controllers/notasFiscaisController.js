@@ -1,6 +1,7 @@
 import { resolveTenantId } from "../config/singleTenant.js";
 import {
   isNfeEmissaoHabilitada,
+  isNfseIncluirPecas,
   mensagemNfeDesabilitada,
 } from "../config/nuvemFiscal.js";
 import notasFiscaisService from "../services/notasFiscaisService.js";
@@ -9,7 +10,10 @@ import { sendPaginated } from "../lib/paginationResponse.js";
 
 class NotasFiscaisController {
   async features(_req, res) {
-    res.json({ nfeHabilitada: isNfeEmissaoHabilitada() });
+    res.json({
+      nfeHabilitada: isNfeEmissaoHabilitada(),
+      nfseIncluirPecas: isNfseIncluirPecas(),
+    });
   }
 
   async listar(req, res) {

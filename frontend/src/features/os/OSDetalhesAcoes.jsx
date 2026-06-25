@@ -36,16 +36,22 @@ export default function OSDetalhesAcoes({
   onImprimir,
   isAdmin = true,
   nfeHabilitada = false,
+  nfseIncluirPecas = false,
 }) {
   const temServicos = Number(os.valor_servicos) > 0;
   const temPecas = Number(os.valor_produtos) > 0;
+  const temValorNfse = nfseIncluirPecas
+    ? Number(os.valor_total) > 0
+    : temServicos;
 
   const labelNfse = () => {
     if (gerandoNfse) return "Processando NFS-e…";
     if (notaFiscalServico?.status_nf === "processamento") return "Consultar NFS-e";
     if (notaFiscalServico?.status_nf === "autorizada") return "NFS-e autorizada";
     if (notaFiscalServico) return "Reemitir NFS-e";
-    return "Emitir NFS-e";
+    return nfseIncluirPecas && temPecas
+      ? "Emitir NFS-e (serviços + peças)"
+      : "Emitir NFS-e";
   };
 
   const labelNfe = () => {
@@ -82,7 +88,7 @@ export default function OSDetalhesAcoes({
             </Link>
           )}
 
-          {isAdmin && os.status === "Finalizada" && temServicos && (
+          {isAdmin && os.status === "Finalizada" && temValorNfse && (
             <ActionBtn
               icon={gerandoNfse ? FiRefreshCw : FiFileText}
               onClick={() => onGerarNF("NFSE")}

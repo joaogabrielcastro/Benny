@@ -4,6 +4,7 @@ import api from "../../services/api";
 /** Recursos fiscais habilitados no backend (ex.: NF-e aguardando SEFAZ/PR). */
 export function useFiscalFeatures() {
   const [nfeHabilitada, setNfeHabilitada] = useState(false);
+  const [nfseIncluirPecas, setNfseIncluirPecas] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -11,9 +12,15 @@ export function useFiscalFeatures() {
     (async () => {
       try {
         const { data } = await api.get("/notas-fiscais/features");
-        if (!cancelled) setNfeHabilitada(!!data?.nfeHabilitada);
+        if (!cancelled) {
+          setNfeHabilitada(!!data?.nfeHabilitada);
+          setNfseIncluirPecas(!!data?.nfseIncluirPecas);
+        }
       } catch {
-        if (!cancelled) setNfeHabilitada(false);
+        if (!cancelled) {
+          setNfeHabilitada(false);
+          setNfseIncluirPecas(false);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -23,5 +30,5 @@ export function useFiscalFeatures() {
     };
   }, []);
 
-  return { nfeHabilitada, loading };
+  return { nfeHabilitada, nfseIncluirPecas, loading };
 }

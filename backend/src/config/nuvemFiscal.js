@@ -167,3 +167,16 @@ export function isNfeEmissaoHabilitada() {
 export function mensagemNfeDesabilitada() {
   return "Emissão de NF-e (peças) está desativada. Aguardando credenciamento na SEFAZ/PR (CSRT). Use NFS-e para serviços.";
 }
+
+/**
+ * NFS-e com peças + serviços na mesma nota (enquanto NF-e estiver desligada).
+ * Override: NUVEM_FISCAL_NFSE_INCLUIR_PECAS=1|0
+ */
+export function isNfseIncluirPecas() {
+  const v = String(process.env.NUVEM_FISCAL_NFSE_INCLUIR_PECAS || "")
+    .trim()
+    .toLowerCase();
+  if (v === "1" || v === "true" || v === "yes") return true;
+  if (v === "0" || v === "false" || v === "no") return false;
+  return !isNfeEmissaoHabilitada();
+}

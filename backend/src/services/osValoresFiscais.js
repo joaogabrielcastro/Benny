@@ -1,3 +1,5 @@
+import { isNfseIncluirPecas } from "../config/nuvemFiscal.js";
+
 /** Totais da OS para emissão fiscal (serviços × peças). */
 export function totaisFiscaisOs(os) {
   const servicos = os?.servicos || [];
@@ -27,4 +29,10 @@ export function totaisFiscaisOs(os) {
     valor_total:
       Math.round((valor_servicos + valor_produtos) * 100) / 100,
   };
+}
+
+/** Valor da NFS-e: total da OS (peças + serviços) ou só serviços, conforme config. */
+export function valorEmissaoNfse(totais, incluirPecas = isNfseIncluirPecas()) {
+  if (incluirPecas) return totais.valor_total;
+  return totais.valor_servicos;
 }

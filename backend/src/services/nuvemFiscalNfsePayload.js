@@ -1,5 +1,8 @@
-import { getNuvemFiscalConfig } from "../config/nuvemFiscal.js";
-import { totaisFiscaisOs } from "./osValoresFiscais.js";
+import {
+  getNuvemFiscalConfig,
+  isNfseIncluirPecas,
+} from "../config/nuvemFiscal.js";
+import { totaisFiscaisOs, valorEmissaoNfse } from "./osValoresFiscais.js";
 
 function onlyDigits(s) {
   return String(s || "").replace(/\D/g, "");
@@ -81,16 +84,23 @@ function resolveDocTomador(cliente, cfg) {
   return null;
 }
 
-function buildDescricaoServico(os, servicos) {
+function buildDescricaoNfse(os, servicos, produtos, incluirPecas) {
   const linhas = [];
   if (servicos?.length) {
     for (const s of servicos) {
-      linhas.push(`${s.codigo} ${s.descricao} (${s.quantidade}x)`);
+      linhas.push(`Serv: ${s.codigo} ${s.descricao} (${s.quantidade}x)`);
+    }
+  }
+  if (incluirPecas && produtos?.length) {
+    for (const p of produtos) {
+      linhas.push(`Peca: ${p.codigo} ${p.descricao} (${p.quantidade}x)`);
     }
   }
   const bloco = linhas.length
     ? linhas.join("; ")
-    : "Mao de obra conforme ordem de servico.";
+    : incluirPecas
+      ? "Servicos e pecas conforme ordem de servico."
+      : "Mao de obra conforme ordem de servico.";
   return trunc(`OS ${os.numero} — ${bloco}`, 2000);
 }
 
@@ -116,7 +126,8 @@ export function gerarReferenciaNfse(osId, nfRegistroId = null) {
 }
 
 /**
- * Monta o corpo JSON do POST /nfse/dps (NfseDpsPedidoEmissao) — somente mão de obra.
+ * Monta o corpo JSON do POST /nfse/dps (NfseDpsPedidoEmissao).
+ * Com NF-e desligada: valor total da OS (serviços + peças) na mesma NFS-e.
  */
 export function montarCorpoEmissaoNfseDps(
   os,
@@ -126,9 +137,20 @@ export function montarCorpoEmissaoNfseDps(
   opcoes = {},
 ) {
   const cfg = getNuvemFiscalConfig();
-  const { valor_servicos } = totaisFiscaisOs({ ...os, produtos, servicos });
+  const incluirPecas = opcoes.incluirPecas ?? isNfseIncluirPecas();
+  const totais = totaisFiscaisOs({ ...os, produtos, servicos });
+  const valorNota = valorEmissaoNfse(totais, incluirPecas);
 
-  if (!servicos?.length || valor_servicos <= 0) {
+  if (valorNota <= 0) {
+    return {
+      ok: false,
+      erro: incluirPecas
+        ? "Esta OS não possui valor para emitir NFS-e."
+        : "Esta OS não possui valor de mão de obra (serviços) para emitir NFS-e.",
+    };
+  }
+
+  if (!incluirPecas && (!servicos?.length || totais.valor_servicos <= 0)) {
     return {
       ok: false,
       erro:
@@ -169,7 +191,7 @@ export function montarCorpoEmissaoNfseDps(
     };
   }
 
-  const valorServ = valor_servicos;
+  const valorServ = valorNota;
   const { tribMun, vISSQN } = buildTribMunIss(valorServ, cfg);
   const now = new Date();
   const dhEmi = now.toISOString();
@@ -219,7 +241,7 @@ export function montarCorpoEmissaoNfseDps(
         cServ: {
           cTribNac: cfg.cTribNac,
           cNBS: cfg.cNbs,
-          xDescServ: buildDescricaoServico(os, servicos),
+          xDescServ: buildDescricaoNfse(os, servicos, produtos, incluirPecas),
         },
       },
       valores: {

@@ -104,4 +104,56 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
     assert.equal(result.body.infDPS.toma.end.endNac.CEP, "81020670");
     assert.equal(result.body.infDPS.serv.locPrest.cLocPrestacao, "4105805");
   });
+
+  it("com NF-e desligada: inclui peças no valor e na descrição da NFS-e", () => {
+    delete process.env.NUVEM_FISCAL_NFE_ENABLED;
+
+    const produtos = [
+      {
+        codigo: "P1",
+        descricao: "Filtro oleo",
+        quantidade: 1,
+        valor_total: 80,
+      },
+    ];
+    const os = { ...baseOs, valor_servicos: 200, valor_produtos: 80 };
+
+    const result = montarCorpoEmissaoNfseDps(
+      os,
+      baseCliente,
+      produtos,
+      baseServicos,
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.body.infDPS.valores.vServPrest.vServ, 280);
+    assert.match(result.body.infDPS.serv.cServ.xDescServ, /Peca: P1/);
+    assert.match(result.body.infDPS.serv.cServ.xDescServ, /Serv: S1/);
+  });
+
+  it("com NF-e ligada: NFS-e só com valor de serviços", () => {
+    process.env.NUVEM_FISCAL_NFE_ENABLED = "1";
+
+    const produtos = [
+      {
+        codigo: "P1",
+        descricao: "Filtro oleo",
+        quantidade: 1,
+        valor_total: 80,
+      },
+    ];
+    const os = { ...baseOs, valor_servicos: 200, valor_produtos: 80 };
+
+    const result = montarCorpoEmissaoNfseDps(
+      os,
+      baseCliente,
+      produtos,
+      baseServicos,
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.body.infDPS.valores.vServPrest.vServ, 200);
+    assert.equal(
+      result.body.infDPS.serv.cServ.xDescServ.includes("Peca:"),
+      false,
+    );
+  });
 });
