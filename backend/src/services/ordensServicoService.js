@@ -280,6 +280,26 @@ const atualizar = async (
 
     const statusAnterior = prev.rows[0].status;
 
+    const prevRow = prev.rows[0];
+    const kmFinal =
+      km !== undefined && km !== null && km !== "" ? km : prevRow.km;
+    const previsaoFinal =
+      previsao_entrega !== undefined
+        ? previsao_entrega || null
+        : prevRow.previsao_entrega;
+    const obsVeiculoFinal =
+      observacoes_veiculo !== undefined
+        ? observacoes_veiculo
+        : prevRow.observacoes_veiculo;
+    const obsGeraisFinal =
+      observacoes_gerais !== undefined
+        ? observacoes_gerais
+        : prevRow.observacoes_gerais;
+    const respTecnicoFinal =
+      responsavel_tecnico !== undefined
+        ? responsavel_tecnico
+        : prevRow.responsavel_tecnico;
+
     await client.query(
       `UPDATE ordens_servico
        SET status=$1::varchar, responsavel_tecnico=$2::varchar, km=$3, previsao_entrega=$4,
@@ -289,11 +309,11 @@ const atualizar = async (
        WHERE id=$7`,
       [
         status,
-        responsavel_tecnico,
-        km,
-        previsao_entrega || null,
-        observacoes_veiculo,
-        observacoes_gerais,
+        respTecnicoFinal,
+        kmFinal,
+        previsaoFinal,
+        obsVeiculoFinal,
+        obsGeraisFinal,
         id,
       ],
     );

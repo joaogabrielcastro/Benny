@@ -63,6 +63,10 @@ export default function OSDetalhes() {
       await api.put(`/ordens-servico/${id}`, {
         status: novoStatus,
         responsavel_tecnico: os.responsavel_tecnico,
+        km: os.km ?? null,
+        previsao_entrega: os.previsao_entrega,
+        observacoes_veiculo: os.observacoes_veiculo,
+        observacoes_gerais: os.observacoes_gerais,
       });
       toast.success("Status atualizado com sucesso!");
       carregarOS();
@@ -270,13 +274,13 @@ export default function OSDetalhes() {
                 </p>
               </div>
             )}
-            {os.km && (
+            {os.km != null && os.km !== "" && (
               <div>
                 <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
                   KM:
                 </span>
                 <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {os.km.toLocaleString()}
+                  {Number(os.km).toLocaleString("pt-BR")}
                 </p>
               </div>
             )}
