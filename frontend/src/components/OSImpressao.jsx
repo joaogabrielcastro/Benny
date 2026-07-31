@@ -59,6 +59,11 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
               top: 0;
               width: 100%;
               display: block !important;
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              line-height: 1.35;
+              color: #000;
+              background: white;
             }
             
             .os-impressao,
@@ -66,47 +71,59 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
               visibility: visible !important;
             }
             
-            .os-impressao {
-              font-family: Arial, sans-serif;
-              font-size: 11px;
-              line-height: 1.4;
-              color: #000;
-              background: white;
-            }
-            
             .os-header { 
               margin-bottom: 6px; 
               padding-bottom: 5px; 
-              border-bottom: 3px solid #3b4e9e; 
+              border-bottom: 3px solid #3b4e9e;
+              page-break-inside: avoid;
+              break-inside: avoid;
             }
             
             .os-section { 
               margin-bottom: 6px; 
             }
             
+            /* Título cola na tabela — evita "PEÇAS E PRODUTOS" sozinho no fim da página */
             .os-section-title { 
               font-size: 11px; 
               font-weight: bold; 
-              margin-bottom: 3px; 
+              margin: 0 0 3px 0; 
               padding-bottom: 2px;
               border-bottom: 1px solid #ddd;
               color: #000;
+              page-break-after: avoid;
+              break-after: avoid;
             }
             
-            table { 
+            .os-impressao table { 
               width: 100%; 
               border-collapse: collapse; 
               font-size: 10px; 
-              margin-top: 5px; 
+              margin-top: 3px;
+              page-break-inside: auto;
+              break-inside: auto;
             }
             
-            th, td { 
-              padding: 3px; 
+            .os-impressao thead {
+              display: table-header-group;
+            }
+            
+            .os-impressao tbody {
+              display: table-row-group;
+            }
+            
+            .os-impressao tr {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            
+            .os-impressao th, .os-impressao td { 
+              padding: 2px 3px; 
               border: 1px solid #000; 
               text-align: left;
             }
             
-            th { 
+            .os-impressao th { 
               background-color: #f0f0f0; 
               font-weight: 600; 
             }
@@ -136,12 +153,21 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
               padding: 5px; 
               margin-top: 6px;
               text-align: right;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            
+            .os-footer-block {
+              page-break-inside: avoid;
+              break-inside: avoid;
             }
             
             .signature-area { 
-              margin-top: 30px; 
-              padding-top: 10px; 
+              margin-top: 20px; 
+              padding-top: 8px; 
               border-top: 1px solid #000;
+              page-break-inside: avoid;
+              break-inside: avoid;
             }
             
             .signature-line { 
@@ -391,7 +417,7 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
 
       {/* Serviços */}
       {os.servicos && os.servicos.length > 0 && (
-        <div className="os-section">
+        <div className="os-section os-itens-section">
           <h2 className="os-section-title">SERVIÇOS</h2>
           <table>
             <thead>
@@ -428,7 +454,7 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
 
       {/* Produtos/Peças */}
       {os.produtos && os.produtos.length > 0 && (
-        <div className="os-section">
+        <div className="os-section os-itens-section">
           <h2 className="os-section-title">PEÇAS E PRODUTOS</h2>
           <table>
             <thead>
@@ -536,6 +562,8 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
         </div>
       )}
 
+      {/* Garantia + assinaturas: manter juntos no final */}
+      <div className="os-footer-block">
       {/* Garantia */}
       <div
         style={{
@@ -650,6 +678,7 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

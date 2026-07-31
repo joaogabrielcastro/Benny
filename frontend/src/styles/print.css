@@ -36,11 +36,21 @@
     color: black !important;
   }
 
-  /* Tabelas */
+  /* Tabelas — permitir quebra entre linhas (listas longas de peças/serviços).
+     Evitar page-break-inside:avoid em table inteira: o título da seção fica
+     órfão na página anterior e a tabela inteira vai para a seguinte. */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
     page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   th {

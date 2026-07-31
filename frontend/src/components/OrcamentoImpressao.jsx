@@ -99,13 +99,26 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
               padding-bottom: 2px;
               border-bottom: 1px solid #ddd;
               color: #000;
+              page-break-after: avoid;
+              break-after: avoid;
             }
             
             table { 
               width: 100%; 
               border-collapse: collapse; 
               font-size: 9px; 
-              margin-top: 3px; 
+              margin-top: 3px;
+              page-break-inside: auto;
+              break-inside: auto;
+            }
+
+            thead {
+              display: table-header-group;
+            }
+
+            tr {
+              page-break-inside: avoid;
+              break-inside: avoid;
             }
             
             th, td { 
@@ -124,12 +137,16 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
               padding: 5px; 
               margin-top: 6px;
               text-align: right;
+              page-break-inside: avoid;
+              break-inside: avoid;
             }
             
             .signature-area { 
               margin-top: 20px; 
               padding-top: 8px; 
               border-top: 1px solid #000;
+              page-break-inside: avoid;
+              break-inside: avoid;
             }
             
             .signature-line { 
