@@ -1,6 +1,10 @@
 ﻿import toast from "react-hot-toast";
 import Modal from "../../components/Modal";
-import { formatarMoeda } from "../../utils/formatters";
+import {
+  formatarDataBrasil,
+  formatarDataHoraBrasil,
+  formatarMoeda,
+} from "../../utils/formatters";
 import {
   rotuloFonteTributo,
   formatarAliquota,
@@ -47,7 +51,9 @@ export default function NotaFiscalModal({
 
   const handleImprimirDanfe = async () => {
     if (!pdf) {
-      toast.error("Só é possível imprimir após autorização, com o PDF oficial da Notaas.");
+      toast.error(
+        "Só é possível imprimir após autorização, com o PDF oficial da Notaas.",
+      );
       return;
     }
     await abrirDanfePdf(pdf, { imprimir: true });
@@ -66,197 +72,193 @@ export default function NotaFiscalModal({
   const mensagemRejeicao =
     nota.status_nf === "rejeitada" ? mensagemRejeicaoNota(nota) : "";
   const dicaNfse = !isNfe && mensagemRejeicao ? dicaRejeicaoNfse(nota) : null;
+  const numeroVisivel = /^\d{1,8}$/.test(String(nota.numero || ""));
+
+  const tributos = isNfe
+    ? []
+    : [
+        {
+          label: "ISS",
+          valor: nota.valor_iss,
+          aliquota: nota.aliquota_iss,
+          fonte: nota.fonte_iss,
+        },
+        {
+          label: "PIS",
+          valor: nota.valor_pis,
+          aliquota: nota.aliquota_pis,
+          fonte: nota.fonte_pis,
+        },
+        {
+          label: "COFINS",
+          valor: nota.valor_cofins,
+          aliquota: nota.aliquota_cofins,
+          fonte: nota.fonte_cofins,
+        },
+      ].filter((t) => Number(t.valor) > 0);
+
+  const mostrarComposicao =
+    tributos.length > 0 ||
+    Number(nota.valor_base) !== Number(nota.valor_total);
+
+  const temDadosTecnicos =
+    nota.status_provedor || nota.id_provedor || nota.atualizado_em_nf;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={
-        /^\d{1,8}$/.test(String(nota.numero || ""))
-          ? `${labelDoc} Nº ${nota.numero}`
-          : `${labelDoc} autorizada`
-      }
+      title={numeroVisivel ? `${labelDoc} Nº ${nota.numero}` : `${labelDoc}`}
       size="lg"
+      footer={
+        <>
+          {nota.status_nf === "autorizada" && onCancelar && (
+            <button
+              type="button"
+              onClick={onCancelar}
+              disabled={cancelando}
+              className="px-3 py-2 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 sm:mr-auto"
+            >
+              {cancelando ? "Cancelando…" : "Cancelar nota"}
+            </button>
+          )}
+          {onCorrigirEndereco && (
+            <button
+              type="button"
+              onClick={onCorrigirEndereco}
+              className="px-4 py-2 rounded-lg font-semibold text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+            >
+              Corrigir endereço
+            </button>
+          )}
+          <button type="button" onClick={onClose} className="btn-secondary">
+            Fechar
+          </button>
+          {pdf && (
+            <>
+              <button
+                type="button"
+                onClick={handleBaixarDanfe}
+                className="btn-secondary"
+              >
+                Baixar PDF
+              </button>
+              <button
+                type="button"
+                onClick={handleImprimirDanfe}
+                className="btn-secondary"
+              >
+                Imprimir
+              </button>
+              <button
+                type="button"
+                onClick={handleAbrirDanfe}
+                className="btn-brand"
+              >
+                Abrir {labelDanfe}
+              </button>
+            </>
+          )}
+        </>
+      }
     >
-      <div className="space-y-6">
-        {pdf && nota.status_nf === "autorizada" && (
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/40">
-            <p className="text-sm text-blue-900 dark:text-blue-100">
-              <span className="font-semibold">{labelDanfe} oficial</span> — mesmo
-              formato de notas de fornecedores (SEFAZ / prefeitura), gerado pela
-              Notaas. Use os botões abaixo para abrir, imprimir ou baixar o
-              PDF.
-            </p>
-          </div>
-        )}
+      <div className="space-y-4">
+        <StatusNota status={nota.status_nf} modelo={modelo} />
 
-        <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <div>
-            <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-              Número NF:
-            </span>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {/^\d{1,8}$/.test(String(nota.numero || ""))
+        <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 p-4">
+          <Campo
+            label="Número"
+            valor={
+              numeroVisivel
                 ? nota.numero
                 : nota.chave_acesso
                   ? "Ver chave abaixo"
-                  : nota.numero}
-            </p>
-          </div>
-          <div>
-            <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-              Data de Emissão:
-            </span>
-            <p className="text-lg text-gray-800 dark:text-gray-200">
-              {new Date(nota.data_emissao).toLocaleDateString("pt-BR")}
-            </p>
-          </div>
-          <div>
-            <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-              OS:
-            </span>
-            <p className="text-lg text-gray-800 dark:text-gray-200">{os.numero}</p>
-          </div>
-          <div>
-            <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-              Cliente:
-            </span>
-            <p className="text-lg text-gray-800 dark:text-gray-200">
-              {os.cliente_nome}
-            </p>
-          </div>
+                  : nota.numero || "—"
+            }
+          />
+          <Campo
+            label="Emissão"
+            valor={formatarDataBrasil(nota.data_emissao)}
+          />
+          <Campo label="OS" valor={os.numero} />
+          <Campo
+            label="Cliente"
+            valor={os.cliente_nome}
+            className="col-span-2 sm:col-span-3"
+          />
+
           {nota.chave_acesso && (
-            <div className="col-span-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                Chave de acesso:
-              </span>
-              <p className="text-xs text-gray-700 dark:text-gray-300 break-all mt-1 font-mono">
+            <div className="col-span-2 sm:col-span-3 border-t border-gray-200 dark:border-gray-700 pt-3">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Chave de acesso
+              </dt>
+              <dd className="mt-1 font-mono text-[11px] leading-relaxed break-all text-gray-700 dark:text-gray-300">
                 {nota.chave_acesso}
-              </p>
+              </dd>
               {consultaPortal && nota.status_nf === "autorizada" && (
                 <button
                   type="button"
                   onClick={() => abrirConsultaPublicaNfse(nota)}
                   className="mt-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
-                  Consultar no portal nacional da NFS-e
+                  Consultar no portal nacional
                 </button>
               )}
             </div>
           )}
+        </dl>
+
+        <div className="flex items-baseline justify-between gap-4 rounded-lg border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/20 px-4 py-3">
+          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            Valor total da {labelDoc}
+          </span>
+          <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {formatarMoeda(nota.valor_total)}
+          </span>
         </div>
 
-        <div className="space-y-3">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-            {isNfe ? "Valores (NF-e peças)" : "Valores e tributos (NFS-e)"}
-          </h3>
-          {modelo === "NFSE" && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              O valor total da NFS-e é o dos serviços prestados (o cliente não
-              paga ISS em cima desse total). ISS, PIS e COFINS abaixo são
-              referência/estimativa da oficina; no Simples Nacional o ISS costuma
-              compor o DAS.
-            </p>
-          )}
-
-          <div className="space-y-2">
-            <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-              <span className="text-gray-700 dark:text-gray-300">
-                {isNfe ? "Valor das peças (base):" : "Valor dos serviços (base):"}
-              </span>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                {formatarMoeda(nota.valor_base)}
-              </span>
-            </div>
-
-            {modelo === "NFSE" && (
-              <>
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    ISS
-                    {formatarAliquota(nota.aliquota_iss)
-                      ? ` (${formatarAliquota(nota.aliquota_iss)})`
-                      : ""}
-                    {rotuloFonteTributo(nota.fonte_iss)}:
-                  </span>
-                  <span className="text-amber-700 dark:text-amber-400 font-medium">
-                    {formatarMoeda(nota.valor_iss)}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    PIS
-                    {formatarAliquota(nota.aliquota_pis)
-                      ? ` (${formatarAliquota(nota.aliquota_pis)})`
-                      : ""}
-                    {rotuloFonteTributo(nota.fonte_pis)}:
-                  </span>
-                  <span className="text-red-600 dark:text-red-400">
-                    {formatarMoeda(nota.valor_pis)}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    COFINS
-                    {formatarAliquota(nota.aliquota_cofins)
-                      ? ` (${formatarAliquota(nota.aliquota_cofins)})`
-                      : ""}
-                    {rotuloFonteTributo(nota.fonte_cofins)}:
-                  </span>
-                  <span className="text-red-600 dark:text-red-400">
-                    {formatarMoeda(nota.valor_cofins)}
-                  </span>
-                </div>
-                {(nota.valor_liquido != null &&
-                  Number(nota.valor_liquido) !== Number(nota.valor_total)) && (
-                  <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600">
-                    <span className="text-gray-700 dark:text-gray-300">
-                      Referência (base − ISS estimado):
-                    </span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      {formatarMoeda(nota.valor_liquido)}
-                    </span>
-                  </div>
-                )}
-              </>
-            )}
-
-            <div className="flex justify-between py-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg px-3 mt-3">
-              <span className="text-lg font-bold text-gray-900 dark:text-white">
-                {isNfe ? "Valor total da NF-e:" : "Valor total da NFS-e:"}
-              </span>
-              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {formatarMoeda(nota.valor_total)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {(nota.status_provedor || nota.id_provedor) && (
-          <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm space-y-1">
-            <p className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">Status no provedor:</span>{" "}
-              {nota.status_provedor || "—"}
-            </p>
-            {nota.id_provedor && (
-              <p className="text-gray-600 dark:text-gray-400 break-all">
-                <span className="font-semibold">ID no provedor:</span>{" "}
-                {nota.id_provedor}
+        {mostrarComposicao && (
+          <Recolhivel titulo="Composição e tributos">
+            <Linha
+              label={
+                isNfe ? "Valor das peças (base)" : "Valor dos serviços (base)"
+              }
+              valor={formatarMoeda(nota.valor_base)}
+              destaque
+            />
+            {tributos.map((t) => (
+              <Linha
+                key={t.label}
+                label={`${t.label}${
+                  formatarAliquota(t.aliquota)
+                    ? ` (${formatarAliquota(t.aliquota)})`
+                    : ""
+                }${rotuloFonteTributo(t.fonte)}`}
+                valor={formatarMoeda(t.valor)}
+              />
+            ))}
+            {nota.valor_liquido != null &&
+              Number(nota.valor_liquido) !== Number(nota.valor_total) && (
+                <Linha
+                  label="Referência (base − ISS estimado)"
+                  valor={formatarMoeda(nota.valor_liquido)}
+                />
+              )}
+            {!isNfe && (
+              <p className="pt-2 text-xs text-gray-500 dark:text-gray-400">
+                O valor total da NFS-e é o dos serviços prestados — o cliente
+                não paga ISS em cima dele. Os tributos acima são
+                referência/estimativa da oficina; no Simples Nacional o ISS
+                costuma compor o DAS.
               </p>
             )}
-            {nota.atualizado_em_nf && (
-              <p className="text-gray-500 text-xs">
-                Última consulta:{" "}
-                {new Date(nota.atualizado_em_nf).toLocaleString("pt-BR")}
-              </p>
-            )}
-          </div>
+          </Recolhivel>
         )}
 
         {mensagemRejeicao && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/40">
+          <div className="rounded-lg border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-900/20 p-4">
             <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">
-              Motivo da rejeição (SEFAZ / Notaas)
+              Motivo da rejeição
             </h4>
             <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">
               {mensagemRejeicao}
@@ -273,11 +275,13 @@ export default function NotaFiscalModal({
                     Solicite o token CSRT na Receita/PR (UPD → Sistema → CSRT,
                     CNPJ do desenvolvedor do ERP). Configure no Coolify as vars
                     de responsável técnico / CSRT quando a NF-e Notaas for
-                    habilitada. A oficina pode
-                    precisar autorizar o fornecedor no portal da Receita/PR.
-                    Depois <strong>Reemitir NF-e</strong>.
+                    habilitada. A oficina pode precisar autorizar o fornecedor
+                    no portal da Receita/PR. Depois{" "}
+                    <strong>Reemitir NF-e</strong>.
                   </>
-                ) : /972|responsavel tecnico|infRespTec/i.test(mensagemRejeicao) ? (
+                ) : /972|responsavel tecnico|infRespTec/i.test(
+                    mensagemRejeicao,
+                  ) ? (
                   <>
                     Configure no Coolify os dados de responsável técnico do ERP.
                     Depois <strong>Reemitir NF-e</strong>.
@@ -285,8 +289,7 @@ export default function NotaFiscalModal({
                 ) : (
                   <>
                     Confira Inscrição Estadual, certificado A1 no painel Notaas
-                    e dados do cliente. Depois{" "}
-                    <strong>Reemitir NF-e</strong>.
+                    e dados do cliente. Depois <strong>Reemitir NF-e</strong>.
                   </>
                 )}
               </p>
@@ -295,141 +298,148 @@ export default function NotaFiscalModal({
         )}
 
         {mostrarObservacoesNota(nota) && (
-          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+          <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4">
             <h4 className="font-semibold text-gray-800 dark:text-white mb-2">
-              Observações:
+              Observações
             </h4>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
               {nota.observacoes}
             </p>
           </div>
         )}
 
-        <StatusBadge status={nota.status_nf} modelo={modelo} />
+        {!pdf && nota.status_nf === "autorizada" && (
+          <p className="rounded-lg bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            Nota autorizada, mas o PDF ainda não está disponível. Use{" "}
+            <strong>Atualizar status</strong> na OS e tente novamente em alguns
+            minutos.
+          </p>
+        )}
 
-        <div className="flex flex-wrap gap-3 pt-4">
-          {onCorrigirEndereco && (
-            <button
-              type="button"
-              onClick={onCorrigirEndereco}
-              className="flex-1 min-w-[10rem] px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all font-semibold"
-            >
-              Corrigir endereço do cliente
-            </button>
-          )}
-          {pdf && (
-            <>
-              <button
-                type="button"
-                onClick={handleAbrirDanfe}
-                className="flex-1 min-w-[10rem] px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
-              >
-                Abrir {labelDanfe}
-              </button>
-              <button
-                type="button"
-                onClick={handleImprimirDanfe}
-                className="flex-1 min-w-[10rem] px-6 py-3 btn-brand"
-              >
-                Imprimir {labelDanfe}
-              </button>
-              <button
-                type="button"
-                onClick={handleBaixarDanfe}
-                className="flex-1 min-w-[10rem] px-6 py-3 btn-secondary"
-              >
-                Baixar PDF
-              </button>
-            </>
-          )}
-          {!pdf && nota.status_nf === "autorizada" && (
-            <p className="w-full text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-4 py-3">
-              Nota autorizada, mas o PDF ainda não está disponível. Use{" "}
-              <strong>Atualizar status</strong> na OS e tente novamente em alguns
-              minutos.
-            </p>
-          )}
-          {nota.status_nf === "autorizada" && onCancelar && (
-            <button
-              type="button"
-              onClick={onCancelar}
-              disabled={cancelando}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-semibold disabled:opacity-50"
-            >
-              {cancelando ? "Cancelando…" : "Cancelar nota"}
-            </button>
-          )}
-          <button type="button" onClick={onClose} className="btn-secondary px-6 py-3">
-            Fechar
-          </button>
-        </div>
+        {temDadosTecnicos && (
+          <Recolhivel titulo="Detalhes técnicos">
+            {nota.status_provedor && (
+              <Linha label="Status no provedor" valor={nota.status_provedor} />
+            )}
+            {nota.id_provedor && (
+              <Linha label="ID no provedor" valor={nota.id_provedor} />
+            )}
+            {nota.atualizado_em_nf && (
+              <Linha
+                label="Última consulta"
+                valor={formatarDataHoraBrasil(nota.atualizado_em_nf)}
+              />
+            )}
+          </Recolhivel>
+        )}
       </div>
     </Modal>
   );
 }
 
-function StatusBadge({ status, modelo = "NFSE" }) {
+function Campo({ label, valor, className = "" }) {
+  return (
+    <div className={className}>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm font-medium text-gray-900 dark:text-gray-100">
+        {valor}
+      </dd>
+    </div>
+  );
+}
+
+function Linha({ label, valor, destaque = false }) {
+  return (
+    <div className="flex justify-between gap-4 py-1.5 text-sm">
+      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span
+        className={`text-right break-all ${
+          destaque
+            ? "font-semibold text-gray-900 dark:text-gray-100"
+            : "text-gray-700 dark:text-gray-300"
+        }`}
+      >
+        {valor}
+      </span>
+    </div>
+  );
+}
+
+function Recolhivel({ titulo, children }) {
+  return (
+    <details className="rounded-lg border border-gray-200 dark:border-gray-700">
+      <summary className="cursor-pointer select-none px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-lg">
+        {titulo}
+      </summary>
+      <div className="px-4 pb-3 pt-1 divide-y divide-gray-100 dark:divide-gray-800">
+        {children}
+      </div>
+    </details>
+  );
+}
+
+function StatusNota({ status, modelo = "NFSE" }) {
   const labelDoc = modelo === "NFE" ? "NF-e" : "NFS-e";
   const cfg = {
     autorizada: {
-      bg: "bg-green-100 dark:bg-green-900/30",
-      text: "text-green-700 dark:text-green-400",
+      bg: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/40",
+      text: "text-green-800 dark:text-green-300",
       icon: "✓",
-      label: "Nota fiscal autorizada — DANFE disponível na Notaas",
+      label: "Nota fiscal autorizada",
     },
     configuracao_pendente: {
-      bg: "bg-amber-100 dark:bg-amber-900/20",
+      bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
       text: "text-amber-800 dark:text-amber-200",
       icon: "⏳",
       label:
         "Integração Notaas: configure NOTAAS_API_KEY no servidor e use Reprocessar NF.",
     },
     processamento: {
-      bg: "bg-amber-100 dark:bg-amber-900/20",
+      bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
       text: "text-amber-800 dark:text-amber-200",
       icon: "⏳",
       label:
-        "Em processamento na Notaas — o status é atualizado automaticamente a cada ~60s ou use Atualizar status.",
+        "Em processamento na Notaas — o status atualiza sozinho a cada ~60s.",
     },
     erro_autenticacao: {
-      bg: "bg-red-100 dark:bg-red-900/30",
+      bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",
       text: "text-red-700 dark:text-red-400",
       icon: "✕",
       label: "Falha na autenticação com a Notaas. Verifique NOTAAS_API_KEY.",
     },
     rejeitada: {
-      bg: "bg-red-100 dark:bg-red-900/30",
+      bg: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/40",
       text: "text-red-700 dark:text-red-400",
       icon: "✕",
-      label: `${labelDoc} rejeitada — feche e use Reemitir na tela da OS`,
+      label: `${labelDoc} rejeitada — use Reemitir na tela da OS`,
     },
     cancelada: {
-      bg: "bg-gray-200 dark:bg-gray-700/50",
+      bg: "bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700",
       text: "text-gray-700 dark:text-gray-300",
       icon: "—",
-      label: "NFS-e cancelada na Notaas.",
+      label: `${labelDoc} cancelada`,
     },
     substituida: {
-      bg: "bg-gray-200 dark:bg-gray-700/50",
+      bg: "bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700",
       text: "text-gray-700 dark:text-gray-300",
       icon: "—",
-      label: "NFS-e substituída na Notaas.",
+      label: `${labelDoc} substituída`,
     },
   };
 
   const c = cfg[status] || {
-    bg: "bg-amber-100 dark:bg-amber-900/20",
+    bg: "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40",
     text: "text-amber-800 dark:text-amber-200",
     icon: "⏳",
     label: `Status: ${status || "desconhecido"}`,
   };
 
   return (
-    <div
-      className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg ${c.bg}`}
-    >
-      <span className="text-2xl">{c.icon}</span>
-      <span className={`font-bold text-center ${c.text}`}>{c.label}</span>
+    <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${c.bg}`}>
+      <span className="text-lg leading-none">{c.icon}</span>
+      <p className={`text-sm font-semibold ${c.text}`}>{c.label}</p>
     </div>
   );
 }

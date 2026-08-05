@@ -5,6 +5,27 @@ import api from "../services/api";
 import Logo from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 
+const RECURSOS_INCLUSOS = [
+  "Ordens de serviço",
+  "Orçamentos com aprovação do cliente",
+  "Controle de estoque",
+  "Agenda de serviços",
+  "Contas a pagar",
+  "Cadastro de clientes e veículos",
+  "Emissão de NFS-e",
+  "Relatórios e indicadores",
+];
+
+function rotuloUsuarios(max) {
+  if (max == null) return "—";
+  return max >= 999 ? "Ilimitado" : String(max);
+}
+
+function rotuloOrcamentos(max) {
+  if (max == null) return "—";
+  return max >= 9999 ? "Ilimitado" : max.toLocaleString("pt-BR");
+}
+
 const emptySignup = {
   oficinaNome: "",
   oficinaEmail: "",
@@ -138,15 +159,19 @@ export default function Planos() {
                 )}
                 <h2 className="text-xl font-bold">{plan.nome}</h2>
                 <p className="text-3xl font-extrabold mt-3 mb-1">{plan.precoLabel}</p>
-                <p className="text-sm text-slate-400 mb-4">{plan.descricao}</p>
-                <ul className="text-sm text-slate-300 space-y-2 mb-6 flex-1">
-                  <li>
-                    Até{" "}
-                    {plan.maxUsuarios >= 999 ? "usuários ilimitados*" : `${plan.maxUsuarios} usuários`}
-                  </li>
-                  <li>OS, orçamentos e estoque</li>
-                  <li>Agenda e financeiro</li>
-                </ul>
+                <p className="text-sm text-slate-400">{plan.descricao}</p>
+
+                <dl className="my-5 flex-1 divide-y divide-slate-700/60 border-y border-slate-700/60">
+                  <Limite
+                    label="Usuários"
+                    valor={rotuloUsuarios(plan.maxUsuarios)}
+                  />
+                  <Limite
+                    label="Orçamentos por mês"
+                    valor={rotuloOrcamentos(plan.maxOrcamentosMes)}
+                  />
+                </dl>
+
                 <button
                   type="button"
                   disabled={submitting || !plan.disponivel}
@@ -166,6 +191,29 @@ export default function Planos() {
               </div>
             ))}
           </div>
+        )}
+
+        {!loading && plans.length > 0 && (
+          <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-4">
+              Incluído em todos os planos
+            </h2>
+            <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3 text-sm text-slate-300">
+              {RECURSOS_INCLUSOS.map((recurso) => (
+                <li key={recurso} className="flex items-start gap-2">
+                  <span aria-hidden="true" className="text-emerald-400">
+                    ✓
+                  </span>
+                  {recurso}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-xs text-slate-500">
+              Os planos se diferenciam pelo tamanho da operação — quantos
+              usuários acessam o sistema e quantos orçamentos você emite por
+              mês. Todos os recursos acima estão liberados desde o Basic.
+            </p>
+          </section>
         )}
 
         {selected && !(isAuthenticated && isAdmin) && (
@@ -255,9 +303,19 @@ export default function Planos() {
         )}
 
         <p className="text-center text-xs text-slate-500 mt-8">
-          * Enterprise usa teto alto de usuários no sistema. Pagamento processado pela Stripe.
+          &ldquo;Ilimitado&rdquo; usa um teto alto no sistema, não um limite
+          rígido. Pagamento processado pela Stripe.
         </p>
       </main>
+    </div>
+  );
+}
+
+function Limite({ label, valor }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-3">
+      <dt className="text-sm text-slate-400">{label}</dt>
+      <dd className="text-lg font-bold text-white">{valor}</dd>
     </div>
   );
 }

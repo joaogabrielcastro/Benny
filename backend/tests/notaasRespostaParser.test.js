@@ -56,6 +56,16 @@ describe("nuvemRespostaParser — Notaas statuses", () => {
     assert.equal(campos.idProvedor, "inv_q1");
   });
 
+  it("não grava horário local dentro da mensagem de status", () => {
+    const campos = camposFromRespostaNuvem(
+      { status: "issued", invoiceId: "inv_1" },
+      100,
+      "NFSE",
+    );
+    assert.match(campos.mensagem, /Notaas: issued/);
+    assert.doesNotMatch(campos.mensagem, /consulta|\d{2}:\d{2}:\d{2}/i);
+  });
+
   it("extrai número curto quando Notaas manda chave no campo numero", () => {
     const campos = camposFromRespostaNuvem(
       {

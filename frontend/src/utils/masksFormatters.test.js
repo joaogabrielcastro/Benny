@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { mascaraCPF, mascaraCNPJ, mascaraTelefone, mascaraPlaca, removerMascara } from "./masks";
-import { formatarMoeda } from "./formatters";
+import {
+  formatarDataBrasil,
+  formatarDataHoraBrasil,
+  formatarMoeda,
+} from "./formatters";
 
 describe("masks", () => {
   it("mascaraCPF", () => {
@@ -34,5 +38,18 @@ describe("formatters", () => {
 
   it("formatarMoeda zero para inválido", () => {
     expect(formatarMoeda(null)).toMatch(/0/);
+  });
+
+  it("formata data e hora no fuso de São Paulo", () => {
+    const instante = "2026-08-05T13:30:14.000Z";
+    expect(formatarDataBrasil(instante)).toBe("05/08/2026");
+    expect(formatarDataHoraBrasil(instante)).toMatch(
+      /05\/08\/2026,? 10:30:14/,
+    );
+  });
+
+  it("retorna travessão para data inválida", () => {
+    expect(formatarDataBrasil("inválida")).toBe("—");
+    expect(formatarDataHoraBrasil("inválida")).toBe("—");
   });
 });

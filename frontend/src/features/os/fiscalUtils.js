@@ -60,11 +60,16 @@ export function mensagemRejeicaoNota(nota) {
   return detalhe || obs;
 }
 
-/** Observações só quando não repetem o motivo de rejeição. */
+/** Observação gerada pelo próprio status — já aparece no selo da nota. */
+const OBS_AUTOMATICA = /^(nfs-?e|nf-?e)\s+(autorizada|cancelada|substitu[ií]da)\b/;
+
+/** Observações só quando não repetem o status nem o motivo de rejeição. */
 export function mostrarObservacoesNota(nota) {
   const obs = String(nota?.observacoes || "").trim();
   if (!obs) return false;
-  if (nota?.status_nf !== "rejeitada") return true;
+  if (nota?.status_nf !== "rejeitada") {
+    return !OBS_AUTOMATICA.test(normalizarMsgFiscal(obs));
+  }
   const motivo = mensagemRejeicaoNota(nota);
   if (!motivo) return true;
   const a = normalizarMsgFiscal(motivo);

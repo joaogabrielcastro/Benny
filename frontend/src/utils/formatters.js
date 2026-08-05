@@ -13,6 +13,20 @@ export const formatarDataHora = (data) => {
   return new Date(data).toLocaleString("pt-BR");
 };
 
+const FUSO_BRASIL = "America/Sao_Paulo";
+
+export const formatarDataBrasil = (data) => {
+  const valor = new Date(data);
+  if (Number.isNaN(valor.getTime())) return "—";
+  return valor.toLocaleDateString("pt-BR", { timeZone: FUSO_BRASIL });
+};
+
+export const formatarDataHoraBrasil = (data) => {
+  const valor = new Date(data);
+  if (Number.isNaN(valor.getTime())) return "—";
+  return valor.toLocaleString("pt-BR", { timeZone: FUSO_BRASIL });
+};
+
 export const formatarHora = (data) => {
   if (!data) return "";
   const dateObj = new Date(data);

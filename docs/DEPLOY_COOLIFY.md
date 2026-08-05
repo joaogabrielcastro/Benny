@@ -100,6 +100,30 @@ cd backend && npm run migrate
 - [ ] CEP do cliente salvo na OS antes de emitir NFS-e
 - [ ] `JWT_SECRET` forte (não usar valor de desenvolvimento)
 
+### 5.1 Limpeza segura do host quando o build é interrompido
+
+Se o build terminar abruptamente durante `apt-get`/`npm install`, sem uma linha
+de erro da aplicação, verifique primeiro disco e cache do Docker no servidor:
+
+```bash
+df -h
+docker system df
+```
+
+Para remover apenas cache e artefatos antigos (mais de 7 dias), sem tocar em
+volumes ou containers em execução:
+
+```bash
+docker builder prune --all --force --filter "until=168h"
+docker image prune --all --force --filter "until=168h"
+docker container prune --force --filter "until=168h"
+docker system df
+```
+
+Não use `docker system prune --volumes`: os volumes armazenam o PostgreSQL e os
+arquivos persistentes. A limpeza acima pode remover imagens antigas disponíveis
+para rollback, mas nunca remove a imagem usada por um container em execução.
+
 ## 6. Painel Notaas (contadora / fiscal)
 
 Alinhar com o contador:

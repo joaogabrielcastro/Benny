@@ -278,12 +278,11 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
   const msgApi = resumoMensagensApi(data);
   const detalheRejeicao =
     status === "rejeitada" ? extrairDetalheRejeicaoNuvem(data) : null;
-  const hora = new Date().toLocaleString("pt-BR");
   let mensagem = mensagemPadraoPorStatus(status, msgApi || detalheRejeicao, modelo);
   if (statusBruto) {
-    mensagem += ` (${PROVEDOR_FISCAL_LABEL}: ${statusBruto} — consulta ${hora})`;
+    mensagem += ` (${PROVEDOR_FISCAL_LABEL}: ${statusBruto})`;
   } else if (status === "processamento") {
-    mensagem += ` (consulta ${hora}: sem status final na ${PROVEDOR_FISCAL_LABEL} ainda)`;
+    mensagem += ` (sem status final na ${PROVEDOR_FISCAL_LABEL} ainda)`;
   }
 
   const emittedRaw =

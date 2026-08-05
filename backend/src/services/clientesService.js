@@ -7,6 +7,11 @@ function onlyDigits(s) {
   return String(s || "").replace(/\D/g, "");
 }
 
+export function normalizarBuscaCliente(busca) {
+  const texto = String(busca || "").trim();
+  return { texto, digitos: onlyDigits(texto) };
+}
+
 const listar = async (
   tenantId = SINGLE_TENANT_ID,
   { busca, limit = 20, offset = 0 } = {},
@@ -14,10 +19,26 @@ const listar = async (
   const params = [tenantId];
   let where = "WHERE tenant_id = $1";
 
-  if (busca) {
-    params.push(`%${busca}%`);
-    where +=
-      " AND (LOWER(nome) LIKE LOWER($2) OR LOWER(telefone) LIKE LOWER($2) OR LOWER(cpf_cnpj) LIKE LOWER($2))";
+  const termo = normalizarBuscaCliente(busca);
+  if (termo.texto) {
+    params.push(`%${termo.texto}%`);
+    const textoIdx = params.length;
+
+    if (termo.digitos) {
+      params.push(`%${termo.digitos}%`);
+      const digitosIdx = params.length;
+      where += ` AND (
+        LOWER(nome) LIKE LOWER($${textoIdx})
+        OR regexp_replace(COALESCE(telefone, ''), '[^0-9]', '', 'g') LIKE $${digitosIdx}
+        OR regexp_replace(COALESCE(cpf_cnpj, ''), '[^0-9]', '', 'g') LIKE $${digitosIdx}
+      )`;
+    } else {
+      where += ` AND (
+        LOWER(nome) LIKE LOWER($${textoIdx})
+        OR LOWER(COALESCE(telefone, '')) LIKE LOWER($${textoIdx})
+        OR LOWER(COALESCE(cpf_cnpj, '')) LIKE LOWER($${textoIdx})
+      )`;
+    }
   }
 
   const countResult = await pool.query(
