@@ -102,8 +102,7 @@ export default function Clientes() {
       />
 
       <SearchBar
-        value={busca}
-        onChange={setBusca}
+        onSearch={setBusca}
         placeholder="Buscar por nome, telefone ou CPF/CNPJ…"
       />
 

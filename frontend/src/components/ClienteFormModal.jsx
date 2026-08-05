@@ -18,6 +18,7 @@ import {
   removerMascara,
 } from "../utils/masks";
 import { showSuccess, showError } from "../utils/toast.jsx";
+import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
 
 const emptyForm = {
@@ -43,12 +44,17 @@ function inferirTipoPessoa(cpfCnpj) {
 
 function clienteParaForm(c) {
   const doc = c.cpf_cnpj || "";
+  const tipoPessoa = inferirTipoPessoa(doc);
   return {
-    tipo_pessoa: inferirTipoPessoa(doc),
+    tipo_pessoa: tipoPessoa,
     nome: c.nome || "",
-    cpf_cnpj: doc,
+    cpf_cnpj: doc
+      ? tipoPessoa === "juridica"
+        ? mascaraCNPJ(doc)
+        : mascaraCPF(doc)
+      : "",
     email: c.email || "",
-    telefone: c.telefone || "",
+    telefone: c.telefone ? mascaraTelefone(c.telefone) : "",
     endereco: c.endereco || "",
     numero: c.numero || "",
     complemento: c.complemento || "",
@@ -66,7 +72,9 @@ export default function ClienteFormModal({
   clienteId = null,
   onSuccess,
 }) {
+  const { isAdmin } = useAuth();
   const editando = Boolean(clienteId);
+  const documentoBloqueado = editando && !isAdmin;
   const [loading, setLoading] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -124,6 +132,15 @@ export default function ClienteFormModal({
       cep: removerMascara(formData.cep),
       codigo_ibge: formData.codigo_ibge || undefined,
     };
+
+    if (!validarCPFouCNPJ(formData.cpf_cnpj)) {
+      showError(
+        formData.tipo_pessoa === "fisica"
+          ? "Informe um CPF válido."
+          : "Informe um CNPJ válido.",
+      );
+      return;
+    }
 
     if (dadosLimpos.cep.length !== 8) {
       showError(
@@ -218,7 +235,7 @@ export default function ClienteFormModal({
                     })
                   }
                   className="mr-2"
-                  disabled={editando}
+                  disabled={documentoBloqueado}
                 />
                 <span className="text-gray-700 dark:text-gray-300">
                   Pessoa física
@@ -237,7 +254,7 @@ export default function ClienteFormModal({
                     })
                   }
                   className="mr-2"
-                  disabled={editando}
+                  disabled={documentoBloqueado}
                 />
                 <span className="text-gray-700 dark:text-gray-300">
                   Pessoa jurídica
@@ -256,17 +273,25 @@ export default function ClienteFormModal({
             required
           />
 
-          <Input
-            label={formData.tipo_pessoa === "fisica" ? "CPF" : "CNPJ"}
-            value={formData.cpf_cnpj}
-            onChange={(e) =>
-              setFormData({ ...formData, cpf_cnpj: e.target.value })
-            }
-            mask={getMascaraDocumento()}
-            validator={validarCPFouCNPJ}
-            required
-            disabled={editando}
-          />
+          <div>
+            <Input
+              label={formData.tipo_pessoa === "fisica" ? "CPF" : "CNPJ"}
+              value={formData.cpf_cnpj}
+              onChange={(e) =>
+                setFormData({ ...formData, cpf_cnpj: e.target.value })
+              }
+              mask={getMascaraDocumento()}
+              validator={validarCPFouCNPJ}
+              required
+              disabled={documentoBloqueado}
+            />
+            {documentoBloqueado && (
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Somente administradores podem alterar o documento de um cliente
+                já cadastrado.
+              </p>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
