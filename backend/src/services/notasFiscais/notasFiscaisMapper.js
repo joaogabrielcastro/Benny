@@ -1,4 +1,8 @@
-import { extrairStatusBrutoNuvem, extrairDetalheRejeicaoNuvem } from "./nuvemRespostaParser.js";
+import {
+  extrairStatusBrutoNuvem,
+  extrairDetalheRejeicaoNuvem,
+  normalizarNumeroEChaveNf,
+} from "./nuvemRespostaParser.js";
 
 /** Formato esperado pelo modal em OSDetalhes.jsx */
 export function mapNfParaRespostaApi(row) {
@@ -27,9 +31,14 @@ export function mapNfParaRespostaApi(row) {
   const detalheRejeicao =
     row.status === "rejeitada" ? extrairDetalheRejeicaoNuvem(dr) : null;
 
-  let numero = row.numero;
+  const { numero: numeroNorm, chave: chaveNorm } = normalizarNumeroEChaveNf(
+    row.numero,
+    row.chave_acesso,
+  );
+
+  let numero = numeroNorm;
   if (!numero) {
-    if (row.status === "autorizada") numero = "—";
+    if (row.status === "autorizada") numero = "autorizada";
     else if (row.status === "configuracao_pendente")
       numero = "Configuração pendente";
     else if (row.status === "processamento") numero = "Em processamento";
@@ -66,7 +75,7 @@ export function mapNfParaRespostaApi(row) {
     id_provedor: row.id_provedor || null,
     provedor: row.provedor,
     modelo_documento: row.modelo_documento,
-    chave_acesso: row.chave_acesso || null,
+    chave_acesso: chaveNorm || row.chave_acesso || null,
     status_provedor: statusProvedor,
     atualizado_em_nf: row.atualizado_em || null,
   };

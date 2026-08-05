@@ -129,7 +129,9 @@ export default function OSDetalhesAcoes({
               onClick={() => onShowNFModal("NFSE")}
               className="btn-success"
             >
-              NFS-e nº {notaFiscalServico.numero}
+              {/^\d{1,8}$/.test(String(notaFiscalServico.numero || ""))
+                ? `NFS-e nº ${notaFiscalServico.numero}`
+                : "Ver NFS-e"}
             </ActionBtn>
           )}
 
@@ -139,7 +141,9 @@ export default function OSDetalhesAcoes({
               onClick={() => onShowNFModal("NFE")}
               className="bg-teal-600 text-white hover:bg-teal-700"
             >
-              NF-e nº {notaFiscalPecas.numero}
+              {/^\d{1,8}$/.test(String(notaFiscalPecas.numero || ""))
+                ? `NF-e nº ${notaFiscalPecas.numero}`
+                : "Ver NF-e"}
             </ActionBtn>
           )}
 

@@ -1,6 +1,65 @@
 ﻿import { extrairTributosDeRespostaNuvem } from "../tributosNfse.js";
 import { PROVEDOR_FISCAL_LABEL } from "../../config/nuvemFiscal.js";
 
+/** Notaas às vezes devolve a chave completa no campo de número. */
+export function pareceChaveAcessoNf(valor) {
+  const s = String(valor || "").trim();
+  if (!s) return false;
+  if (/^NFS/i.test(s)) return true;
+  const digits = s.replace(/\D/g, "");
+  return s.length > 20 || digits.length >= 40;
+}
+
+/**
+ * Extrai nº curto legível a partir da chave nacional (ex. …00000014…).
+ * Fallback: não inventa número longo — retorna null para a UI usar rótulo curto.
+ */
+export function extrairNumeroCurtoNf(valor) {
+  const s = String(valor || "").trim();
+  if (!s) return null;
+  if (!pareceChaveAcessoNf(s)) return s;
+
+  const digits = s.replace(/\D/g, "");
+  // nNFSe zero-padded + código de verificação (~14 dígitos)
+  const m = digits.match(/0{10,}(\d{1,6})(\d{14})$/);
+  if (m?.[1]) return m[1].replace(/^0+/, "") || m[1];
+
+  const m2 = digits.match(/0{8,}(\d{1,6})(\d{12,})$/);
+  if (m2?.[1] && m2[1].length <= 6) {
+    return m2[1].replace(/^0+/, "") || m2[1];
+  }
+
+  return null;
+}
+
+/**
+ * Separa número de exibição e chave de acesso (Notaas / legado).
+ */
+export function normalizarNumeroEChaveNf(numeroRaw, chaveRaw) {
+  let numero =
+    numeroRaw != null && String(numeroRaw).trim() !== ""
+      ? String(numeroRaw).trim()
+      : "";
+  let chave =
+    chaveRaw != null && String(chaveRaw).trim() !== ""
+      ? String(chaveRaw).trim()
+      : "";
+
+  if (pareceChaveAcessoNf(numero)) {
+    if (!chave) chave = numero;
+    numero = extrairNumeroCurtoNf(numero) || "";
+  }
+  if (pareceChaveAcessoNf(chave) && (!numero || pareceChaveAcessoNf(numero))) {
+    const curto = extrairNumeroCurtoNf(chave);
+    if (curto) numero = curto;
+  }
+
+  return {
+    numero: numero || null,
+    chave: chave || null,
+  };
+}
+
 export function mapStatusApiNuvemParaInterno(apiStatus) {
   if (!apiStatus) return "processamento";
 
@@ -252,6 +311,11 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
     data?.nfse?.numero ??
     null;
 
+  const { numero: numeroNf, chave: chaveAcesso } = normalizarNumeroEChaveNf(
+    numeroRaw,
+    chaveRaw,
+  );
+
   const tributos = extrairTributosDeRespostaNuvem(data, valorTotalOs);
   return {
     status,
@@ -262,7 +326,7 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
         : data?.id != null
           ? String(data.id)
           : null,
-    numeroNf: numeroRaw != null && numeroRaw !== "" ? String(numeroRaw).slice(0, 80) : null,
+    numeroNf,
     linkPdf:
       data?.pdfUrl ??
       data?.link_url ??
@@ -271,7 +335,7 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
       data?.link_danfe ??
       null,
     dataEmissao,
-    chaveAcesso: chaveRaw != null && chaveRaw !== "" ? String(chaveRaw) : null,
+    chaveAcesso,
     mensagem,
     detalheRejeicao,
     dadosResposta: data,

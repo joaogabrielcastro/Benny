@@ -71,7 +71,11 @@ export default function NotaFiscalModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`${labelDoc} Nº ${nota.numero}`}
+      title={
+        /^\d{1,8}$/.test(String(nota.numero || ""))
+          ? `${labelDoc} Nº ${nota.numero}`
+          : `${labelDoc} autorizada`
+      }
       size="lg"
     >
       <div className="space-y-6">
@@ -92,7 +96,11 @@ export default function NotaFiscalModal({
               Número NF:
             </span>
             <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {nota.numero}
+              {/^\d{1,8}$/.test(String(nota.numero || ""))
+                ? nota.numero
+                : nota.chave_acesso
+                  ? "Ver chave abaixo"
+                  : nota.numero}
             </p>
           </div>
           <div>

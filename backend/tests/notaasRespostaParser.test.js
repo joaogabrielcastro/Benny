@@ -56,18 +56,19 @@ describe("nuvemRespostaParser — Notaas statuses", () => {
     assert.equal(campos.idProvedor, "inv_q1");
   });
 
-  it("extrai errorMessage em status error", () => {
+  it("extrai número curto quando Notaas manda chave no campo numero", () => {
     const campos = camposFromRespostaNuvem(
       {
-        status: "error",
-        invoiceId: "inv_err",
-        errorCode: "E0120",
-        errorMessage: "Inscrição municipal inválida",
+        status: "issued",
+        invoiceId: "inv_abc",
+        numeroNfe: "NFS41058052255961553000100000000000001426083529461110",
+        issuedAt: "2026-03-12T19:00:00.000Z",
       },
-      50,
+      100,
       "NFSE",
     );
-    assert.equal(campos.status, "rejeitada");
-    assert.match(campos.mensagem, /Inscrição municipal inválida/);
+    assert.equal(campos.status, "autorizada");
+    assert.equal(campos.numeroNf, "14");
+    assert.match(campos.chaveAcesso, /^NFS/);
   });
 });
