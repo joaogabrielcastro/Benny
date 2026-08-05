@@ -13,6 +13,7 @@ import {
   FiCalendar,
 
   FiDollarSign,
+  FiBarChart2,
 
   FiPackage,
 
@@ -51,6 +52,7 @@ const ICONS = {
   "/agendamentos": FiCalendar,
 
   "/contas-pagar": FiDollarSign,
+  "/relatorios": FiBarChart2,
 
   "/estoque": FiPackage,
 

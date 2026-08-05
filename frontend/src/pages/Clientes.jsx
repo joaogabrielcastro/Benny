@@ -4,12 +4,14 @@ import toast from "react-hot-toast";
 import api from "../services/api";
 import { unwrapListResponse, unwrapPagination } from "../utils/apiList";
 import { useDebounce } from "../hooks/useDebounce";
+import { useConfirm } from "../hooks/useConfirm";
 import { mascaraCEP } from "../utils/masks";
 import PageHeader from "../components/layout/PageHeader";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import LoadingSpinner from "../components/LoadingSpinner";
 import ClienteFormModal from "../components/ClienteFormModal";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -24,6 +26,7 @@ export default function Clientes() {
   const [currentPage, setCurrentPage] = useState(1);
   const [modalAberto, setModalAberto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState(null);
+  const { confirm, dialogState, handleClose } = useConfirm();
 
   const editIdFromUrl = searchParams.get("edit");
 
@@ -87,6 +90,30 @@ export default function Clientes() {
 
   const handleSucesso = () => {
     carregar();
+  };
+
+  const excluirCliente = async (cliente) => {
+    const confirmado = await confirm({
+      title: "Excluir cliente",
+      message: `Deseja realmente excluir “${cliente.nome}”?\n\nEsta ação não pode ser desfeita.`,
+      confirmLabel: "Excluir",
+    });
+    if (!confirmado) return;
+
+    try {
+      await api.delete(`/clientes/${cliente.id}`);
+      toast.success("Cliente excluído com sucesso");
+
+      if (clientes.length === 1 && currentPage > 1) {
+        setCurrentPage((page) => page - 1);
+      } else {
+        carregar();
+      }
+    } catch (error) {
+      toast.error(
+        error.response?.data?.error || "Erro ao excluir cliente",
+      );
+    }
   };
 
   return (
@@ -165,13 +192,22 @@ export default function Clientes() {
                         {c.cep ? mascaraCEP(c.cep) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => abrirEditar(c)}
-                          className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
-                        >
-                          Editar
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => abrirEditar(c)}
+                            className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => excluirCliente(c)}
+                            className="text-sm font-semibold text-red-600 dark:text-red-400 hover:underline"
+                          >
+                            Excluir
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -197,6 +233,16 @@ export default function Clientes() {
         onClose={fecharModal}
         clienteId={clienteEditando}
         onSuccess={handleSucesso}
+      />
+
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel={dialogState?.cancelLabel}
+        onConfirm={() => handleClose(true)}
+        onCancel={() => handleClose(false)}
       />
     </div>
   );

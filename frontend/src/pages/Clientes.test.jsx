@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import Clientes from "./Clientes";
 
 vi.mock("../services/api", () => ({
-  default: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock("react-hot-toast", () => ({
@@ -17,6 +17,7 @@ vi.mock("../contexts/AuthContext", () => ({
 }));
 
 import api from "../services/api";
+import toast from "react-hot-toast";
 
 function respostaPaginada(rows, total = rows.length) {
   return {
@@ -117,6 +118,67 @@ describe("Clientes - busca", () => {
     await user.clear(campo);
     await waitFor(() => {
       expect(paramsDaUltimaChamada().busca).toBeUndefined();
+    });
+  });
+});
+
+describe("Clientes - exclusão", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.get.mockResolvedValue(respostaPaginada([JOAO, LEANDRO]));
+  });
+
+  it("só exclui o cliente após confirmação", async () => {
+    const user = userEvent.setup();
+    api.delete.mockResolvedValue({ data: {} });
+    render(
+      <MemoryRouter>
+        <Clientes />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("João da Silva");
+    await user.click(screen.getAllByRole("button", { name: "Excluir" })[0]);
+
+    expect(screen.getByText(/Deseja realmente excluir “João da Silva”/i))
+      .toBeInTheDocument();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    const botoesExcluir = screen.getAllByRole("button", { name: "Excluir" });
+    await user.click(botoesExcluir[botoesExcluir.length - 1]);
+
+    await waitFor(() => {
+      expect(api.delete).toHaveBeenCalledWith("/clientes/1");
+    });
+    expect(toast.success).toHaveBeenCalledWith(
+      "Cliente excluído com sucesso",
+    );
+  });
+
+  it("mostra a mensagem do backend quando o cliente possui vínculos", async () => {
+    const user = userEvent.setup();
+    api.delete.mockRejectedValue({
+      response: {
+        data: {
+          error: "Este cliente possui ordens de serviço vinculadas.",
+        },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <Clientes />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("João da Silva");
+    await user.click(screen.getAllByRole("button", { name: "Excluir" })[0]);
+    const botoesExcluir = screen.getAllByRole("button", { name: "Excluir" });
+    await user.click(botoesExcluir[botoesExcluir.length - 1]);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Este cliente possui ordens de serviço vinculadas.",
+      );
     });
   });
 });

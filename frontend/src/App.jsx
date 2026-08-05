@@ -31,6 +31,7 @@ const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
 const Clientes = lazy(() => import("./pages/Clientes"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Planos = lazy(() => import("./pages/Planos"));
 const Assinatura = lazy(() => import("./pages/Assinatura"));
 const BillingSucesso = lazy(() => import("./pages/BillingSucesso"));
@@ -211,6 +212,14 @@ function AppShell() {
                 element={
                   <ProtectedRoute>
                     <Clientes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/relatorios"
+                element={
+                  <ProtectedRoute>
+                    <Relatorios />
                   </ProtectedRoute>
                 }
               />

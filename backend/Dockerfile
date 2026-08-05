@@ -1,14 +1,25 @@
-FROM node:22-bookworm-slim
+# Estágio de dependências: compila o bcrypt (nativo) e é descartado depois.
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 
-# bcrypt (nativo) + postgresql-client para backups com pg_dump
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ postgresql-client \
+  && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev \
+  && npm cache clean --force
 
+# Imagem final: sem toolchain de compilação, apenas o runtime.
+FROM node:22-bookworm-slim
+WORKDIR /app
+
+# postgresql-client é usado pelo pg_dump nos backups
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 RUN mkdir -p storage

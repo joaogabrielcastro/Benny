@@ -1,6 +1,7 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 import { resolveCodigoIbgeCliente } from "../domain/clienteIbge.js";
+import { AppError } from "../lib/AppError.js";
 
 function onlyDigits(s) {
   return String(s || "").replace(/\D/g, "");
@@ -127,4 +128,22 @@ const atualizar = async (
   );
 };
 
-export default { listar, buscarPorId, criar, atualizar };
+const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM clientes WHERE id = $1 AND tenant_id = $2 RETURNING id",
+      [id, tenantId],
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    if (error.code === "23503") {
+      throw new AppError(
+        409,
+        "Este cliente possui veículos, orçamentos, ordens de serviço ou agendamentos vinculados e não pode ser excluído.",
+      );
+    }
+    throw error;
+  }
+};
+
+export default { listar, buscarPorId, criar, atualizar, deletar };

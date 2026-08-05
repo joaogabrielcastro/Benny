@@ -27,5 +27,6 @@ router.put(
   validate(updateClienteSchema),
   ah(clientesController, "atualizar"),
 );
+router.delete("/:id", adminOnly, ah(clientesController, "deletar"));
 
 export default router;

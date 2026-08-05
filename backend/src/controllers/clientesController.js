@@ -43,6 +43,15 @@ class ClientesController {
     );
     res.json({ message: "Cliente atualizado com sucesso" });
   }
+
+  async deletar(req, res) {
+    const cliente = await clientesService.deletar(
+      resolveTenantId(req),
+      req.params.id,
+    );
+    if (!cliente) throw notFound("Cliente não encontrado");
+    res.json({ message: "Cliente excluído com sucesso" });
+  }
 }
 
 export default new ClientesController();

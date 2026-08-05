@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -9,16 +9,11 @@ import {
   FiDollarSign,
   FiPlus,
   FiArrowRight,
-  FiBarChart2,
 } from "react-icons/fi";
 import { formatarData, formatarMoeda } from "../utils/formatters";
 import PageHeader from "../components/layout/PageHeader";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useDashboardData } from "../hooks/queries/useDashboard";
-
-const DashboardCharts = lazy(
-  () => import("../features/dashboard/DashboardCharts"),
-);
 
 export default function Home() {
   const { data, isLoading, isError } = useDashboardData();
@@ -37,10 +32,9 @@ export default function Home() {
         subtitle="Visão geral da oficina — ordens, orçamentos, agenda e financeiro."
         actions={
           <>
-            <a href="#relatorios" className="btn-secondary hidden sm:inline-flex">
-              <FiBarChart2 className="h-4 w-4" />
+            <Link to="/relatorios" className="btn-secondary hidden sm:inline-flex">
               Relatórios
-            </a>
+            </Link>
             <Link to="/orcamentos/novo" className="btn-brand">
               <FiPlus className="h-4 w-4" />
               Novo orçamento
@@ -204,9 +198,6 @@ export default function Home() {
             )}
           </div>
 
-          <Suspense fallback={<LoadingSpinner size="lg" />}>
-            <DashboardCharts relatorio={relatorio} />
-          </Suspense>
         </>
       )}
     </div>

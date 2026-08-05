@@ -34,6 +34,7 @@ describe("roles", () => {
     expect(canAccessRoute("mecanico", "/agendamentos")).toBe(true);
     expect(canAccessRoute("mecanico", "/estoque")).toBe(false);
     expect(canAccessRoute("mecanico", "/orcamentos")).toBe(false);
+    expect(canAccessRoute("mecanico", "/relatorios")).toBe(false);
     expect(canAccessRoute(null, "/")).toBe(false);
   });
 
@@ -41,6 +42,7 @@ describe("roles", () => {
     const admin = navItemsForRole("admin");
     const mec = navItemsForRole("mecanico");
     expect(admin.some((i) => i.to === "/estoque")).toBe(true);
+    expect(admin.some((i) => i.to === "/relatorios")).toBe(true);
     expect(mec.every((i) =>
       ["/ordens-servico", "/agendamentos"].includes(i.to),
     )).toBe(true);
