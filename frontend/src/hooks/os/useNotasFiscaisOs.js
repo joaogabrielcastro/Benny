@@ -179,6 +179,8 @@ export function useNotasFiscaisOs({
           if (data.nf?.status_nf === "autorizada") {
             toast.success(data.message || "NFS-e autorizada!");
             setShowNFModal("NFSE");
+          } else if (data.nf?.status_nf === "rejeitada") {
+            toast.error(data.message || "NFS-e rejeitada. Veja o motivo na OS.");
           }
         }
         if (nfeProc) {
@@ -189,10 +191,18 @@ export function useNotasFiscaisOs({
           if (data.nf?.status_nf === "autorizada") {
             toast.success(data.message || "NF-e autorizada!");
             setShowNFModal("NFE");
+          } else if (data.nf?.status_nf === "rejeitada") {
+            toast.error(data.message || "NF-e rejeitada. Veja o motivo na OS.");
           }
         }
-      } catch {
-        /* polling silencioso */
+      } catch (error) {
+        const msg =
+          error.response?.data?.error ||
+          error.response?.data?.erro ||
+          error.response?.data?.message;
+        if (msg) {
+          toast.error(msg, { duration: 8000, id: `nf-sync-${osId}` });
+        }
       }
     };
 

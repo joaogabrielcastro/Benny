@@ -31,6 +31,35 @@ export async function persistirAtualizacaoNf(
   campos,
   modeloDocumento = "NFSE",
 ) {
+  try {
+    return await persistirAtualizacaoNfQuery(
+      nfId,
+      tenantId,
+      osId,
+      campos,
+      modeloDocumento,
+    );
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (
+      e?.code === "22001" ||
+      /value too long for type character varying/i.test(msg)
+    ) {
+      throw new Error(
+        "Valor fiscal maior que o campo no banco (numero/chave). Confirme migrations 012 e 013 no redeploy e tente Consultar de novo.",
+      );
+    }
+    throw e;
+  }
+}
+
+async function persistirAtualizacaoNfQuery(
+  nfId,
+  tenantId,
+  osId,
+  campos,
+  modeloDocumento = "NFSE",
+) {
   const r = await pool.query(
     `UPDATE notas_fiscais SET
        status = COALESCE($1, status),

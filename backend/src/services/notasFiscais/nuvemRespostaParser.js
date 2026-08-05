@@ -262,7 +262,7 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
         : data?.id != null
           ? String(data.id)
           : null,
-    numeroNf: numeroRaw != null && numeroRaw !== "" ? String(numeroRaw) : null,
+    numeroNf: numeroRaw != null && numeroRaw !== "" ? String(numeroRaw).slice(0, 80) : null,
     linkPdf:
       data?.pdfUrl ??
       data?.link_url ??
