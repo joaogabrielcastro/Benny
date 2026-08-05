@@ -1,6 +1,6 @@
 # Deploy Benny no Coolify
 
-Guia para **Bennys Centro Automotivo** (single-tenant, uma oficina).
+Guia para o Benny em produção. O modo padrão histórico era **uma oficina por deploy**; o produto agora também roda como **SaaS multi-oficina** (mesmo backend + Postgres) com Stripe — ver `docs/SAAS_STRIPE.md`.
 
 ## Visão geral
 
@@ -8,7 +8,7 @@ Guia para **Bennys Centro Automotivo** (single-tenant, uma oficina).
 |---------|----------|
 | API | App Node (`backend/`, comando `npm start`) |
 | Frontend | Build estático Vite (`frontend/`, `npm run build` → `dist/`) |
-| Banco | PostgreSQL gerenciado pelo Coolify |
+| Banco | PostgreSQL gerenciado pelo Coolify (compartilhado no SaaS) |
 
 ## 1. PostgreSQL
 
@@ -32,8 +32,25 @@ NODE_ENV=production
 PORT=3011
 JWT_SECRET=<mínimo 32 caracteres aleatórios>
 DEFAULT_TENANT_ID=1
+SINGLE_TENANT_MODE=false
+FRONTEND_URL=https://benny.jwsoftware.com.br
 SKIP_DB_INIT_DDL=true
 ```
+
+**SaaS + Stripe** (obrigatório com `SINGLE_TENANT_MODE=false`):
+
+```env
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_BASIC=price_...
+STRIPE_PRICE_PREMIUM=price_...
+STRIPE_PRICE_ENTERPRISE=price_...
+```
+
+Webhook Stripe → `https://api-benny.seudominio.com.br/api/billing/webhook`  
+Detalhes e rotação de secrets: `docs/SAAS_STRIPE.md`.
+
+**Importante:** se keys `sk_live_` / `whsec_` vazaram em chat ou git, **rotacione** no Stripe antes de produção.
 
 **Após o primeiro deploy (ou a cada migration nova)**
 
@@ -132,5 +149,6 @@ Remova `ACBR_API_*` / credenciais Nuvem antigas. **Não** coloque a key no git.
 ## Referência
 
 Arquitetura: `backend/ARCHITECTURE.md`  
+SaaS + Stripe: `docs/SAAS_STRIPE.md`  
 Migração Notaas: `docs/MIGRACAO_NOTAAS.md`  
 Checklist código: `backend/IMPLEMENTATION_CHECKLIST.md`

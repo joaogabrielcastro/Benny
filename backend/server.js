@@ -13,6 +13,9 @@ import {
   errorHandler,
   notFoundHandler,
 } from "./src/middleware/errorHandler.js";
+import { requireAuth } from "./src/middleware/authMiddleware.js";
+import billingController from "./src/controllers/billingController.js";
+import { asyncHandler } from "./src/lib/asyncHandler.js";
 import "./src/config/jwt.js";
 
 dotenv.config();
@@ -65,10 +68,17 @@ app.use(
   }),
 );
 
+// Stripe webhook exige raw body (antes do JSON parser)
+app.post(
+  "/api/billing/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  asyncHandler((req, res) => billingController.webhook(req, res)),
+);
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Servir arquivos estáticos do storage local
+// Storage local — protegido por autenticação (Bearer ou cookie)
 const storageCandidates = [
   process.env.STORAGE_DIR,
   path.join(process.cwd(), "storage"),
@@ -81,7 +91,11 @@ const storageDir =
 if (!fs.existsSync(storageDir)) {
   fs.mkdirSync(storageDir, { recursive: true });
 }
-app.use("/api/storage", express.static(storageDir));
+app.use(
+  "/api/storage",
+  requireAuth,
+  express.static(storageDir, { fallthrough: false }),
+);
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
+import NovoClienteModal from "../components/NovoClienteModal";
 import BuscaPlacaVeiculoButton from "../components/BuscaPlacaVeiculoButton";
 import { mascaraPlaca } from "../utils/masks";
 import { validarPlaca } from "../utils/validators";
@@ -263,17 +264,19 @@ export default function OSForm() {
       )}
 
       {/* Modais */}
-      {mostrarClienteForm && (
-        <ClienteFormModal
-          onClose={(clienteId) => {
-            setMostrarClienteForm(false);
-            if (clienteId) {
-              queryClient.invalidateQueries({ queryKey: ["clientes"] });
-              setFormData({ ...formData, cliente_id: clienteId });
-            }
-          }}
-        />
-      )}
+      <NovoClienteModal
+        isOpen={mostrarClienteForm}
+        onClose={() => setMostrarClienteForm(false)}
+        onClienteCriado={(cliente) => {
+          queryClient.invalidateQueries({ queryKey: ["clientes"] });
+          setFormData({
+            ...formData,
+            cliente_id: cliente.id,
+            veiculo_id: "",
+          });
+          carregarVeiculos(cliente.id);
+        }}
+      />
 
       {mostrarVeiculoForm && formData.cliente_id && (
         <VeiculoFormModal
@@ -287,95 +290,6 @@ export default function OSForm() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function ClienteFormModal({ onClose }) {
-  const [formData, setFormData] = useState({
-    nome: "",
-    telefone: "",
-    cpf_cnpj: "",
-  });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await api.post("/clientes", formData);
-      alert("Cliente criado com sucesso!");
-      onClose(response.data.id);
-    } catch (error) {
-      alert("Erro ao criar cliente");
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            Novo Cliente
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome *
-              </label>
-              <input
-                type="text"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Telefone *
-              </label>
-              <input
-                type="text"
-                value={formData.telefone}
-                onChange={(e) =>
-                  setFormData({ ...formData, telefone: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                CPF/CNPJ
-              </label>
-              <input
-                type="text"
-                value={formData.cpf_cnpj}
-                onChange={(e) =>
-                  setFormData({ ...formData, cpf_cnpj: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => onClose(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Salvar
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
     </div>
   );
 }

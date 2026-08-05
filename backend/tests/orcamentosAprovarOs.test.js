@@ -7,8 +7,19 @@ import ordensServicoService from "../src/services/ordensServicoService.js";
 import { calcularTotais } from "../src/domain/calcularTotais.js";
 import { SINGLE_TENANT_ID } from "../src/config/singleTenant.js";
 
-const hasDb = !!process.env.DATABASE_URL;
 const tenantId = SINGLE_TENANT_ID;
+
+async function probeDatabase() {
+  if (!process.env.DATABASE_URL) return false;
+  try {
+    await pool.query("SELECT 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const hasDb = await probeDatabase();
 
 describe("fluxo orçamento → OS (integração DB)", { skip: !hasDb }, () => {
   const ctx = {

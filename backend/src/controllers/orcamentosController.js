@@ -3,6 +3,7 @@ import orcamentosService from "../services/orcamentosService.js";
 import { AppError, notFound } from "../lib/AppError.js";
 import { assertFound } from "../lib/controllerHelpers.js";
 import { sendPaginated } from "../lib/paginationResponse.js";
+import { assertCanCreateOrcamento } from "../services/billingService.js";
 
 class OrcamentosController {
   async listar(req, res) {
@@ -33,11 +34,10 @@ class OrcamentosController {
   }
 
   async criar(req, res) {
+    const tenantId = resolveTenantId(req);
+    await assertCanCreateOrcamento(tenantId);
     const body = req.validated?.body ?? req.body;
-    const result = await orcamentosService.criar(
-      resolveTenantId(req),
-      body,
-    );
+    const result = await orcamentosService.criar(tenantId, body);
     res.status(201).json({ ...result, message: "Orçamento criado com sucesso" });
   }
 

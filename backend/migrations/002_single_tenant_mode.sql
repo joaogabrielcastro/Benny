@@ -4,6 +4,7 @@
 -- 2) Backfill tenant_id nas tabelas principais
 -- 3) Definir DEFAULT tenant_id=1 para novas insercoes
 -- 4) Ajustar unicidade de usuarios por e-mail (single-tenant)
+-- NOTA: tabela 'empresas' é legada e removida em 003; statements guardados.
 
 BEGIN;
 
@@ -39,7 +40,17 @@ UPDATE agendamentos SET tenant_id = 1 WHERE tenant_id IS NULL;
 UPDATE contas_pagar SET tenant_id = 1 WHERE tenant_id IS NULL;
 UPDATE lembretes SET tenant_id = 1 WHERE tenant_id IS NULL;
 UPDATE notas_fiscais SET tenant_id = 1 WHERE tenant_id IS NULL;
-UPDATE empresas SET tenant_id = 1 WHERE tenant_id IS NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'empresas'
+  ) THEN
+    UPDATE empresas SET tenant_id = 1 WHERE tenant_id IS NULL;
+    ALTER TABLE empresas ALTER COLUMN tenant_id SET DEFAULT 1;
+  END IF;
+END $$;
 
 -- 3) DEFAULT para novas linhas
 ALTER TABLE usuarios ALTER COLUMN tenant_id SET DEFAULT 1;
@@ -53,7 +64,6 @@ ALTER TABLE agendamentos ALTER COLUMN tenant_id SET DEFAULT 1;
 ALTER TABLE contas_pagar ALTER COLUMN tenant_id SET DEFAULT 1;
 ALTER TABLE lembretes ALTER COLUMN tenant_id SET DEFAULT 1;
 ALTER TABLE notas_fiscais ALTER COLUMN tenant_id SET DEFAULT 1;
-ALTER TABLE empresas ALTER COLUMN tenant_id SET DEFAULT 1;
 
 -- 4) unicidade de usuarios no modo single
 DROP INDEX IF EXISTS idx_usuarios_tenant;

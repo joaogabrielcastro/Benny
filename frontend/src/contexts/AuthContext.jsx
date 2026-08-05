@@ -17,7 +17,14 @@ export function AuthProvider({ children }) {
       const stored = localStorage.getItem("auth_user");
       if (!stored) return null;
       const parsed = JSON.parse(stored);
-      return parsed ? { ...parsed, role: normalizeRole(parsed.role) } : null;
+      if (!parsed) return null;
+      const role = normalizeRole(parsed.role);
+      if (!role) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
+        return null;
+      }
+      return { ...parsed, role };
     } catch {
       return null;
     }
@@ -34,20 +41,29 @@ export function AuthProvider({ children }) {
       throw new Error("Resposta de autenticação inválida");
     }
 
+    const role = normalizeRole(auth.user.role);
+    if (!role) {
+      throw new Error("Perfil de acesso inválido");
+    }
+
     localStorage.setItem("auth_token", auth.token);
     const userWithRole = {
       ...auth.user,
-      role: normalizeRole(auth.user.role),
+      role,
     };
     localStorage.setItem("auth_user", JSON.stringify(userWithRole));
     setUser(userWithRole);
     return auth;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      /* cookie pode já ter expirado */
+    }
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
-    // Compatibilidade com código legado
     localStorage.removeItem("isAuthenticated");
     localStorage.removeItem("usuario");
     setUser(null);

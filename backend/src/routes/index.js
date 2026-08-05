@@ -24,12 +24,15 @@ import auditoriaRoutes from "./auditoriaRoutes.js";
 import backupRoutes from "./backupRoutes.js";
 import notasFiscaisRoutes from "./notasFiscaisRoutes.js";
 import usuariosRoutes from "./usuariosRoutes.js";
+import billingRoutes from "./billingRoutes.js";
+import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 
 const router = express.Router();
 
 // ── Públicas (sem autenticação) ───────────────────────────────────────────────
 router.use("/auth", authRoutes);
 router.use("/cep", cepRoutes);
+router.use("/billing", billingRoutes);
 
 // Rotas de orçamento: as /v/:token são públicas (handled inside orcamentosRoutes)
 router.use("/orcamentos", orcamentosRoutes);
@@ -38,18 +41,20 @@ router.use("/orcamentos", orcamentosRoutes);
 const adminOnly = requireRole(ROLES.ADMIN);
 const osTeam = requireRole(ROLES.ADMIN, ROLES.MECANICO);
 
-router.use("/produtos", requireAuth, produtosRoutes);
-router.use("/servicos", requireAuth, servicosRoutes);
-router.use("/clientes", requireAuth, clientesRoutes);
-router.use("/veiculos", requireAuth, veiculosRoutes);
-router.use("/ordens-servico", requireAuth, osTeam, ordensServicoRoutes);
-router.use("/agendamentos", requireAuth, osTeam, agendamentosRoutes);
-router.use("/contas-pagar", requireAuth, adminOnly, contasPagarRoutes);
-router.use("/lembretes", requireAuth, adminOnly, lembretesRoutes);
-router.use("/relatorios", requireAuth, adminOnly, relatoriosRoutes);
-router.use("/auditoria", requireAuth, adminOnly, auditoriaRoutes);
-router.use("/backup", requireAuth, backupRoutes);
-router.use("/notas-fiscais", requireAuth, adminOnly, notasFiscaisRoutes);
-router.use("/usuarios", requireAuth, adminOnly, usuariosRoutes);
+router.use(requireAuth, requireActiveSubscription);
+
+router.use("/produtos", produtosRoutes);
+router.use("/servicos", servicosRoutes);
+router.use("/clientes", clientesRoutes);
+router.use("/veiculos", veiculosRoutes);
+router.use("/ordens-servico", osTeam, ordensServicoRoutes);
+router.use("/agendamentos", osTeam, agendamentosRoutes);
+router.use("/contas-pagar", adminOnly, contasPagarRoutes);
+router.use("/lembretes", adminOnly, lembretesRoutes);
+router.use("/relatorios", adminOnly, relatoriosRoutes);
+router.use("/auditoria", adminOnly, auditoriaRoutes);
+router.use("/backup", backupRoutes);
+router.use("/notas-fiscais", adminOnly, notasFiscaisRoutes);
+router.use("/usuarios", adminOnly, usuariosRoutes);
 
 export default router;

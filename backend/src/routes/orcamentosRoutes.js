@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import orcamentosController from "../controllers/orcamentosController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 import { requireRole } from "../middleware/requireRole.js";
 import { ROLES } from "../config/roles.js";
 import { paginate } from "../middleware/paginate.js";
@@ -46,41 +47,37 @@ router.put(
 );
 
 const adminOnly = requireRole(ROLES.ADMIN);
+const authAdmin = [requireAuth, requireActiveSubscription, adminOnly];
 
-router.get("/", requireAuth, adminOnly, paginate, ah(orcamentosController, "listar"));
+router.get("/", ...authAdmin, paginate, ah(orcamentosController, "listar"));
 router.get(
   "/:id",
-  requireAuth,
-  adminOnly,
+  ...authAdmin,
   validate(idParamSchema, "params"),
   ah(orcamentosController, "buscar"),
 );
 router.post(
   "/",
-  requireAuth,
-  adminOnly,
+  ...authAdmin,
   validate(createOrcamentoSchema),
   ah(orcamentosController, "criar"),
 );
 router.put(
   "/:id",
-  requireAuth,
-  adminOnly,
+  ...authAdmin,
   validate(idParamSchema, "params"),
   validate(updateOrcamentoSchema),
   ah(orcamentosController, "atualizar"),
 );
 router.post(
   "/:id/converter-os",
-  requireAuth,
-  adminOnly,
+  ...authAdmin,
   validate(idParamSchema, "params"),
   ah(orcamentosController, "converterEmOS"),
 );
 router.delete(
   "/:id",
-  requireAuth,
-  adminOnly,
+  ...authAdmin,
   validate(idParamSchema, "params"),
   ah(orcamentosController, "deletar"),
 );

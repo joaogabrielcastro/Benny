@@ -1,67 +1,21 @@
 import schedule from "node-schedule";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const BACKUP_DIR = path.join(__dirname, "../../backups");
+import {
+  SINGLE_TENANT_ID,
+  SINGLE_TENANT_MODE,
+} from "../config/singleTenant.js";
+import backupService from "../services/backupService.js";
+import pool from "../../database.js";
 
 // ─── Backup automático ───────────────────────────────────────────────────────
 
-async function realizarBackupAutomatico(pool) {
+async function realizarBackupAutomatico() {
   try {
     console.log("[INFO] Iniciando backup automático...");
-
-    if (!fs.existsSync(BACKUP_DIR)) {
-      fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    }
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupFile = path.join(BACKUP_DIR, `backup-auto-${timestamp}.json`);
-
-    const tid = SINGLE_TENANT_ID;
-    const [produtos, clientes, veiculos, orcamentos, ordens] =
-      await Promise.all([
-        pool.query("SELECT * FROM produtos WHERE tenant_id = $1", [tid]),
-        pool.query("SELECT * FROM clientes WHERE tenant_id = $1", [tid]),
-        pool.query("SELECT * FROM veiculos WHERE tenant_id = $1", [tid]),
-        pool.query("SELECT * FROM orcamentos WHERE tenant_id = $1", [tid]),
-        pool.query("SELECT * FROM ordens_servico WHERE tenant_id = $1", [tid]),
-      ]);
-
-    const backupData = {
-      timestamp: new Date().toISOString(),
-      database: "benny_motorsport",
-      tipo: "automatico",
-      tables: {
-        produtos: produtos.rows,
-        clientes: clientes.rows,
-        veiculos: veiculos.rows,
-        orcamentos: orcamentos.rows,
-        ordens_servico: ordens.rows,
-      },
-    };
-
-    fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2));
-
-    // Manter apenas os últimos 10 backups
-    const files = fs
-      .readdirSync(BACKUP_DIR)
-      .filter((f) => f.startsWith("backup-") && f.endsWith(".json"))
-      .map((f) => ({
-        name: f,
-        path: path.join(BACKUP_DIR, f),
-        created: fs.statSync(path.join(BACKUP_DIR, f)).birthtime,
-      }))
-      .sort((a, b) => b.created - a.created);
-
-    if (files.length > 10) {
-      files.slice(10).forEach((f) => fs.unlinkSync(f.path));
-    }
-
-    console.log(`[INFO] Backup automático concluído: ${backupFile}`);
+    // Dump completo do banco (todos os tenants no SaaS)
+    const result = await backupService.realizar(SINGLE_TENANT_ID);
+    console.log(
+      `[INFO] Backup automático concluído (${result.metodo}): ${result.file} (${result.size} bytes)`,
+    );
   } catch (error) {
     console.error("[ERROR] Erro no backup automático:", error.message);
   }
@@ -69,10 +23,17 @@ async function realizarBackupAutomatico(pool) {
 
 // ─── Processamento de lembretes ──────────────────────────────────────────────
 
-async function processarLembretesPendentes(pool) {
+async function processarLembretesPendentes(db) {
   try {
     const hoje = new Date();
-    const lembretes = await pool.query(
+    const params = [hoje];
+    let tenantClause = "";
+    if (SINGLE_TENANT_MODE) {
+      tenantClause = "AND l.tenant_id = $2";
+      params.push(SINGLE_TENANT_ID);
+    }
+
+    const lembretes = await db.query(
       `SELECT l.*,
               CASE
                 WHEN l.tipo = 'agendamento' THEN
@@ -90,9 +51,9 @@ async function processarLembretesPendentes(pool) {
                   )
               END as dados_referencia
        FROM lembretes l
-       WHERE l.tenant_id = $2 AND l.data_lembrete <= $1 AND l.enviado = false
+       WHERE l.data_lembrete <= $1 AND l.enviado = false ${tenantClause}
        ORDER BY l.prioridade DESC, l.data_lembrete ASC`,
-      [hoje, SINGLE_TENANT_ID],
+      params,
     );
 
     if (lembretes.rows.length === 0) return;
@@ -105,7 +66,7 @@ async function processarLembretesPendentes(pool) {
           `[INFO] Lembrete: ${lembrete.titulo} | ${lembrete.mensagem}`,
         );
 
-        await pool.query(
+        await db.query(
           `UPDATE lembretes SET enviado = true, data_envio = CURRENT_TIMESTAMP WHERE id = $1`,
           [lembrete.id],
         );
@@ -146,12 +107,19 @@ function addInterval(dateStr, freq, intv) {
   return d;
 }
 
-async function gerarContasRecorrentes(pool) {
+async function gerarContasRecorrentes(db) {
   try {
     const hoje = new Date();
-    const resTemplates = await pool.query(
-      `SELECT * FROM contas_pagar WHERE tenant_id = $2 AND recorrente = true AND data_vencimento <= $1`,
-      [hoje, SINGLE_TENANT_ID],
+    const params = [hoje];
+    let tenantClause = "";
+    if (SINGLE_TENANT_MODE) {
+      tenantClause = "AND tenant_id = $2";
+      params.push(SINGLE_TENANT_ID);
+    }
+
+    const resTemplates = await db.query(
+      `SELECT * FROM contas_pagar WHERE recorrente = true AND data_vencimento <= $1 ${tenantClause}`,
+      params,
     );
 
     if (resTemplates.rows.length === 0) return;
@@ -165,7 +133,7 @@ async function gerarContasRecorrentes(pool) {
         let currentDue = new Date(tpl.data_vencimento);
 
         while (currentDue <= hoje) {
-          const insertRes = await pool.query(
+          const insertRes = await db.query(
             `INSERT INTO contas_pagar (tenant_id, descricao, categoria, valor, data_vencimento, fornecedor, forma_pagamento, observacoes, recorrente, recorrencia_origem_id)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,$9) RETURNING *`,
             [
@@ -185,7 +153,7 @@ async function gerarContasRecorrentes(pool) {
           dataLembrete.setDate(dataLembrete.getDate() - 3);
           dataLembrete.setHours(9, 0, 0, 0);
 
-          await pool.query(
+          await db.query(
             `INSERT INTO lembretes (tipo, referencia_id, titulo, mensagem, data_lembrete, prioridade, tenant_id)
              VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [
@@ -195,21 +163,21 @@ async function gerarContasRecorrentes(pool) {
               `Conta a vencer em 3 dias: ${tpl.descricao} - ${tpl.valor}`,
               dataLembrete,
               "alta",
-              SINGLE_TENANT_ID,
+              tpl.tenant_id,
             ],
           );
 
           const next = addInterval(currentDue, tpl.frequencia, tpl.intervalo);
 
           if (tpl.data_termino && next > new Date(tpl.data_termino)) {
-            await pool.query(
+            await db.query(
               `UPDATE contas_pagar SET recorrente = false WHERE id = $1`,
               [tpl.id],
             );
             break;
           }
 
-          await pool.query(
+          await db.query(
             `UPDATE contas_pagar SET data_vencimento = $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2`,
             [next, tpl.id],
           );
@@ -230,19 +198,16 @@ async function gerarContasRecorrentes(pool) {
 
 // ─── Inicializador ───────────────────────────────────────────────────────────
 
-export function initScheduler(pool) {
-  // Backup diário às 2h
-  schedule.scheduleJob("0 2 * * *", () => realizarBackupAutomatico(pool));
+export function initScheduler(db = pool) {
+  schedule.scheduleJob("0 2 * * *", () => realizarBackupAutomatico());
   console.log("[INFO] Backup automático agendado às 02:00 diariamente");
 
-  // Lembretes a cada 30 minutos
-  schedule.scheduleJob("*/30 * * * *", () => processarLembretesPendentes(pool));
-  setTimeout(() => processarLembretesPendentes(pool), 5000);
+  schedule.scheduleJob("*/30 * * * *", () => processarLembretesPendentes(db));
+  setTimeout(() => processarLembretesPendentes(db), 5000);
   console.log("[INFO] Verificação de lembretes agendada a cada 30 minutos");
 
-  // Contas recorrentes diariamente à meia-noite
-  schedule.scheduleJob("0 0 * * *", () => gerarContasRecorrentes(pool));
-  setTimeout(() => gerarContasRecorrentes(pool), 8000);
+  schedule.scheduleJob("0 0 * * *", () => gerarContasRecorrentes(db));
+  setTimeout(() => gerarContasRecorrentes(db), 8000);
   console.log(
     "[INFO] Geração de contas recorrentes agendada às 00:00 diariamente",
   );

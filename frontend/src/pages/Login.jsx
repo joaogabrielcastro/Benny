@@ -310,6 +310,13 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            Nova oficina?{" "}
+            <a href="/planos" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
+              Ver planos e assinar
+            </a>
+          </p>
         </div>
       </div>
     </div>

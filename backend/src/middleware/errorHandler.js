@@ -9,7 +9,9 @@ export function notFoundHandler(req, res) {
 export function errorHandler(err, req, res, _next) {
   if (err instanceof AppError) {
     const body = { error: err.message };
-    if (err.details) body.details = err.details;
+    if (err.details && typeof err.details === "object") {
+      Object.assign(body, err.details);
+    }
     return res.status(err.statusCode).json(body);
   }
 

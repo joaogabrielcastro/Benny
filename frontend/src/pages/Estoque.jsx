@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -26,7 +26,6 @@ export default function Estoque() {
     isOpen: false,
     produtoId: null,
   });
-  const wsRef = useRef(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -51,51 +50,6 @@ export default function Estoque() {
   useEffect(() => {
     if (isError) toast.error("Erro ao carregar produtos");
   }, [isError]);
-
-  useEffect(() => {
-    const invalidar = () => {
-      queryClient.invalidateQueries({ queryKey: ["produtos"] });
-    };
-
-    const conectarWebSocket = () => {
-      try {
-        const wsUrl =
-          window.location.hostname === "localhost"
-            ? "ws://localhost:3001"
-            : "wss://benny-oh3g.onrender.com";
-
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onmessage = (event) => {
-          try {
-            const payload = JSON.parse(event.data);
-            if (payload.type === "estoque_atualizado") invalidar();
-          } catch {
-            /* ignore */
-          }
-        };
-
-        ws.onerror = () => {
-          wsRef.current = null;
-        };
-
-        ws.onclose = () => {
-          if (wsRef.current) setTimeout(conectarWebSocket, 5000);
-        };
-      } catch {
-        /* WebSocket opcional */
-      }
-    };
-
-    conectarWebSocket();
-
-    return () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
-    };
-  }, [queryClient]);
 
   const handleEditar = (produto) => {
     setProdutoEditando(produto);

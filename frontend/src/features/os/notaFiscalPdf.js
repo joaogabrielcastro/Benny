@@ -55,8 +55,8 @@ export function resolvePdfUrl(nota) {
 
   if (raw) {
     return {
-      url: `/api/storage/${raw.replace(/^storage\//, "")}`,
-      auth: false,
+      url: `/storage/${raw.replace(/^storage\//, "")}`,
+      auth: true,
     };
   }
 

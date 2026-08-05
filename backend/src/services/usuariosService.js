@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import pool from "../../database.js";
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
-import { normalizeRole, ROLES } from "../config/roles.js";
+import { normalizeRole, requireKnownRole, ROLES } from "../config/roles.js";
 
 const SALT_ROUNDS = 10;
 
@@ -42,11 +42,12 @@ const criar = async (
   { nome, email, senha, role = ROLES.MECANICO },
 ) => {
   const senha_hash = await bcrypt.hash(senha, SALT_ROUNDS);
+  const roleNorm = requireKnownRole(role);
   const r = await pool.query(
     `INSERT INTO usuarios (nome, email, senha_hash, role, tenant_id)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING id, nome, email, role, ativo, ultimo_login, criado_em`,
-    [nome, email.toLowerCase().trim(), senha_hash, normalizeRole(role), tenantId],
+    [nome, email.toLowerCase().trim(), senha_hash, roleNorm, tenantId],
   );
   return sanitizeUser(r.rows[0]);
 };
@@ -69,7 +70,7 @@ const atualizar = async (
       err.code = "SELF_DEACTIVATE";
       throw err;
     }
-    if (role && normalizeRole(role) !== ROLES.ADMIN) {
+    if (role && requireKnownRole(role) !== ROLES.ADMIN) {
       const err = new Error("Você não pode remover seu próprio perfil de administrador");
       err.code = "SELF_DEMOTE";
       throw err;
@@ -90,7 +91,7 @@ const atualizar = async (
   }
   if (role !== undefined) {
     fields.push(`role = $${i++}`);
-    params.push(normalizeRole(role));
+    params.push(requireKnownRole(role));
   }
   if (ativo !== undefined) {
     fields.push(`ativo = $${i++}`);

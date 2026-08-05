@@ -1,9 +1,9 @@
 FROM node:22-bookworm-slim
 WORKDIR /app
 
-# bcrypt e dependências nativas compilam melhor em glibc (bookworm) que em alpine/musl
+# bcrypt (nativo) + postgresql-client para backups com pg_dump
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
+  && apt-get install -y --no-install-recommends python3 make g++ postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./

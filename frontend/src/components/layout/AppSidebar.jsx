@@ -20,6 +20,8 @@ import {
 
   FiUsers,
 
+  FiCreditCard,
+
   FiLogOut,
 
   FiMenu,
@@ -55,7 +57,7 @@ const ICONS = {
   "/clientes": FiUser,
 
   "/usuarios": FiUsers,
-
+  "/assinatura": FiCreditCard,
 };
 
 

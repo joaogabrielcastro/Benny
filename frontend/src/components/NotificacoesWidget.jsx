@@ -32,7 +32,7 @@ export default function NotificacoesWidget() {
 
   const marcarComoLido = async (id) => {
     try {
-      await api.put(`/lembretes/${id}/marcar-enviado`);
+      await api.put(`/lembretes/${id}/enviado`);
       setLembretes(lembretes.filter((l) => l.id !== id));
     } catch (error) {
       console.error("Erro ao marcar lembrete:", error);

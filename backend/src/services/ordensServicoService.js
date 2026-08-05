@@ -306,7 +306,7 @@ const atualizar = async (
            observacoes_veiculo=$5, observacoes_gerais=$6,
            finalizado_em = CASE WHEN $1::varchar = 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END,
            atualizado_em = CURRENT_TIMESTAMP
-       WHERE id=$7`,
+       WHERE id=$7 AND tenant_id=$8`,
       [
         status,
         respTecnicoFinal,
@@ -315,12 +315,13 @@ const atualizar = async (
         obsVeiculoFinal,
         obsGeraisFinal,
         id,
+        tenantId,
       ],
     );
 
     const curr = await client.query(
-      "SELECT * FROM ordens_servico WHERE id = $1",
-      [id],
+      "SELECT * FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
+      [id, tenantId],
     );
     await registrarAuditoria(
       "ordens_servico",

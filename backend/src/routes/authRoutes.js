@@ -24,6 +24,7 @@ router.post(
   validate(loginSchema),
   ah(authController, "login"),
 );
+router.post("/logout", ah(authController, "logout"));
 router.get("/me", requireAuth, ah(authController, "me"));
 
 export default router;

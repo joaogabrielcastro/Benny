@@ -1,13 +1,28 @@
 /**
- * Benny opera em modo single-tenant: uma oficina (Bennys Centro Automotivo).
- * Colunas tenant_id permanecem no schema para isolamento futuro, mas o runtime
- * sempre usa SINGLE_TENANT_ID (padrão: 1).
+ * Tenancy do Benny.
+ *
+ * - SINGLE_TENANT_MODE=true (default): uma oficina por deploy; ignora JWT tenant.
+ * - SINGLE_TENANT_MODE=false: SaaS multi-oficina; tenant vem do JWT (req.user.tenantId).
  */
 export const SINGLE_TENANT_MODE = process.env.SINGLE_TENANT_MODE !== "false";
 
 export const SINGLE_TENANT_ID = Number(process.env.DEFAULT_TENANT_ID || 1);
 
-/** ID do tenant para queries — ignora qualquer tenant no JWT. */
-export function resolveTenantId(_req) {
-  return SINGLE_TENANT_ID;
+/**
+ * ID do tenant para queries.
+ * Em multi-tenant: usa req.tenantId (setado pelo auth) ou req.user.tenantId.
+ */
+export function resolveTenantId(req) {
+  if (SINGLE_TENANT_MODE) {
+    return SINGLE_TENANT_ID;
+  }
+
+  const raw = req?.tenantId ?? req?.user?.tenantId;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    const err = new Error("Tenant não identificado na sessão");
+    err.code = "TENANT_REQUIRED";
+    throw err;
+  }
+  return n;
 }

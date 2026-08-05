@@ -1,5 +1,8 @@
 -- Migration: Add Multi-Tenant Support
 -- Executar este arquivo para adicionar suporte multi-tenant ao banco existente
+-- NOTA: tabela 'empresas' é legada e removida em 003_remove_nf_gateway_tables.sql;
+-- statements abaixo são guardados com checagem de existência para não quebrar
+-- em bancos onde ela nunca existiu.
 
 -- 1. Criar tabela de tenants (organizações/oficinas)
 CREATE TABLE IF NOT EXISTS tenants (
@@ -44,7 +47,17 @@ ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES t
 ALTER TABLE contas_pagar ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE;
 ALTER TABLE lembretes ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE;
 ALTER TABLE notas_fiscais ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE;
-ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'empresas'
+  ) THEN
+    ALTER TABLE empresas ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE;
+    CREATE INDEX IF NOT EXISTS idx_empresas_tenant ON empresas(tenant_id);
+  END IF;
+END $$;
 
 -- 4. Criar índices para performance (essencial!)
 CREATE INDEX IF NOT EXISTS idx_clientes_tenant ON clientes(tenant_id);
@@ -57,7 +70,6 @@ CREATE INDEX IF NOT EXISTS idx_agendamentos_tenant ON agendamentos(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_contas_pagar_tenant ON contas_pagar(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_lembretes_tenant ON lembretes(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_notas_fiscais_tenant ON notas_fiscais(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_empresas_tenant ON empresas(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_usuarios_tenant ON usuarios(tenant_id);
 
 -- 5. Para dados existentes: criar um tenant padrão
@@ -84,7 +96,12 @@ BEGIN
     UPDATE contas_pagar SET tenant_id = default_tenant_id WHERE tenant_id IS NULL;
     UPDATE lembretes SET tenant_id = default_tenant_id WHERE tenant_id IS NULL;
     UPDATE notas_fiscais SET tenant_id = default_tenant_id WHERE tenant_id IS NULL;
-    UPDATE empresas SET tenant_id = default_tenant_id WHERE tenant_id IS NULL;
+    IF EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'empresas'
+    ) THEN
+      UPDATE empresas SET tenant_id = default_tenant_id WHERE tenant_id IS NULL;
+    END IF;
   END IF;
 END $$;
 

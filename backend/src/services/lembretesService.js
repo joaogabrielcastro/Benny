@@ -66,13 +66,13 @@ const hoje = async (tenantId = SINGLE_TENANT_ID) => {
   return result.rows;
 };
 
-const marcarEnviado = async (id) => {
+const marcarEnviado = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     `UPDATE lembretes 
      SET enviado = true, data_envio = CURRENT_TIMESTAMP 
-     WHERE id = $1 
+     WHERE id = $1 AND tenant_id = $2
      RETURNING *`,
-    [id],
+    [id, tenantId],
   );
 
   return result.rows[0];

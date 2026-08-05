@@ -12,12 +12,13 @@ const baseURL = normalizedApiUrl.endsWith("/api")
 
 const api = axios.create({
   baseURL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Injeta o JWT Bearer token em todas as requisições autenticadas
+// Híbrido: Bearer (localStorage) + cookie httpOnly (withCredentials)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("auth_token");
   if (token) {
@@ -26,7 +27,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redireciona para /login se o token expirar ou for inválido
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -1,5 +1,6 @@
 import { resolveTenantId } from "../config/singleTenant.js";
 import usuariosService from "../services/usuariosService.js";
+import { assertCanCreateUsuario } from "../services/billingService.js";
 import { AppError, notFound } from "../lib/AppError.js";
 import { rethrowKnownErrors } from "../lib/controllerHelpers.js";
 
@@ -20,12 +21,17 @@ class UsuariosController {
 
   async criar(req, res) {
     try {
+      const tenantId = resolveTenantId(req);
+      await assertCanCreateUsuario(tenantId);
       const body = req.validated?.body ?? req.body;
-      const user = await usuariosService.criar(resolveTenantId(req), body);
+      const user = await usuariosService.criar(tenantId, body);
       res.status(201).json({ message: "Usuário criado", user });
     } catch (error) {
       if (error.code === "23505") {
         throw new AppError(409, "E-mail já cadastrado");
+      }
+      if (error.code === "INVALID_ROLE") {
+        throw new AppError(400, error.message);
       }
       rethrowKnownErrors(error);
     }
@@ -46,7 +52,11 @@ class UsuariosController {
       if (error.code === "23505") {
         throw new AppError(409, "E-mail já cadastrado");
       }
-      if (error.code === "SELF_DEACTIVATE" || error.code === "SELF_DEMOTE") {
+      if (
+        error.code === "SELF_DEACTIVATE" ||
+        error.code === "SELF_DEMOTE" ||
+        error.code === "INVALID_ROLE"
+      ) {
         throw new AppError(400, error.message);
       }
       rethrowKnownErrors(error);

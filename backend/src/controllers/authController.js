@@ -1,5 +1,10 @@
 import authService from "../services/authService.js";
 import { AppError } from "../lib/AppError.js";
+import {
+  AUTH_COOKIE_NAME,
+  authCookieOptions,
+  clearAuthCookieOptions,
+} from "../lib/authCookie.js";
 
 class AuthController {
   async login(req, res) {
@@ -7,6 +12,7 @@ class AuthController {
 
     try {
       const result = await authService.login({ email, senha });
+      res.cookie(AUTH_COOKIE_NAME, result.token, authCookieOptions());
       res.json(result);
     } catch (error) {
       const infraErrorCodes = new Set([
@@ -38,6 +44,11 @@ class AuthController {
 
   me(req, res) {
     res.json({ user: req.user });
+  }
+
+  logout(_req, res) {
+    res.clearCookie(AUTH_COOKIE_NAME, clearAuthCookieOptions());
+    res.json({ message: "Logout realizado" });
   }
 }
 

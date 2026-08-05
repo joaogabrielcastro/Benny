@@ -43,4 +43,26 @@ describe("requireRole", () => {
     });
     assert.equal(nextErr, undefined);
   });
+
+  it("bloqueia role desconhecida (fail-closed)", () => {
+    const mw = requireRole("admin");
+    const req = { user: { role: "superuser" } };
+    let nextErr = null;
+    mw(req, {}, (err) => {
+      nextErr = err;
+    });
+    assert.ok(nextErr);
+    assert.equal(nextErr.statusCode, 403);
+  });
+
+  it("bloqueia role vazia", () => {
+    const mw = requireRole("admin", "mecanico");
+    const req = { user: { role: "" } };
+    let nextErr = null;
+    mw(req, {}, (err) => {
+      nextErr = err;
+    });
+    assert.ok(nextErr);
+    assert.equal(nextErr.statusCode, 403);
+  });
 });

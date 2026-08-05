@@ -15,6 +15,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import NotificacoesWidget from "./components/NotificacoesWidget";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppSidebar from "./components/layout/AppSidebar";
+import SubscriptionBanner from "./components/SubscriptionBanner";
 import { useAuth } from "./contexts/AuthContext";
 
 const Login = lazy(() => import("./pages/Login"));
@@ -30,6 +31,9 @@ const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const ContasPagar = lazy(() => import("./pages/ContasPagar"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
 const Clientes = lazy(() => import("./pages/Clientes"));
+const Planos = lazy(() => import("./pages/Planos"));
+const Assinatura = lazy(() => import("./pages/Assinatura"));
+const BillingSucesso = lazy(() => import("./pages/BillingSucesso"));
 
 function App() {
   return (
@@ -71,7 +75,10 @@ function AppShell() {
   const location = useLocation();
   const { isAdmin } = useAuth();
   const isBare =
-    location.pathname.startsWith("/v") || location.pathname === "/login";
+    location.pathname.startsWith("/v") ||
+    location.pathname === "/login" ||
+    location.pathname === "/planos" ||
+    location.pathname.startsWith("/billing");
   const wideListLayout =
     location.pathname === "/ordens-servico" ||
     location.pathname === "/orcamentos" ||
@@ -80,6 +87,7 @@ function AppShell() {
 
   return (
     <div className="app-shell">
+      {!isBare && <SubscriptionBanner />}
       {!isBare && <AppSidebar />}
       <main className={isBare ? "" : "lg:pl-64"}>
         <div
@@ -94,6 +102,8 @@ function AppShell() {
           <Suspense fallback={<LoadingSpinner size="xl" />}>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/planos" element={<Planos />} />
+              <Route path="/billing/sucesso" element={<BillingSucesso />} />
               <Route path="/v/:id" element={<OrcamentoPublico />} />
 
               <Route
@@ -209,6 +219,14 @@ function AppShell() {
                 element={
                   <ProtectedRoute>
                     <Usuarios />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/assinatura"
+                element={
+                  <ProtectedRoute>
+                    <Assinatura />
                   </ProtectedRoute>
                 }
               />

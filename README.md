@@ -74,7 +74,7 @@ Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreS
 - Processamento automático a cada 30 minutos
 - Lembretes de agendamentos próximos
 - Alertas de contas a vencer
-- Notificações em tempo real via WebSocket
+- Atualização periódica do widget (polling)
 - Marcar como lido/não lido
 
 ### 📄 Notas Fiscais 🆕
@@ -104,9 +104,8 @@ Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreS
 - Compressão de respostas (gzip)
 - Paginação otimizada
 - Queries SQL eficientes
-- **WebSocket para atualizações em tempo real**
-- Logs estruturados (Winston)
-- Backup automático diário
+- Logs via console (stdout/stderr capturados pela plataforma)
+- Backup automático diário (local + S3 opcional)
 - Sistema de health check
 
 ## 📋 Requisitos
@@ -359,12 +358,11 @@ Benny/
 
 - **Node.js** 18+ com Express.js
 - **PostgreSQL** com pool de conexões (`pg`)
-- **Winston** para logging estruturado
+- Logging via console estruturado (sem dependência externa)
 - **node-schedule** para tarefas agendadas (backups, lembretes)
-- **node-cache** para cache em memória
-- **WebSocket (ws)** para notificações em tempo real
-- **axios** para integração com APIs externas (ViaCEP)
-- **express-validator** para validação de dados
+- **axios** para integração com APIs externas (ViaCEP, Notaas)
+- **zod** para validação de schemas
+- **Stripe** para assinaturas SaaS
 - **compression** para otimização
 
 ### Frontend
@@ -386,11 +384,11 @@ Benny/
 
 - Variáveis de ambiente para credenciais
 - SSL/TLS nas conexões de banco
-- Validação de dados com express-validator
+- Validação de dados com zod
 - Sanitização de inputs
-- CORS configurado
+- CORS configurado (credentials + allow-list)
+- JWT (Bearer + cookie httpOnly)
 - Logs de auditoria
-- WebSocket com validação
 
 ## 🧪 Testes
 
