@@ -227,23 +227,42 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
     mensagem += ` (consulta ${hora}: sem status final na ${PROVEDOR_FISCAL_LABEL} ainda)`;
   }
 
-  const emitted =
+  const emittedRaw =
     data?.issuedAt ||
     data?.emittedAt ||
     data?.data_emissao ||
+    null;
+  let dataEmissao = null;
+  if (emittedRaw) {
+    const d = new Date(emittedRaw);
+    if (!Number.isNaN(d.getTime())) dataEmissao = d;
+  }
+
+  const chaveRaw =
+    data?.chNFSe ??
+    data?.DPS?.chave ??
+    data?.chave ??
+    data?.chave_acesso ??
+    data?.nfse?.chave ??
+    null;
+  const numeroRaw =
+    data?.numero ??
+    data?.numeroNfe ??
+    data?.nNFSe ??
+    data?.nfse?.numero ??
     null;
 
   const tributos = extrairTributosDeRespostaNuvem(data, valorTotalOs);
   return {
     status,
     statusBruto,
-    idProvedor: data?.invoiceId || data?.id || null,
-    numeroNf:
-      data?.numero ??
-      data?.numeroNfe ??
-      data?.nNFSe ??
-      data?.nfse?.numero ??
-      null,
+    idProvedor:
+      data?.invoiceId != null
+        ? String(data.invoiceId)
+        : data?.id != null
+          ? String(data.id)
+          : null,
+    numeroNf: numeroRaw != null && numeroRaw !== "" ? String(numeroRaw) : null,
     linkPdf:
       data?.pdfUrl ??
       data?.link_url ??
@@ -251,14 +270,8 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
       data?.link_pdf ??
       data?.link_danfe ??
       null,
-    dataEmissao: emitted ? new Date(emitted) : null,
-    chaveAcesso:
-      data?.chNFSe ??
-      data?.DPS?.chave ??
-      data?.chave ??
-      data?.chave_acesso ??
-      data?.nfse?.chave ??
-      null,
+    dataEmissao,
+    chaveAcesso: chaveRaw != null && chaveRaw !== "" ? String(chaveRaw) : null,
     mensagem,
     detalheRejeicao,
     dadosResposta: data,

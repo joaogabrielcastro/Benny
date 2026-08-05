@@ -42,6 +42,21 @@ export const sincronizarPorOs = async (
   osId,
   modeloDocumento = "NFSE",
 ) => {
+  try {
+    return await sincronizarPorOsInterno(tenantId, osId, modeloDocumento);
+  } catch (e) {
+    const msg = e?.message || String(e);
+    return {
+      erro: `Falha ao atualizar status da nota: ${msg}`,
+    };
+  }
+};
+
+async function sincronizarPorOsInterno(
+  tenantId = SINGLE_TENANT_ID,
+  osId,
+  modeloDocumento = "NFSE",
+) {
   const modelo = modeloDocumento === "NFE" ? "NFE" : "NFSE";
   if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
     return { erro: mensagemNfeDesabilitada() };
@@ -133,4 +148,4 @@ export const sincronizarPorOs = async (
     nf: mapNfParaRespostaApi(atualizada),
     message: campos.mensagem,
   };
-};
+}

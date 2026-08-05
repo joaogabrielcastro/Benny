@@ -124,6 +124,22 @@ export function getNuvemFiscalConfig() {
       ),
       2,
     ),
+    aliquotaPis: parseAliquota(
+      envFirst(
+        "NOTAAS_ALIQUOTA_PIS",
+        "ACBR_API_ALIQUOTA_PIS",
+        "NUVEM_FISCAL_ALIQUOTA_PIS",
+      ),
+      0,
+    ),
+    aliquotaCofins: parseAliquota(
+      envFirst(
+        "NOTAAS_ALIQUOTA_COFINS",
+        "ACBR_API_ALIQUOTA_COFINS",
+        "NUVEM_FISCAL_ALIQUOTA_COFINS",
+      ),
+      0,
+    ),
     tpRetISSQN:
       parseInt(
         envFirst(

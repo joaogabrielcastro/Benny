@@ -11,17 +11,42 @@ export function formatarAliquota(p) {
   return `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 }
 
-/** Erro da Nuvem relacionado a CEP/município do tomador. */
+/**
+ * Só erros de CEP/endereço/município do **tomador (cliente)**.
+ * Não usar match frouxo em "município"/"tomador": mensagens do prestador
+ * (ex. E0120 IM / município emissor) disparavam o bloco de CEP por engano.
+ */
 export function nfErroEnderecoTomador(nota) {
-  const msg = String(nota?.observacoes || "").toLowerCase();
-  return (
-    msg.includes("cep") ||
-    msg.includes("município") ||
-    msg.includes("municipio") ||
-    msg.includes("tomador") ||
-    msg.includes("endereço") ||
-    msg.includes("endereco")
+  const msg = normalizarMsgFiscal(
+    mensagemRejeicaoNota(nota) || nota?.observacoes,
   );
+  if (!msg) return false;
+
+  // Cadastro do prestador / CNC / IM — não é endereço do cliente
+  if (
+    /\be0120\b/.test(msg) ||
+    /im do prestador/.test(msg) ||
+    /inscri[cç][aã]o municipal/.test(msg) ||
+    /munic[ií]pio emissor/.test(msg) ||
+    /cnc nfs-?e/.test(msg) ||
+    /informa[cç][oõ]es complementares registradas no cnc/.test(msg)
+  ) {
+    return false;
+  }
+
+  const sinaisTomador = [
+    /\bcep\b.{0,40}(tomador|cliente|inv[aá]lid|ausente|obrigat|n[aã]o informado)/,
+    /(tomador|cliente).{0,40}\bcep\b/,
+    /munic[ií]pio.{0,40}(tomador|cliente)/,
+    /(tomador|cliente).{0,40}munic[ií]pio/,
+    /endere[cç]o.{0,40}(tomador|cliente)/,
+    /(tomador|cliente).{0,40}endere[cç]o/,
+    /c[oó]digo.?ibge.{0,40}(tomador|cliente|ausente|inv[aá]lid)/,
+    /(tomador|cliente).{0,40}(ibge|cmun)/,
+    /\bendnac\b/,
+    /cep do tomador/,
+  ];
+  return sinaisTomador.some((re) => re.test(msg));
 }
 
 function normalizarMsgFiscal(s) {
@@ -54,8 +79,8 @@ export function dicaRejeicaoNfse(nota) {
   if (msg.includes("e2404")) {
     return "No painel Notaas, confira numeração/série da NFS-e e o próximo número. Aguarde 1–2 min entre tentativas antes de Reemitir.";
   }
-  if (msg.includes("e0120")) {
-    return "No painel Notaas → empresa Bennys: confira Inscrição Municipal (ou deixe em branco se o município não exigir). Salve e tente Reemitir.";
+  if (msg.includes("e0120") || msg.includes("im do prestador")) {
+    return "No painel Notaas → empresa Bennys → Inscrição Municipal: deixe em branco (Colombo/CNC sem complemento de IM). Salve e use Reemitir na OS.";
   }
   return null;
 }
