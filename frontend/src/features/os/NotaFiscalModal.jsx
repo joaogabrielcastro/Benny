@@ -1,4 +1,4 @@
-import toast from "react-hot-toast";
+﻿import toast from "react-hot-toast";
 import Modal from "../../components/Modal";
 import { formatarMoeda } from "../../utils/formatters";
 import {
@@ -47,7 +47,7 @@ export default function NotaFiscalModal({
 
   const handleImprimirDanfe = async () => {
     if (!pdf) {
-      toast.error("Só é possível imprimir após autorização, com o PDF oficial da Nuvem Fiscal.");
+      toast.error("Só é possível imprimir após autorização, com o PDF oficial da Notaas.");
       return;
     }
     await abrirDanfePdf(pdf, { imprimir: true });
@@ -80,7 +80,7 @@ export default function NotaFiscalModal({
             <p className="text-sm text-blue-900 dark:text-blue-100">
               <span className="font-semibold">{labelDanfe} oficial</span> — mesmo
               formato de notas de fornecedores (SEFAZ / prefeitura), gerado pela
-              Nuvem Fiscal. Use os botões abaixo para abrir, imprimir ou baixar o
+              Notaas. Use os botões abaixo para abrir, imprimir ou baixar o
               PDF.
             </p>
           </div>
@@ -227,12 +227,12 @@ export default function NotaFiscalModal({
         {(nota.status_provedor || nota.id_provedor) && (
           <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm space-y-1">
             <p className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">Status na Nuvem:</span>{" "}
+              <span className="font-semibold">Status no provedor:</span>{" "}
               {nota.status_provedor || "—"}
             </p>
             {nota.id_provedor && (
               <p className="text-gray-600 dark:text-gray-400 break-all">
-                <span className="font-semibold">ID na Nuvem:</span>{" "}
+                <span className="font-semibold">ID no provedor:</span>{" "}
                 {nota.id_provedor}
               </p>
             )}
@@ -248,7 +248,7 @@ export default function NotaFiscalModal({
         {mensagemRejeicao && (
           <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800/40">
             <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">
-              Motivo da rejeição (SEFAZ / Nuvem)
+              Motivo da rejeição (SEFAZ / Notaas)
             </h4>
             <p className="text-sm text-red-900 dark:text-red-200 whitespace-pre-wrap">
               {mensagemRejeicao}
@@ -263,25 +263,21 @@ export default function NotaFiscalModal({
                 {/975|CSRT|hashCSRT/i.test(mensagemRejeicao) ? (
                   <>
                     Solicite o token CSRT na Receita/PR (UPD → Sistema → CSRT,
-                    CNPJ do desenvolvedor do ERP). No Coolify:{" "}
-                    <strong>NUVEM_FISCAL_RESP_TEC_CSRT_ID</strong> e{" "}
-                    <strong>NUVEM_FISCAL_RESP_TEC_CSRT</strong>. A oficina pode
+                    CNPJ do desenvolvedor do ERP). Configure no Coolify as vars
+                    de responsável técnico / CSRT quando a NF-e Notaas for
+                    habilitada. A oficina pode
                     precisar autorizar o fornecedor no portal da Receita/PR.
                     Depois <strong>Reemitir NF-e</strong>.
                   </>
                 ) : /972|responsavel tecnico|infRespTec/i.test(mensagemRejeicao) ? (
                   <>
-                    Configure no Coolify:{" "}
-                    <strong>NUVEM_FISCAL_RESP_TEC_CNPJ</strong> (CNPJ do
-                    desenvolvedor do ERP), <strong>RESP_TEC_CONTATO</strong>,{" "}
-                    <strong>RESP_TEC_EMAIL</strong>,{" "}
-                    <strong>RESP_TEC_FONE</strong>. Depois{" "}
-                    <strong>Reemitir NF-e</strong>.
+                    Configure no Coolify os dados de responsável técnico do ERP.
+                    Depois <strong>Reemitir NF-e</strong>.
                   </>
                 ) : (
                   <>
-                    Confira: <strong>NUVEM_FISCAL_EMITENTE_IE</strong>, certificado
-                    A1 no painel Nuvem (NF-e homologação) e dados do cliente. Depois{" "}
+                    Confira Inscrição Estadual, certificado A1 no painel Notaas
+                    e dados do cliente. Depois{" "}
                     <strong>Reemitir NF-e</strong>.
                   </>
                 )}
@@ -371,27 +367,27 @@ function StatusBadge({ status, modelo = "NFSE" }) {
       bg: "bg-green-100 dark:bg-green-900/30",
       text: "text-green-700 dark:text-green-400",
       icon: "✓",
-      label: "Nota fiscal autorizada — DANFE disponível na Nuvem Fiscal",
+      label: "Nota fiscal autorizada — DANFE disponível na Notaas",
     },
     configuracao_pendente: {
       bg: "bg-amber-100 dark:bg-amber-900/20",
       text: "text-amber-800 dark:text-amber-200",
       icon: "⏳",
       label:
-        "Integração Nuvem Fiscal: configure as variáveis no servidor e use Reprocessar NF.",
+        "Integração Notaas: configure NOTAAS_API_KEY no servidor e use Reprocessar NF.",
     },
     processamento: {
       bg: "bg-amber-100 dark:bg-amber-900/20",
       text: "text-amber-800 dark:text-amber-200",
       icon: "⏳",
       label:
-        "Em processamento na Nuvem Fiscal — o status é atualizado automaticamente a cada ~60s ou use Atualizar status.",
+        "Em processamento na Notaas — o status é atualizado automaticamente a cada ~60s ou use Atualizar status.",
     },
     erro_autenticacao: {
       bg: "bg-red-100 dark:bg-red-900/30",
       text: "text-red-700 dark:text-red-400",
       icon: "✕",
-      label: "Falha na autenticação com a Nuvem Fiscal. Verifique CLIENT_ID / SECRET.",
+      label: "Falha na autenticação com a Notaas. Verifique NOTAAS_API_KEY.",
     },
     rejeitada: {
       bg: "bg-red-100 dark:bg-red-900/30",
@@ -403,13 +399,13 @@ function StatusBadge({ status, modelo = "NFSE" }) {
       bg: "bg-gray-200 dark:bg-gray-700/50",
       text: "text-gray-700 dark:text-gray-300",
       icon: "—",
-      label: "NFS-e cancelada na Nuvem Fiscal.",
+      label: "NFS-e cancelada na Notaas.",
     },
     substituida: {
       bg: "bg-gray-200 dark:bg-gray-700/50",
       text: "text-gray-700 dark:text-gray-300",
       icon: "—",
-      label: "NFS-e substituída na Nuvem Fiscal.",
+      label: "NFS-e substituída na Notaas.",
     },
   };
 

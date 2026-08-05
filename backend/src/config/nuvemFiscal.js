@@ -1,38 +1,33 @@
 /**
- * Integração Nuvem Fiscal (NFS-e via POST /nfse/dps).
+ * Provedor fiscal: Notaas (API Key).
+ * Docs: https://docs.notaas.com.br — migração: docs/MIGRACAO_NOTAAS.md
  *
- * O que fica no PAINEL Nuvem Fiscal (web) — não duplicar no .env salvo indicação da doc:
- * - Aba Dados: razão social, CNPJ, endereço, e-mail (espelha o cadastro da empresa).
- * - Aba Certificado: certificado A1 instalado (obrigatório para assinatura / transmissão).
- * - Aba Serviços → NFS-e: ambiente Homologação, lote/série/RPS, regime Simples Nacional,
- *   login/senha/token da prefeitura quando o município exigir. Clique em "Atualizar Configuração".
- * - Aba Serviços → NF-e: ambiente Homologação e CRT (ex.: Simples Nacional), se for usar NF-e.
+ * Preferir variáveis NOTAAS_* (fallback legado ACBR_API_* / NUVEM_FISCAL_* para params fiscais).
  *
- * O que fica no backend (.env) — credenciais da API OAuth2 e parâmetros usados pelo Benny ao montar a DPS:
- * - NUVEM_FISCAL_CLIENT_ID / NUVEM_FISCAL_CLIENT_SECRET — criados em https://console.nuvemfiscal.com.br
- *   → Credenciais de API (Produção ou Sandbox; não use ID de outra tela do painel da empresa).
- * - Credencial Sandbox → use NUVEM_FISCAL_API_URL=https://api.sandbox.nuvemfiscal.com.br (produção: default api.nuvemfiscal.com.br).
- * - NUVEM_FISCAL_CNPJ_EMITENTE (14 dígitos; mesmo CNPJ da empresa na Nuvem Fiscal)
- * - NUVEM_FISCAL_AMBIENTE=homologacao (testes) ou producao
- * - NUVEM_FISCAL_PROVEDOR: padrao | nacional (default nacional — ADN)
- * - NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE: 7 dígitos (ex. Colombo/PR 4105805 — local da prestação no JSON)
- * - NUVEM_FISCAL_C_TRIB_NAC: código nacional ISSQN, 6 dígitos (Colombo/Bennys: 310103 = 31.01.03 mecânica)
- * - NUVEM_FISCAL_C_NBS: Nomenclatura Brasileira de Serviços, 9 dígitos (Colombo/Bennys: 1200131110)
- * - NUVEM_FISCAL_ALIQUOTA_ISS: % ISS na DPS e na tela (ex.: 2 para Colombo)
- * - Simples Nacional (opSimpNac / regApTribSN): configure no PAINEL Nuvem Fiscal
- *   (empresa → Serviços → NFS-e → regime tributário), não no JSON da DPS nacional.
- * - NUVEM_FISCAL_REG_ESP_TRIB: regime especial na DPS (0 = nenhum; default 0)
- * - NUVEM_FISCAL_ALIQUOTA_PIS / NUVEM_FISCAL_ALIQUOTA_COFINS: opcionais (0 = não estimar)
- * - NF-e (peças): NUVEM_FISCAL_EMITENTE_IE (obrigatório na SEFAZ), NUVEM_FISCAL_NFE_CRT (1=Simples),
- *   NUVEM_FISCAL_NFE_CFOP (5102), NUVEM_FISCAL_NFE_CSOSN (103), NUVEM_FISCAL_NFE_NCM, série, CUF
- * - NF-e PR (NT 2018.005): NUVEM_FISCAL_RESP_TEC_CNPJ, _CONTATO, _EMAIL, _FONE (infRespTec — obrigatório)
- *   PR também exige CSRT: NUVEM_FISCAL_RESP_TEC_CSRT_ID + NUVEM_FISCAL_RESP_TEC_CSRT (token UPD/Receita PR; Nuvem calcula hashCSRT)
- * - NUVEM_FISCAL_AUTH_URL / NUVEM_FISCAL_API_URL / NUVEM_FISCAL_SCOPE (opcionais; veja defaults abaixo)
- * - NUVEM_FISCAL_TOMADOR_CPF / NUVEM_FISCAL_TOMADOR_CNPJ / NUVEM_FISCAL_TOMADOR_CEP / NUVEM_FISCAL_TOMADOR_C_MUN:
- *   fallbacks para OS de teste quando o cliente ainda não tiver documento ou CEP completos.
+ * Painel web (platform.notaas.com.br) — não duplicar no .env:
+ * - Dados da empresa, certificado A1, ambiente, código de serviço padrão.
  *
- * Teste rápido OAuth: na pasta backend, `npm run test-nuvem-fiscal`.
+ * Backend (.env):
+ * - NOTAAS_API_KEY — Project Key (prefixo ntaas_)
+ * - NOTAAS_API_URL — default https://platform.notaas.com.br/api/v1
+ * - NOTAAS_CNPJ_EMITENTE, NOTAAS_C_TRIB_NAC, NOTAAS_CODIGO_MUNICIPIO_IBGE, etc.
+ *
+ * Teste: npm run test-notaas
  */
+
+export const PROVEDOR_FISCAL_ID = "notaas";
+export const PROVEDOR_FISCAL_LABEL = "Notaas";
+
+const DEFAULT_API_BASE = "https://platform.notaas.com.br/api/v1";
+
+/** Lê a primeira env não vazia. */
+function envFirst(...keys) {
+  for (const key of keys) {
+    const v = process.env[key];
+    if (v != null && String(v).trim() !== "") return String(v).trim();
+  }
+  return "";
+}
 
 function normalizeInscricaoEstadual(value) {
   const raw = String(value || "").trim();
@@ -41,142 +36,243 @@ function normalizeInscricaoEstadual(value) {
   return raw.replace(/\D/g, "");
 }
 
+function parseAliquota(envVal, fallback) {
+  const n = parseFloat(String(envVal ?? "").replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+function resolveAmbiente() {
+  const a = envFirst(
+    "NOTAAS_AMBIENTE",
+    "ACBR_API_AMBIENTE",
+    "NUVEM_FISCAL_AMBIENTE",
+  ).toLowerCase();
+  return a === "producao" ? "producao" : "homologacao";
+}
+
+/**
+ * Config efetiva do provedor fiscal (Notaas).
+ * Mantém o nome getNuvemFiscalConfig por compatibilidade com imports existentes.
+ */
 export function getNuvemFiscalConfig() {
-  const empresaCnpj = (process.env.NUVEM_FISCAL_CNPJ_EMITENTE || "").replace(
-    /\D/g,
-    "",
-  );
-  const ambiente = process.env.NUVEM_FISCAL_AMBIENTE || "homologacao";
-  const provedor = process.env.NUVEM_FISCAL_PROVEDOR || "nacional";
-  const cTribNac = (process.env.NUVEM_FISCAL_C_TRIB_NAC || "310103").replace(
-    /\D/g,
-    "",
-  );
-  const cNbs = (process.env.NUVEM_FISCAL_C_NBS || "1200131110").replace(
-    /\D/g,
-    "",
-  );
-  const codigoMunicipioIbge = (
-    process.env.NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE || ""
+  const ambiente = resolveAmbiente();
+  const empresaCnpj = envFirst(
+    "NOTAAS_CNPJ_EMITENTE",
+    "ACBR_API_CNPJ_EMITENTE",
+    "NUVEM_FISCAL_CNPJ_EMITENTE",
   ).replace(/\D/g, "");
-  const parseAliquota = (envVal, fallback) => {
-    const n = parseFloat(String(envVal ?? "").replace(",", "."));
-    return Number.isFinite(n) && n >= 0 ? n : fallback;
-  };
+  const cTribNac = envFirst(
+    "NOTAAS_C_TRIB_NAC",
+    "ACBR_API_C_TRIB_NAC",
+    "NUVEM_FISCAL_C_TRIB_NAC",
+    "310103",
+  ).replace(/\D/g, "");
+  const cNbsRaw = envFirst(
+    "NOTAAS_C_NBS",
+    "ACBR_API_C_NBS",
+    "NUVEM_FISCAL_C_NBS",
+    "120013110",
+  ).replace(/\D/g, "");
+  // NBS oficial: 9 dígitos (aceita 10 por typo legado e trunca)
+  const cNbs =
+    cNbsRaw.length >= 9 ? cNbsRaw.slice(0, 9) : "120013110";
+  const codigoMunicipioIbge = envFirst(
+    "NOTAAS_CODIGO_MUNICIPIO_IBGE",
+    "ACBR_API_CODIGO_MUNICIPIO_IBGE",
+    "NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE",
+  ).replace(/\D/g, "");
+
+  const apiKey = envFirst("NOTAAS_API_KEY");
+  const explicitApiUrl = envFirst("NOTAAS_API_URL");
+
   return {
-    authUrl:
-      process.env.NUVEM_FISCAL_AUTH_URL ||
-      "https://auth.nuvemfiscal.com.br/oauth/token",
-    apiBaseUrl:
-      process.env.NUVEM_FISCAL_API_URL || "https://api.nuvemfiscal.com.br",
-    clientId: String(process.env.NUVEM_FISCAL_CLIENT_ID || "").trim(),
-    clientSecret: String(process.env.NUVEM_FISCAL_CLIENT_SECRET || "").trim(),
+    provedorId: PROVEDOR_FISCAL_ID,
+    provedorLabel: PROVEDOR_FISCAL_LABEL,
+    apiKey,
+    apiBaseUrl: (explicitApiUrl || DEFAULT_API_BASE).replace(/\/+$/, ""),
     empresaCnpj,
-    scope: String(
-      process.env.NUVEM_FISCAL_SCOPE ||
-        "conta empresa cep cnpj nfse nfe nfce",
-    ).trim(),
     ambiente,
-    provedor,
-    cTribNac: cTribNac.length === 6 ? cTribNac : "140101",
-    /** NBS — 9 dígitos (layout Nacional / reforma tributária) */
-    cNbs: cNbs.length === 9 ? cNbs : "120013110",
+    cTribNac: cTribNac.length === 6 ? cTribNac : "310103",
+    cNbs,
     codigoMunicipioIbge:
       codigoMunicipioIbge.length === 7 ? codigoMunicipioIbge : "",
-    tomadorCpfFallback: (process.env.NUVEM_FISCAL_TOMADOR_CPF || "").replace(
-      /\D/g,
-      "",
-    ),
-    tomadorCnpjFallback: (
-      process.env.NUVEM_FISCAL_TOMADOR_CNPJ || ""
+    tomadorCpfFallback: envFirst(
+      "NOTAAS_TOMADOR_CPF",
+      "ACBR_API_TOMADOR_CPF",
+      "NUVEM_FISCAL_TOMADOR_CPF",
     ).replace(/\D/g, ""),
-    tomadorCepFallback: (process.env.NUVEM_FISCAL_TOMADOR_CEP || "").replace(
-      /\D/g,
-      "",
-    ),
-    tomadorCMunFallback: (
-      process.env.NUVEM_FISCAL_TOMADOR_C_MUN || ""
+    tomadorCnpjFallback: envFirst(
+      "NOTAAS_TOMADOR_CNPJ",
+      "ACBR_API_TOMADOR_CNPJ",
+      "NUVEM_FISCAL_TOMADOR_CNPJ",
     ).replace(/\D/g, ""),
-    /**
-     * % ISS — estimativa na tela. Na DPS (ME/EPP + Simples + tpRetISSQN=1) não vai pAliq/vBC/vISSQN.
-     * tpRetISSQN: 1 = sem retenção (padrão oficina), 2 = retido pelo tomador.
-     */
-    aliquotaIss: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_ISS, 2),
-    tpRetISSQN: parseInt(process.env.NUVEM_FISCAL_TP_RET_ISSQN || "1", 10) || 1,
-    /** Só true se precisar forçar pAliq na DPS com tpRetISSQN=1 (raro; pode gerar rejeição ADN). */
-    forcarAliquotaIssDps:
-      String(process.env.NUVEM_FISCAL_FORCAR_ALIQ_ISS_DPS || "")
-        .trim()
-        .toLowerCase() === "true",
-    /** Regime especial tributação na DPS (Padrão Nacional): 0 = nenhum */
-    regEspTrib: parseInt(process.env.NUVEM_FISCAL_REG_ESP_TRIB || "0", 10) || 0,
-    aliquotaPis: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_PIS, 0),
-    aliquotaCofins: parseAliquota(process.env.NUVEM_FISCAL_ALIQUOTA_COFINS, 0),
-    cuf: parseInt(process.env.NUVEM_FISCAL_CUF || "41", 10) || 41,
-    nfeCfop: (process.env.NUVEM_FISCAL_NFE_CFOP || "5102").replace(/\D/g, ""),
-    nfeCsosn: (process.env.NUVEM_FISCAL_NFE_CSOSN || "103").replace(/\D/g, ""),
-    nfeNcm: (process.env.NUVEM_FISCAL_NFE_NCM || "87089990").replace(/\D/g, ""),
-    /** Inscrição Estadual do emitente (obrigatória na NF-e). Use ISENTO se aplicável. */
+    tomadorCepFallback: envFirst(
+      "NOTAAS_TOMADOR_CEP",
+      "ACBR_API_TOMADOR_CEP",
+      "NUVEM_FISCAL_TOMADOR_CEP",
+    ).replace(/\D/g, ""),
+    tomadorCMunFallback: envFirst(
+      "NOTAAS_TOMADOR_C_MUN",
+      "ACBR_API_TOMADOR_C_MUN",
+      "NUVEM_FISCAL_TOMADOR_C_MUN",
+    ).replace(/\D/g, ""),
+    aliquotaIss: parseAliquota(
+      envFirst(
+        "NOTAAS_ALIQUOTA_ISS",
+        "ACBR_API_ALIQUOTA_ISS",
+        "NUVEM_FISCAL_ALIQUOTA_ISS",
+      ),
+      2,
+    ),
+    tpRetISSQN:
+      parseInt(
+        envFirst(
+          "NOTAAS_TP_RET_ISSQN",
+          "ACBR_API_TP_RET_ISSQN",
+          "NUVEM_FISCAL_TP_RET_ISSQN",
+          "1",
+        ),
+        10,
+      ) || 1,
+    issRetido:
+      envFirst("NOTAAS_ISS_RETIDO", "ACBR_API_ISS_RETIDO").toLowerCase() ===
+        "true" ||
+      envFirst("NOTAAS_ISS_RETIDO", "ACBR_API_ISS_RETIDO") === "1",
+    // Campos NF-e legados (NF-e Notaas ainda não integrada)
+    cuf:
+      parseInt(
+        envFirst("NOTAAS_CUF", "ACBR_API_CUF", "NUVEM_FISCAL_CUF", "41"),
+        10,
+      ) || 41,
+    nfeCfop: envFirst(
+      "NOTAAS_NFE_CFOP",
+      "ACBR_API_NFE_CFOP",
+      "NUVEM_FISCAL_NFE_CFOP",
+      "5102",
+    ).replace(/\D/g, ""),
+    nfeCsosn: envFirst(
+      "NOTAAS_NFE_CSOSN",
+      "ACBR_API_NFE_CSOSN",
+      "NUVEM_FISCAL_NFE_CSOSN",
+      "103",
+    ).replace(/\D/g, ""),
+    nfeNcm: envFirst(
+      "NOTAAS_NFE_NCM",
+      "ACBR_API_NFE_NCM",
+      "NUVEM_FISCAL_NFE_NCM",
+      "87089990",
+    ).replace(/\D/g, ""),
     emitenteIe: normalizeInscricaoEstadual(
-      process.env.NUVEM_FISCAL_EMITENTE_IE ||
-        process.env.NUVEM_FISCAL_NFE_IE ||
-        "",
+      envFirst(
+        "NOTAAS_EMITENTE_IE",
+        "ACBR_API_EMITENTE_IE",
+        "NUVEM_FISCAL_EMITENTE_IE",
+        "NUVEM_FISCAL_NFE_IE",
+      ),
     ),
-    /** CRT NF-e: 1 = Simples Nacional (padrão oficina ME/EPP) */
-    nfeCrt: parseInt(process.env.NUVEM_FISCAL_NFE_CRT || "1", 10) || 1,
-    nfeSerie: parseInt(process.env.NUVEM_FISCAL_NFE_SERIE || "1", 10) || 1,
-    /** Próximo nNF se ainda não houver NF-e emitida pelo Benny (alinhar ao último número na SEFAZ). */
+    nfeCrt:
+      parseInt(
+        envFirst("NOTAAS_NFE_CRT", "ACBR_API_NFE_CRT", "NUVEM_FISCAL_NFE_CRT", "1"),
+        10,
+      ) || 1,
+    nfeSerie:
+      parseInt(
+        envFirst(
+          "NOTAAS_NFE_SERIE",
+          "ACBR_API_NFE_SERIE",
+          "NUVEM_FISCAL_NFE_SERIE",
+          "1",
+        ),
+        10,
+      ) || 1,
     nfeNumeroInicial:
-      parseInt(process.env.NUVEM_FISCAL_NFE_NUMERO_INICIAL || "1", 10) || 1,
+      parseInt(
+        envFirst(
+          "NOTAAS_NFE_NUMERO_INICIAL",
+          "ACBR_API_NFE_NUMERO_INICIAL",
+          "NUVEM_FISCAL_NFE_NUMERO_INICIAL",
+          "1",
+        ),
+        10,
+      ) || 1,
     nfeNatOp:
-      process.env.NUVEM_FISCAL_NFE_NAT_OP || "VENDA DE MERCADORIA ADQUIRIDA",
-    /** Responsável técnico do ERP (infRespTec) — CNPJ do desenvolvedor do software, não da oficina */
-    respTecCnpj: (process.env.NUVEM_FISCAL_RESP_TEC_CNPJ || "").replace(
-      /\D/g,
-      "",
+      envFirst("NOTAAS_NFE_NAT_OP", "ACBR_API_NFE_NAT_OP", "NUVEM_FISCAL_NFE_NAT_OP") ||
+      "VENDA DE MERCADORIA ADQUIRIDA",
+    respTecCnpj: envFirst(
+      "NOTAAS_RESP_TEC_CNPJ",
+      "ACBR_API_RESP_TEC_CNPJ",
+      "NUVEM_FISCAL_RESP_TEC_CNPJ",
+    ).replace(/\D/g, ""),
+    respTecContato: envFirst(
+      "NOTAAS_RESP_TEC_CONTATO",
+      "ACBR_API_RESP_TEC_CONTATO",
+      "NUVEM_FISCAL_RESP_TEC_CONTATO",
     ),
-    respTecContato: String(
-      process.env.NUVEM_FISCAL_RESP_TEC_CONTATO || "",
-    ).trim(),
-    respTecEmail: String(process.env.NUVEM_FISCAL_RESP_TEC_EMAIL || "").trim(),
-    respTecFone: (process.env.NUVEM_FISCAL_RESP_TEC_FONE || "").replace(
-      /\D/g,
-      "",
+    respTecEmail: envFirst(
+      "NOTAAS_RESP_TEC_EMAIL",
+      "ACBR_API_RESP_TEC_EMAIL",
+      "NUVEM_FISCAL_RESP_TEC_EMAIL",
     ),
-    respTecCsrtId: parseInt(
-      process.env.NUVEM_FISCAL_RESP_TEC_CSRT_ID || "0",
-      10,
-    ) || 0,
-    respTecCsrt: String(process.env.NUVEM_FISCAL_RESP_TEC_CSRT || "").trim(),
+    respTecFone: envFirst(
+      "NOTAAS_RESP_TEC_FONE",
+      "ACBR_API_RESP_TEC_FONE",
+      "NUVEM_FISCAL_RESP_TEC_FONE",
+    ).replace(/\D/g, ""),
+    respTecCsrtId:
+      parseInt(
+        envFirst(
+          "NOTAAS_RESP_TEC_CSRT_ID",
+          "ACBR_API_RESP_TEC_CSRT_ID",
+          "NUVEM_FISCAL_RESP_TEC_CSRT_ID",
+          "0",
+        ),
+        10,
+      ) || 0,
+    respTecCsrt: envFirst(
+      "NOTAAS_RESP_TEC_CSRT",
+      "ACBR_API_RESP_TEC_CSRT",
+      "NUVEM_FISCAL_RESP_TEC_CSRT",
+    ),
   };
 }
+
+/** Alias semântico para novos callers. */
+export const getFiscalProviderConfig = getNuvemFiscalConfig;
 
 export function isNuvemFiscalConfigured() {
   const c = getNuvemFiscalConfig();
-  return !!(c.clientId && c.clientSecret && c.empresaCnpj.length === 14);
+  return !!(c.apiKey && c.apiKey.startsWith("ntaas_"));
 }
 
-/** NF-e de peças — desligada até credenciamento SEFAZ/PR (CSRT). Ativar: NUVEM_FISCAL_NFE_ENABLED=1 */
+export const isFiscalProviderConfigured = isNuvemFiscalConfigured;
+
+/** NF-e de peças — desabilitada por padrão (Notaas NF-e ainda não integrada). */
 export function isNfeEmissaoHabilitada() {
-  const v = String(process.env.NUVEM_FISCAL_NFE_ENABLED || "")
-    .trim()
-    .toLowerCase();
+  const v = envFirst(
+    "NOTAAS_NFE_ENABLED",
+    "ACBR_API_NFE_ENABLED",
+    "NUVEM_FISCAL_NFE_ENABLED",
+  ).toLowerCase();
   return v === "1" || v === "true" || v === "yes";
 }
 
 export function mensagemNfeDesabilitada() {
-  return "Emissão de NF-e (peças) está desativada. Aguardando credenciamento na SEFAZ/PR (CSRT). Use NFS-e para serviços.";
+  return "Emissão de NF-e (peças) está desativada. Use NFS-e para serviços (e peças, enquanto a NF-e estiver desligada).";
 }
 
 /**
  * NFS-e com peças + serviços na mesma nota (enquanto NF-e estiver desligada).
- * Override: NUVEM_FISCAL_NFSE_INCLUIR_PECAS=1|0
+ * Override: NOTAAS_NFSE_INCLUIR_PECAS / ACBR_API_* / NUVEM_FISCAL_* = 1|0
  */
 export function isNfseIncluirPecas() {
-  const v = String(process.env.NUVEM_FISCAL_NFSE_INCLUIR_PECAS || "")
-    .trim()
-    .toLowerCase();
+  const v = envFirst(
+    "NOTAAS_NFSE_INCLUIR_PECAS",
+    "ACBR_API_NFSE_INCLUIR_PECAS",
+    "NUVEM_FISCAL_NFSE_INCLUIR_PECAS",
+  ).toLowerCase();
   if (v === "1" || v === "true" || v === "yes") return true;
   if (v === "0" || v === "false" || v === "no") return false;
   return !isNfeEmissaoHabilitada();
 }
+
+export { normalizeInscricaoEstadual };

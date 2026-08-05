@@ -1,5 +1,5 @@
-export function rotuloFonteTributo(fonte) {
-  if (fonte === "nuvem") return " · Nuvem Fiscal";
+﻿export function rotuloFonteTributo(fonte) {
+  if (fonte === "nuvem") return " · Notaas";
   if (fonte === "estimativa") return " · estimativa";
   return "";
 }
@@ -52,10 +52,10 @@ export function mostrarObservacoesNota(nota) {
 export function dicaRejeicaoNfse(nota) {
   const msg = mensagemRejeicaoNota(nota).toLowerCase();
   if (msg.includes("e2404")) {
-    return "No painel Nuvem (Produção), confira série do DPS 70000 e o próximo número (após a nota manual, ex.: 2). Aguarde 1–2 min entre tentativas antes de Reemitir.";
+    return "No painel Notaas, confira numeração/série da NFS-e e o próximo número. Aguarde 1–2 min entre tentativas antes de Reemitir.";
   }
   if (msg.includes("e0120")) {
-    return "Painel Nuvem → empresa Bennys → aba Dados → Inscrição Municipal: deixe em branco (CNC nacional ainda sem complemento da IM). Salve e clique em Atualizar Configuração na NFS-e.";
+    return "No painel Notaas → empresa Bennys: confira Inscrição Municipal (ou deixe em branco se o município não exigir). Salve e tente Reemitir.";
   }
   return null;
 }
@@ -71,15 +71,15 @@ export function nfseValorIncompleto(os, nota, nfseIncluirPecas) {
 export function feedbackNotaFiscal(toast, message, nf) {
   const st = nf?.status_nf;
   if (st === "autorizada") {
-    toast.success(message || "Nota fiscal autorizada na Nuvem Fiscal.");
+    toast.success(message || "Nota fiscal autorizada na Notaas.");
   } else if (st === "configuracao_pendente") {
     toast.error(
       message ||
-        "Nuvem Fiscal não configurada neste servidor. Defina as variáveis no ambiente de produção.",
+        "Notaas não configurada neste servidor. Defina NOTAAS_API_KEY no ambiente de produção.",
       { duration: 8000 },
     );
   } else if (st === "erro_autenticacao" || st === "rejeitada") {
-    toast.error(message || "Falha na nota fiscal na Nuvem Fiscal.");
+    toast.error(message || "Falha na nota fiscal na Notaas.");
   } else if (st === "processamento") {
     toast(message || "Nota em processamento. Aguarde ou atualize o status.", {
       icon: "⏳",

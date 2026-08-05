@@ -1,4 +1,4 @@
-import {
+﻿import {
   baixarPdfNfe,
   baixarPdfNfse,
   consultarNfe,
@@ -11,7 +11,7 @@ export const baixarPdf = async (tenantId, nfId) => {
   const nf = await buscarPorId(tenantId, nfId);
   if (!nf) return { erro: "Nota fiscal não encontrada" };
   if (!nf.id_provedor) {
-    return { erro: "Nota sem vínculo na Nuvem Fiscal. Sincronize o status antes." };
+    return { erro: "Nota sem vínculo na Notaas. Sincronize o status antes." };
   }
 
   const consulta =
@@ -23,12 +23,12 @@ export const baixarPdf = async (tenantId, nfId) => {
     const { interno, bruto } = resolverStatusNuvem(consulta.data);
     if (interno === "rejeitada") {
       return {
-        erro: `Nota rejeitada na Nuvem Fiscal (${bruto || "sem detalhe"}). PDF não disponível — corrija e reemita.`,
+        erro: `Nota rejeitada na Notaas (${bruto || "sem detalhe"}). PDF não disponível — corrija e reemita.`,
       };
     }
     if (interno !== "autorizada") {
       return {
-        erro: `Nota ainda não autorizada na Nuvem (${bruto || interno}). Aguarde ou use Atualizar status.`,
+        erro: `Nota ainda não autorizada na Notaas (${bruto || interno}). Aguarde ou use Atualizar status.`,
       };
     }
   }
@@ -41,7 +41,7 @@ export const baixarPdf = async (tenantId, nfId) => {
         ? " Nota não encontrada ou PDF indisponível (rejeitada/cancelada?)."
         : "";
     return {
-      erro: (api.mensagem || "Falha ao baixar PDF na Nuvem Fiscal.") + extra,
+      erro: (api.mensagem || "Falha ao baixar PDF na Notaas.") + extra,
     };
   }
 

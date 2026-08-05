@@ -6,6 +6,7 @@ import {
   isNfeEmissaoHabilitada,
   isNfseIncluirPecas,
   mensagemNfeDesabilitada,
+  PROVEDOR_FISCAL_ID,
 } from "../../config/nuvemFiscal.js";
 import { emitirNfe, emitirNfseDps } from "../nuvemFiscalClient.js";
 import {
@@ -104,7 +105,7 @@ export const gerarParaOs = async (
 
   let status = "configuracao_pendente";
   let mensagem =
-    "Defina NUVEM_FISCAL_CLIENT_ID, NUVEM_FISCAL_CLIENT_SECRET e NUVEM_FISCAL_CNPJ_EMITENTE no servidor.";
+    "Defina NOTAAS_API_KEY (prefixo ntaas_) no servidor. Dashboard: platform.notaas.com.br → API Keys.";
   let dadosResposta = {};
   let dadosEnvio = {
     ordem_servico_id: osCompleta.id,
@@ -156,13 +157,13 @@ export const gerarParaOs = async (
       mensagem = montagem.erro;
       dadosResposta = { validacao_local: montagem.erro };
     } else {
+      const cfgFiscal = getNuvemFiscalConfig();
       dadosEnvio = {
         ...dadosEnvio,
         referencia: montagem.body.referencia,
-        ambiente: montagem.body.ambiente,
-        ...(montagem.body.provedor
-          ? { provedor: montagem.body.provedor }
-          : {}),
+        ambiente: cfgFiscal.ambiente,
+        competencia: montagem.body.competencia,
+        provedor: PROVEDOR_FISCAL_ID,
       };
 
       try {
@@ -175,7 +176,7 @@ export const gerarParaOs = async (
           status = api.authError ? "erro_autenticacao" : "rejeitada";
           mensagem =
             api.mensagem ||
-            `Falha na emissão de ${label} na Nuvem Fiscal`;
+            `Falha na emissão de ${label} na Notaas`;
           dadosResposta = {
             http_status: api.statusCode,
             detalhe: api.detalhe,
@@ -195,7 +196,7 @@ export const gerarParaOs = async (
         }
       } catch (e) {
         status = "rejeitada";
-        mensagem = e.message || "Erro inesperado ao chamar Nuvem Fiscal";
+        mensagem = e.message || "Erro inesperado ao chamar a Notaas";
         dadosResposta = { exception: mensagem };
       }
     }
@@ -211,8 +212,9 @@ export const gerarParaOs = async (
         tenant_id, ordem_servico_id, modelo_documento, provedor, status,
         id_provedor, numero, chave_acesso, valor_total, tributos,
         dados_envio, dados_resposta, link_pdf, mensagem_status, data_emissao, atualizado_em
-      ) VALUES ($1, $2, $3, 'nuvem_fiscal', $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, NOW())
+      ) VALUES ($1, $2, $3, $15, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, NOW())
       ON CONFLICT (tenant_id, ordem_servico_id, modelo_documento) DO UPDATE SET
+        provedor = EXCLUDED.provedor,
         status = EXCLUDED.status,
         id_provedor = EXCLUDED.id_provedor,
         numero = EXCLUDED.numero,
@@ -241,6 +243,7 @@ export const gerarParaOs = async (
         linkPdf,
         mensagem,
         dataEmissao,
+        PROVEDOR_FISCAL_ID,
       ],
     );
 
@@ -258,9 +261,9 @@ export const gerarParaOs = async (
       message:
         status === "configuracao_pendente"
           ? mensagem ||
-            `Registro de ${label} criado. Configure a Nuvem Fiscal no servidor.`
+            `Registro de ${label} criado. Configure NOTAAS_API_KEY no servidor.`
           : status === "erro_autenticacao"
-            ? "Registro criado, mas a autenticação na Nuvem Fiscal falhou."
+            ? "Registro criado, mas a autenticação na Notaas falhou. Verifique NOTAAS_API_KEY."
             : mensagem,
     };
   } catch (e) {

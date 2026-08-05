@@ -83,75 +83,54 @@ cd backend && npm run migrate
 - [ ] CEP do cliente salvo na OS antes de emitir NFS-e
 - [ ] `JWT_SECRET` forte (não usar valor de desenvolvimento)
 
-## 6. Painel Nuvem Fiscal (contadora)
+## 6. Painel Notaas (contadora / fiscal)
 
-Alinhar com Débora:
+Alinhar com o contador:
 
-- Regime apuração ISS no painel: **1** = ISS pelo Simples (ME/EPP); com `tpRetISSQN=1` o Benny **não** envia alíquota na DPS (regra ADN)
-- `NUVEM_FISCAL_TP_RET_ISSQN=1` (padrão) — só use `2` se houver retenção pelo tomador
-- Certificado A1 configurado
-- NBS definitivo em `NUVEM_FISCAL_C_NBS`
-- CNPJ software SEFAZ: **46.363.985/0001-00** (Nuvem/WA2)
+- Empresa Bennys cadastrada no Dashboard Notaas + **certificado A1**
+- Município Colombo — IBGE `4105805`
+- Código de serviço (cTribNac / LC 116): `310103` (mecânica — confirmar)
+- Alíquota ISS alinhada com `NOTAAS_ALIQUOTA_ISS` (ex.: 2)
+- Ambiente produção no painel Notaas (não misturar com sandbox)
 
-## 7. Mudar Nuvem Fiscal de Sandbox para Produção
+## 7. Notaas (produção) — provedor fiscal NFS-e
 
-### 7.1 Painel Nuvem Fiscal (web)
+Guia completo: `docs/MIGRACAO_NOTAAS.md`  
+Docs API: https://docs.notaas.com.br
 
-1. Empresa **Bennys** → **Serviços** → **NFS-e**
-2. Troque o toggle de **Sandbox** para **Produção** (não deixe em Homologação)
-3. Confira com a contadora: **lote, série e próximo número RPS** (alinhar ao último RPS real emitido)
-4. Regime Simples Nacional (como no print): ME/EPP, reg. apuração **1**
-5. Se Colombo exigir: login/senha/token da prefeitura em **Produção**
-6. **Certificado A1** da oficina instalado na aba Certificado (válido em produção)
-7. Repita para **NF-e** → **Produção** (se for emitir peças)
+### 7.1 Painel Notaas (web)
 
-### 7.2 Console Nuvem (credenciais API)
+1. [platform.notaas.com.br](https://platform.notaas.com.br) — empresa + certificado A1
+2. Configurar serviço padrão / município / ambiente
+3. Dashboard → **API Keys** → Project Key (`ntaas_...`)
 
-1. [console.nuvemfiscal.com.br](https://console.nuvemfiscal.com.br) → **Credenciais de API**
-2. Crie ou copie credenciais de **Produção** (as do Sandbox **não** funcionam na API de produção)
-
-### 7.3 Coolify — variáveis do **backend**
+### 7.2 Coolify — variáveis do **backend**
 
 ```env
-NUVEM_FISCAL_CLIENT_ID=<credencial PRODUÇÃO do console>
-NUVEM_FISCAL_CLIENT_SECRET=<credencial PRODUÇÃO do console>
-NUVEM_FISCAL_CNPJ_EMITENTE=55961553000100
-NUVEM_FISCAL_API_URL=https://api.nuvemfiscal.com.br
-NUVEM_FISCAL_AMBIENTE=producao
-NUVEM_FISCAL_PROVEDOR=nacional
-NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE=4105805
-NUVEM_FISCAL_C_TRIB_NAC=140101
-NUVEM_FISCAL_C_NBS=120013110
-NUVEM_FISCAL_ALIQUOTA_ISS=2
-NUVEM_FISCAL_TP_RET_ISSQN=1
+NOTAAS_API_KEY=ntaas_...
+NOTAAS_API_URL=https://platform.notaas.com.br/api/v1
+NOTAAS_CNPJ_EMITENTE=55961553000100
+NOTAAS_AMBIENTE=producao
+NOTAAS_CODIGO_MUNICIPIO_IBGE=4105805
+NOTAAS_C_TRIB_NAC=310103
+NOTAAS_C_NBS=120013110
+NOTAAS_ALIQUOTA_ISS=2
+NOTAAS_NFE_ENABLED=false
 WDAPI2_TOKEN=<token wdapi2>
-# NF-e desativada até credenciamento SEFAZ/PR (só NFS-e por enquanto)
-NUVEM_FISCAL_NFE_ENABLED=false
 ```
 
-Quando o CSRT for liberado, altere para `NUVEM_FISCAL_NFE_ENABLED=1` e preencha IE + RESP_TEC + CSRT.
-
-NF-e (peças), quando habilitar:
-
-```env
-NUVEM_FISCAL_EMITENTE_IE=<IE da oficina>
-NUVEM_FISCAL_RESP_TEC_CNPJ=53020885000157
-NUVEM_FISCAL_RESP_TEC_CONTATO=...
-NUVEM_FISCAL_RESP_TEC_EMAIL=...
-NUVEM_FISCAL_RESP_TEC_FONE=...
-NUVEM_FISCAL_RESP_TEC_CSRT_ID=...
-NUVEM_FISCAL_RESP_TEC_CSRT=...
-```
+Remova `ACBR_API_*` / credenciais Nuvem antigas. **Não** coloque a key no git.
 
 4. **Redeploy** do backend após salvar.
 
-### 7.4 Teste seguro
+### 7.3 Teste seguro
 
 1. Emita **uma** NFS-e de valor baixo em OS real finalizada
-2. Confirme status **autorizada** e PDF sem marca “homologação”
+2. Confirme status **autorizada** e PDF (DANFSe)
 3. Contadora valida na prefeitura antes de emitir em volume
 
 ## Referência
 
 Arquitetura: `backend/ARCHITECTURE.md`  
+Migração Notaas: `docs/MIGRACAO_NOTAAS.md`  
 Checklist código: `backend/IMPLEMENTATION_CHECKLIST.md`

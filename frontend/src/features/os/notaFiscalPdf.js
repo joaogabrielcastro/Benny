@@ -36,7 +36,7 @@ export function abrirConsultaPublicaNfse(nota) {
   if (!win) toast.error("Permita pop-ups para abrir o portal da NFS-e.");
 }
 
-/** URL do DANFE/DANFSe oficial (Nuvem Fiscal ou link salvo). */
+/** URL do DANFE/DANFSe oficial (Notaas ou link salvo). */
 export function resolvePdfUrl(nota) {
   if (!nota) return null;
 

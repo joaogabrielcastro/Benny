@@ -12,7 +12,9 @@
     "test:api": "node test-api.js",
     "seed": "node scripts/seed.js",
     "migrate": "node scripts/migrate.mjs",
-    "test-nuvem-fiscal": "node scripts/test-nuvem-fiscal.mjs"
+    "test-notaas": "node scripts/test-nuvem-fiscal.mjs",
+    "test-nuvem-fiscal": "node scripts/test-nuvem-fiscal.mjs",
+    "test-acbr-api": "node scripts/test-nuvem-fiscal.mjs"
   },
   "keywords": [],
   "author": "",

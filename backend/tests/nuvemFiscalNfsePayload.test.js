@@ -2,17 +2,22 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { montarCorpoEmissaoNfseDps } from "../src/services/nuvemFiscalNfsePayload.js";
 
-describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
+describe("montarCorpoEmissaoNfseDps — Notaas", () => {
   const envBackup = { ...process.env };
 
   beforeEach(() => {
-    process.env.NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE = "4105805";
-    process.env.NUVEM_FISCAL_CNPJ_EMITENTE = "55961553000100";
-    process.env.NUVEM_FISCAL_TOMADOR_CEP = "83411100";
-    process.env.NUVEM_FISCAL_TOMADOR_CPF = "12345678909";
-    process.env.NUVEM_FISCAL_ALIQUOTA_ISS = "2";
-    delete process.env.NUVEM_FISCAL_FORCAR_ALIQ_ISS_DPS;
-    delete process.env.NUVEM_FISCAL_TP_RET_ISSQN;
+    process.env.NOTAAS_API_KEY = "ntaas_test_key_xxxxxxxx";
+    process.env.NOTAAS_CODIGO_MUNICIPIO_IBGE = "4105805";
+    process.env.NOTAAS_CNPJ_EMITENTE = "55961553000100";
+    process.env.NOTAAS_C_TRIB_NAC = "310103";
+    process.env.NOTAAS_C_NBS = "120013110";
+    process.env.NOTAAS_ALIQUOTA_ISS = "2";
+    process.env.NOTAAS_TOMADOR_CEP = "83411100";
+    process.env.NOTAAS_TOMADOR_CPF = "12345678909";
+    delete process.env.NOTAAS_NFE_ENABLED;
+    delete process.env.NUVEM_FISCAL_NFE_ENABLED;
+    delete process.env.ACBR_API_NFE_ENABLED;
+    delete process.env.NOTAAS_ISS_RETIDO;
   });
 
   afterEach(() => {
@@ -25,6 +30,11 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
     cep: "83411100",
     cpf_cnpj: "12345678909",
     codigo_ibge: "4105805",
+    cidade: "Colombo",
+    uf: "PR",
+    bairro: "Centro",
+    endereco: "Rua Teste",
+    numero: "100",
   };
   const baseServicos = [
     {
@@ -35,7 +45,7 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
     },
   ];
 
-  it("envia apenas regEspTrib em prest.regTrib (sem opSimpNac)", () => {
+  it("monta body Notaas com tomador/servico/valores", () => {
     const result = montarCorpoEmissaoNfseDps(
       baseOs,
       baseCliente,
@@ -43,71 +53,20 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
       baseServicos,
     );
     assert.equal(result.ok, true);
-
-    const regTrib = result.body.infDPS.prest.regTrib;
-    assert.deepEqual(regTrib, { regEspTrib: 0 });
-    assert.equal("opSimpNac" in regTrib, false);
-    assert.equal("regApTribSN" in regTrib, false);
+    assert.equal(result.body.tomador.cpf, "12345678909");
+    assert.equal(result.body.tomador.nome, "Cliente Teste");
+    assert.equal(result.body.servico.codigo, "310103");
+    assert.equal(result.body.servico.localPrestacao, "4105805");
+    assert.equal(result.body.servico.nbs, "120013110");
+    assert.equal(result.body.valores.total, 200);
+    assert.equal(result.body.valores.aliquotaIss, 2);
+    assert.equal(result.body.valores.issRetido, false);
+    assert.match(result.body.competencia, /^\d{4}-\d{2}$/);
+    assert.ok(result.body.referencia);
+    assert.equal("infDPS" in result.body, false);
   });
 
-  it("ME/EPP sem retenção (tpRetISSQN=1): tribMun sem pAliq, vBC, vISSQN", () => {
-    const result = montarCorpoEmissaoNfseDps(
-      baseOs,
-      baseCliente,
-      [],
-      baseServicos,
-    );
-    assert.equal(result.ok, true);
-
-    const tribMun = result.body.infDPS.valores.trib.tribMun;
-    assert.equal("pAliqAplic" in tribMun, false);
-    assert.deepEqual(tribMun, { tribISSQN: 1, tpRetISSQN: 1 });
-    assert.equal(
-      result.body.infDPS.valores.trib.totTrib.vTotTrib.vTotTribMun,
-      0,
-    );
-  });
-
-  it("com retenção (tpRetISSQN=2): envia pAliq, vBC e vISSQN", () => {
-    process.env.NUVEM_FISCAL_TP_RET_ISSQN = "2";
-
-    const result = montarCorpoEmissaoNfseDps(
-      baseOs,
-      baseCliente,
-      [],
-      baseServicos,
-    );
-    assert.equal(result.ok, true);
-
-    const tribMun = result.body.infDPS.valores.trib.tribMun;
-    assert.equal(tribMun.tpRetISSQN, 2);
-    assert.equal(tribMun.pAliq, 2);
-    assert.equal(tribMun.vBC, 200);
-    assert.equal(tribMun.vISSQN, 4);
-  });
-
-  it("usa IBGE do tomador no endereço e IBGE da oficina no local de prestação", () => {
-    const clienteCuritiba = {
-      ...baseCliente,
-      cep: "81020670",
-      codigo_ibge: "4106902",
-      cidade: "Curitiba",
-    };
-    const result = montarCorpoEmissaoNfseDps(
-      baseOs,
-      clienteCuritiba,
-      [],
-      baseServicos,
-    );
-    assert.equal(result.ok, true);
-    assert.equal(result.body.infDPS.toma.end.endNac.cMun, "4106902");
-    assert.equal(result.body.infDPS.toma.end.endNac.CEP, "81020670");
-    assert.equal(result.body.infDPS.serv.locPrest.cLocPrestacao, "4105805");
-  });
-
-  it("com NF-e desligada: inclui peças no valor e na descrição da NFS-e", () => {
-    delete process.env.NUVEM_FISCAL_NFE_ENABLED;
-
+  it("com NF-e desligada: inclui peças no valor e na descrição", () => {
     const produtos = [
       {
         codigo: "P1",
@@ -125,16 +84,14 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
       baseServicos,
     );
     assert.equal(result.ok, true);
-    assert.equal(result.body.infDPS.valores.vServPrest.vServ, 280);
-    const desc = result.body.infDPS.serv.cServ.xDescServ;
-    assert.match(desc, /Servicos prestados conforme OS OS-001/);
-    assert.match(desc, /Filtro oleo/);
-    assert.match(desc, /Servico/);
-    assert.equal(desc.includes("Peca:"), false);
+    assert.equal(result.body.valores.total, 280);
+    assert.match(result.body.servico.descricao, /Servicos prestados conforme OS OS-001/);
+    assert.match(result.body.servico.descricao, /Filtro oleo/);
+    assert.match(result.body.servico.descricao, /Servico/);
   });
 
   it("com NF-e ligada: NFS-e só com valor de serviços", () => {
-    process.env.NUVEM_FISCAL_NFE_ENABLED = "1";
+    process.env.NOTAAS_NFE_ENABLED = "1";
 
     const produtos = [
       {
@@ -153,10 +110,41 @@ describe("montarCorpoEmissaoNfseDps — Padrão Nacional", () => {
       baseServicos,
     );
     assert.equal(result.ok, true);
-    assert.equal(result.body.infDPS.valores.vServPrest.vServ, 200);
-    assert.equal(
-      result.body.infDPS.serv.cServ.xDescServ.includes("Peca:"),
-      false,
+    assert.equal(result.body.valores.total, 200);
+    assert.equal(result.body.servico.descricao.includes("Filtro oleo"), false);
+  });
+
+  it("usa CNPJ do tomador quando cliente é PJ", () => {
+    const clientePj = {
+      ...baseCliente,
+      cpf_cnpj: "12345678000195",
+      nome: "Empresa LTDA",
+    };
+    const result = montarCorpoEmissaoNfseDps(
+      baseOs,
+      clientePj,
+      [],
+      baseServicos,
     );
+    assert.equal(result.ok, true);
+    assert.equal(result.body.tomador.cnpj, "12345678000195");
+    assert.equal(result.body.tomador.cpf, undefined);
+  });
+
+  it("exige IBGE do município da oficina", () => {
+    delete process.env.NOTAAS_CODIGO_MUNICIPIO_IBGE;
+    delete process.env.ACBR_API_CODIGO_MUNICIPIO_IBGE;
+    delete process.env.NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE;
+    delete process.env.NOTAAS_TOMADOR_C_MUN;
+    delete process.env.NUVEM_FISCAL_TOMADOR_C_MUN;
+
+    const result = montarCorpoEmissaoNfseDps(
+      baseOs,
+      baseCliente,
+      [],
+      baseServicos,
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.erro, /NOTAAS_CODIGO_MUNICIPIO_IBGE/);
   });
 });

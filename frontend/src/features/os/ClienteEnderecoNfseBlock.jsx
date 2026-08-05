@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../../services/api";
@@ -54,7 +54,7 @@ export default function ClienteEnderecoNfseBlock({
 
   const titulo =
     motivo === "cep_invalido"
-      ? "CEP ou município do cliente rejeitado pela Nuvem Fiscal"
+      ? "CEP ou município do cliente rejeitado pela Notaas"
       : "CEP do cliente obrigatório para NFS-e";
 
   const descricao =

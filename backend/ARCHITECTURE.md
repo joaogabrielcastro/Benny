@@ -22,7 +22,7 @@ O Benny opera como **uma oficina por instalação** (Bennys Centro Automotivo). 
 | Frontend  | React 18, Vite 5, JS    |
 | Backend   | Node.js, Express (ESM)  |
 | Banco     | PostgreSQL (`pg`)       |
-| Fiscal    | Nuvem Fiscal API        |
+| Fiscal    | Notaas (NFS-e via API Key) |
 
 ## API
 

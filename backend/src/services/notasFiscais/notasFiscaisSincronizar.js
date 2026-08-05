@@ -1,4 +1,4 @@
-import {
+﻿import {
   isNuvemFiscalConfigured,
   isNfeEmissaoHabilitada,
   mensagemNfeDesabilitada,
@@ -69,7 +69,7 @@ export const sincronizarPorOs = async (
       );
       return {
         nf: mapNfParaRespostaApi(atualizada),
-        message: `${label}: tributos atualizados na Nuvem Fiscal.`,
+        message: `${label}: tributos atualizados na Notaas.`,
       };
     }
     const orfa = await tratarNotaOrfaAmbiente(
@@ -91,12 +91,12 @@ export const sincronizarPorOs = async (
   if (!isNuvemFiscalConfigured()) {
     return {
       nf: mapNfParaRespostaApi(nf),
-      message: nf.mensagem_status || "Nuvem Fiscal não configurada no servidor.",
+      message: nf.mensagem_status || "Notaas não configurada no servidor (NOTAAS_API_KEY).",
     };
   }
   if (!nf.id_provedor) {
     return {
-      erro: `Esta ${label} ainda não tem ID na Nuvem Fiscal. Use o botão Gerar.`,
+      erro: `Esta ${label} ainda não tem ID na Notaas. Use o botão Gerar.`,
     };
   }
 
@@ -111,14 +111,13 @@ export const sincronizarPorOs = async (
     );
     if (orfa) return orfa;
     return {
-      erro: consulta.mensagem || `Falha ao consultar ${label} na Nuvem Fiscal`,
+      erro: consulta.mensagem || `Falha ao consultar ${label} na Notaas`,
     };
   }
 
   let campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
 
   if (campos.status === "processamento") {
-    // Enquanto a Nuvem processa, GET já reflete o estado; POST /sincronizar é rejeitado na fila.
     campos.mensagem = mensagemNuvemFilaProcessamento();
   }
 

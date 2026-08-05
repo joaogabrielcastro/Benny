@@ -1,9 +1,16 @@
-import { extrairTributosDeRespostaNuvem } from "../tributosNfse.js";
+﻿import { extrairTributosDeRespostaNuvem } from "../tributosNfse.js";
+import { PROVEDOR_FISCAL_LABEL } from "../../config/nuvemFiscal.js";
 
 export function mapStatusApiNuvemParaInterno(apiStatus) {
   if (!apiStatus) return "processamento";
 
   const s = String(apiStatus).toLowerCase().trim();
+
+  // Notaas
+  if (s === "issued") return "autorizada";
+  if (s === "queued" || s === "processing") return "processamento";
+  if (s === "error") return "rejeitada";
+  if (s === "cancelled") return "cancelada";
 
   if (
     s === "autorizada" ||
@@ -62,10 +69,19 @@ export function extrairStatusBrutoNuvem(data) {
 
 function nfPareceAutorizada(data) {
   if (!data || typeof data !== "object") return false;
-  const num = data.numero ?? data.nNFSe ?? data.nfse?.numero;
+  const num =
+    data.numero ??
+    data.numeroNfe ??
+    data.nNFSe ??
+    data.nfse?.numero;
   const chave =
-    data.chave ?? data.chave_acesso ?? data.DPS?.chave ?? data.nfse?.chave;
-  const link = data.link_url ?? data.url ?? data.link_pdf;
+    data.chNFSe ??
+    data.chave ??
+    data.chave_acesso ??
+    data.DPS?.chave ??
+    data.nfse?.chave;
+  const link =
+    data.pdfUrl ?? data.link_url ?? data.url ?? data.link_pdf;
   return Boolean(num && (chave || link));
 }
 
@@ -73,7 +89,7 @@ export function resolverStatusNuvem(data) {
   const bruto = extrairStatusBrutoNuvem(data);
   let interno = mapStatusApiNuvemParaInterno(bruto);
 
-  if (bruto && /rejeit|negad|deneg|falha|erro/i.test(String(bruto))) {
+  if (bruto && /rejeit|negad|deneg|falha|erro|error/i.test(String(bruto))) {
     interno = "rejeitada";
   }
 
@@ -81,16 +97,20 @@ export function resolverStatusNuvem(data) {
     interno = "autorizada";
   }
 
-  const msgs = data?.mensagens;
+  const msgs = data?.mensagens || data?.errors;
   if (
     interno === "processamento" &&
     Array.isArray(msgs) &&
     msgs.some((m) => {
-      const t = String(m?.tipo || m?.type || "").toLowerCase();
-      return t.includes("erro") || t.includes("rejei");
+      const t = String(m?.tipo || m?.type || m?.Codigo || "").toLowerCase();
+      return t.includes("erro") || t.includes("rejei") || t.includes("error");
     })
   ) {
     interno = "rejeitada";
+  }
+
+  if (data?.errorMessage || data?.errorCode) {
+    if (interno === "processamento" || !bruto) interno = "rejeitada";
   }
 
   return { interno, bruto };
@@ -98,19 +118,44 @@ export function resolverStatusNuvem(data) {
 
 function mensagemPadraoPorStatus(status, msgApi, modelo = "NFSE") {
   const label = modelo === "NFE" ? "NF-e" : "NFS-e";
+  const provedor = PROVEDOR_FISCAL_LABEL;
   if (msgApi) return msgApi;
-  if (status === "autorizada") return `${label} autorizada na Nuvem Fiscal.`;
+  if (status === "autorizada") return `${label} autorizada na ${provedor}.`;
   if (status === "rejeitada")
-    return `${label} rejeitada na Nuvem Fiscal. Veja o motivo da SEFAZ abaixo.`;
+    return `${label} rejeitada na ${provedor}. Veja o motivo abaixo.`;
   if (status === "processamento")
-    return `${label} ainda em processamento na Nuvem Fiscal. Aguarde alguns minutos e use Atualizar status.`;
-  return "Status atualizado na Nuvem Fiscal.";
+    return `${label} ainda em processamento na ${provedor}. Aguarde alguns minutos e use Atualizar status.`;
+  if (status === "cancelada") return `${label} cancelada na ${provedor}.`;
+  return `Status atualizado na ${provedor}.`;
 }
 
 export function resumoMensagensApi(data) {
   if (!data || typeof data !== "object") return null;
 
   const partes = [];
+
+  if (typeof data.errorMessage === "string" && data.errorMessage.trim()) {
+    const cod = data.errorCode ? `[${data.errorCode}] ` : "";
+    partes.push(`${cod}${data.errorMessage.trim()}`);
+  }
+
+  if (Array.isArray(data.errors) && data.errors.length) {
+    partes.push(
+      ...data.errors
+        .map((x) => {
+          const cod = x?.Codigo ?? x?.codigo ?? x?.code;
+          const txt =
+            x?.Descricao ||
+            x?.descricao ||
+            x?.Complemento ||
+            x?.message ||
+            x?.mensagem;
+          if (cod != null && txt) return `[${cod}] ${txt}`;
+          return txt || (cod != null ? String(cod) : null);
+        })
+        .filter(Boolean),
+    );
+  }
 
   const auth = data.autorizacao;
   if (auth && typeof auth === "object") {
@@ -157,14 +202,14 @@ export function resumoMensagensApi(data) {
   return unicos.length ? unicos.join(" · ") : null;
 }
 
-/** Motivo legível quando status = rejeitado/negado na Nuvem ou SEFAZ. */
+/** Motivo legível quando status = rejeitado/error. */
 export function extrairDetalheRejeicaoNuvem(data) {
   const msg = resumoMensagensApi(data);
   if (msg) return msg;
 
   const bruto = extrairStatusBrutoNuvem(data);
-  if (bruto && /rejeit|negad|deneg|erro|falha/i.test(String(bruto))) {
-    return `Status na Nuvem: ${bruto}`;
+  if (bruto && /rejeit|negad|deneg|erro|falha|error/i.test(String(bruto))) {
+    return `Status na ${PROVEDOR_FISCAL_LABEL}: ${bruto}`;
   }
   return null;
 }
@@ -177,24 +222,38 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
   const hora = new Date().toLocaleString("pt-BR");
   let mensagem = mensagemPadraoPorStatus(status, msgApi || detalheRejeicao, modelo);
   if (statusBruto) {
-    mensagem += ` (Nuvem: ${statusBruto} — consulta ${hora})`;
+    mensagem += ` (${PROVEDOR_FISCAL_LABEL}: ${statusBruto} — consulta ${hora})`;
   } else if (status === "processamento") {
-    mensagem += ` (consulta ${hora}: sem status final na Nuvem ainda)`;
+    mensagem += ` (consulta ${hora}: sem status final na ${PROVEDOR_FISCAL_LABEL} ainda)`;
   }
+
+  const emitted =
+    data?.issuedAt ||
+    data?.emittedAt ||
+    data?.data_emissao ||
+    null;
+
   const tributos = extrairTributosDeRespostaNuvem(data, valorTotalOs);
   return {
     status,
     statusBruto,
-    idProvedor: data?.id || null,
-    numeroNf: data?.numero ?? data?.nNFSe ?? data?.nfse?.numero ?? null,
+    idProvedor: data?.invoiceId || data?.id || null,
+    numeroNf:
+      data?.numero ??
+      data?.numeroNfe ??
+      data?.nNFSe ??
+      data?.nfse?.numero ??
+      null,
     linkPdf:
+      data?.pdfUrl ??
       data?.link_url ??
       data?.url ??
       data?.link_pdf ??
       data?.link_danfe ??
       null,
-    dataEmissao: data?.data_emissao ? new Date(data.data_emissao) : null,
+    dataEmissao: emitted ? new Date(emitted) : null,
     chaveAcesso:
+      data?.chNFSe ??
       data?.DPS?.chave ??
       data?.chave ??
       data?.chave_acesso ??

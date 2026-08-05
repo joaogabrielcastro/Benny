@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import {
   getNuvemFiscalConfig,
   isNuvemFiscalConfigured,
@@ -6,78 +6,15 @@ import {
 import logger from "../config/logger.js";
 import { isNuvemFilaProcessamento } from "./notasFiscais/nuvemNotaNaoEncontrada.js";
 
-let cachedAccessToken = null;
-let cachedAccessTokenExpiresAt = 0;
+const MSG_NFE_NAO_INTEGRADA =
+  "NF-e via Notaas ainda não está integrada neste servidor. Use NFS-e.";
 
-function clearTokenCache() {
-  cachedAccessToken = null;
-  cachedAccessTokenExpiresAt = 0;
-}
-
-/**
- * Obtém access_token OAuth2 (client_credentials) para a API Nuvem Fiscal.
- * @returns {Promise<string>}
- */
-export async function obterAccessToken() {
-  if (!isNuvemFiscalConfigured()) {
-    throw new Error(
-      "Nuvem Fiscal: configure NUVEM_FISCAL_CLIENT_ID, NUVEM_FISCAL_CLIENT_SECRET e NUVEM_FISCAL_CNPJ_EMITENTE",
-    );
-  }
-
-  const now = Date.now();
-  if (cachedAccessToken && now < cachedAccessTokenExpiresAt - 30_000) {
-    return cachedAccessToken;
-  }
-
-  const cfg = getNuvemFiscalConfig();
-  /** Formato recomendado na doc: client_id e client_secret no corpo (evita falhas de parse do Basic). */
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: cfg.clientId,
-    client_secret: cfg.clientSecret,
-    scope: cfg.scope,
-  }).toString();
-
-  try {
-    const { data } = await axios.post(cfg.authUrl, body, {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      timeout: 25_000,
-    });
-
-    const token = data?.access_token;
-    const expiresIn = Number(data?.expires_in || 3600);
-    if (!token) {
-      clearTokenCache();
-      throw new Error("Nuvem Fiscal: resposta de token sem access_token");
-    }
-    cachedAccessToken = token;
-    cachedAccessTokenExpiresAt = Date.now() + expiresIn * 1000;
-    return token;
-  } catch (err) {
-    clearTokenCache();
-    const detail = err.response?.data || err.message;
-    logger.error("Nuvem Fiscal: falha ao obter token OAuth", detail);
-    throw new Error(
-      typeof detail === "string"
-        ? detail
-        : `Nuvem Fiscal: falha na autenticação (${err.response?.status || "sem status"})`,
-    );
-  }
-}
-
-export async function testarConexao() {
-  if (!isNuvemFiscalConfigured()) {
-    return { ok: false, motivo: "variáveis de ambiente incompletas" };
-  }
-  try {
-    await obterAccessToken();
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, motivo: e.message || "falha na autenticação" };
-  }
+function apiHeaders(apiKey) {
+  return {
+    "x-api-key": apiKey,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
 }
 
 function formatarErroApi(err) {
@@ -87,55 +24,60 @@ function formatarErroApi(err) {
     const buf = Buffer.from(data);
     try {
       const parsed = JSON.parse(buf.toString("utf8"));
-      const fakeErr = { response: { status, data: parsed } };
-      return formatarErroApi(fakeErr);
+      return formatarErroApi({ response: { status, data: parsed } });
     } catch {
       const snippet = buf.toString("utf8", 0, 200).trim();
-      if (snippet) return `Nuvem Fiscal HTTP ${status || "?"}: ${snippet}`;
+      if (snippet) return `Notaas HTTP ${status || "?"}: ${snippet}`;
     }
   }
   if (data && typeof data === "object" && !(data instanceof ArrayBuffer)) {
-    const msgs = data.mensagens || data.message || data.error;
-    const texto = Array.isArray(msgs)
-      ? msgs.map((m) => m.descricao || m.message || JSON.stringify(m)).join("; ")
-      : JSON.stringify(data);
-    return `Nuvem Fiscal HTTP ${status || "?"}: ${texto}`;
+    const msgs =
+      data.errorMessage ||
+      data.message ||
+      data.error ||
+      data.errors ||
+      data.mensagens;
+    let texto;
+    if (Array.isArray(msgs)) {
+      texto = msgs
+        .map(
+          (m) =>
+            m.Descricao ||
+            m.descricao ||
+            m.message ||
+            m.errorMessage ||
+            JSON.stringify(m),
+        )
+        .join("; ");
+    } else if (typeof msgs === "object" && msgs !== null) {
+      texto = msgs.message || msgs.errorMessage || JSON.stringify(msgs);
+    } else {
+      texto = typeof msgs === "string" ? msgs : JSON.stringify(data);
+    }
+    return `Notaas HTTP ${status || "?"}: ${texto}`;
   }
-  return err.message || "Erro desconhecido na Nuvem Fiscal";
+  return err.message || "Erro desconhecido na Notaas";
 }
 
 /**
- * Emite NFS-e via POST /nfse/dps.
- * @param {object} body — corpo NfseDpsPedidoEmissao (provedor, ambiente, referencia, infDPS)
- * @returns {Promise<{ ok: true, data: object, statusCode: number } | { ok: false, mensagem: string, statusCode?: number, detalhe?: unknown }>}
+ * Requisição JSON autenticada à Notaas.
+ * @returns {Promise<{ ok: true, data: object, statusCode: number } | { ok: false, mensagem: string, statusCode?: number, detalhe?: unknown, authError?: boolean }>}
  */
-async function requestNuvemFiscal(method, path, body) {
+async function requestNotaas(method, path, body) {
   if (!isNuvemFiscalConfigured()) {
-    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+    return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
   }
-  let token;
+  const cfg = getNuvemFiscalConfig();
+  const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
+  const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
   try {
-    token = await obterAccessToken();
-  } catch (e) {
-    return {
-      ok: false,
-      mensagem: e.message || "Falha de autenticação OAuth",
-      authError: true,
-    };
-  }
-  try {
-    const cfg = getNuvemFiscalConfig();
-    const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
-    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
     const { data, status } = await axios({
       method,
       url,
       data: body,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: apiHeaders(cfg.apiKey),
       timeout: 120_000,
+      validateStatus: (s) => s >= 200 && s < 300,
     });
     return { ok: true, data, statusCode: status };
   } catch (err) {
@@ -144,15 +86,14 @@ async function requestNuvemFiscal(method, path, body) {
       mensagem: formatarErroApi(err),
       statusCode: err.response?.status,
       detalhe: err.response?.data,
-      authError: err.response?.status === 401,
+      authError:
+        err.response?.status === 401 || err.response?.status === 403,
     };
     if (isNuvemFilaProcessamento(result)) {
-      logger.debug(
-        `Nuvem Fiscal: ${method} ${path} — nota na fila de processamento`,
-      );
+      logger.debug(`Notaas: ${method} ${path} — nota em processamento`);
     } else {
       logger.error(
-        `Nuvem Fiscal: ${method} ${path} falhou`,
+        `Notaas: ${method} ${path} falhou`,
         err.response?.data || err.message,
       );
     }
@@ -160,30 +101,20 @@ async function requestNuvemFiscal(method, path, body) {
   }
 }
 
-/** GET binário (PDF) — segue redirects 302/307 da Nuvem Fiscal */
-async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
+/** GET binário (PDF) — segue redirects 302/307 */
+async function requestNotaasBinary(path, redirectUrl = null, hops = 0) {
   if (!isNuvemFiscalConfigured()) {
-    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+    return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
   }
   if (hops > 6) {
-    return { ok: false, mensagem: "Muitos redirects ao baixar PDF na Nuvem Fiscal." };
+    return { ok: false, mensagem: "Muitos redirects ao baixar PDF na Notaas." };
   }
-  let token;
+  const cfg = getNuvemFiscalConfig();
+  const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
+  const url =
+    redirectUrl ||
+    `${base}${path.startsWith("/") ? path : `/${path}`}`;
   try {
-    token = await obterAccessToken();
-  } catch (e) {
-    return {
-      ok: false,
-      mensagem: e.message || "Falha de autenticação OAuth",
-      authError: true,
-    };
-  }
-  try {
-    const cfg = getNuvemFiscalConfig();
-    const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
-    const url =
-      redirectUrl ||
-      `${base}${path.startsWith("/") ? path : `/${path}`}`;
     const response = await axios({
       method: "GET",
       url,
@@ -191,7 +122,7 @@ async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
       maxRedirects: 0,
       validateStatus: (s) => s === 200 || s === 302 || s === 307,
       headers: {
-        Authorization: `Bearer ${token}`,
+        "x-api-key": cfg.apiKey,
         Accept: "application/pdf",
       },
       timeout: 120_000,
@@ -203,14 +134,14 @@ async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
       if (!loc) {
         return {
           ok: false,
-          mensagem: `Nuvem Fiscal redirecionou (${response.status}) sem URL do PDF.`,
+          mensagem: `Notaas redirecionou (${response.status}) sem URL do PDF.`,
         };
       }
       const next =
         loc.startsWith("http://") || loc.startsWith("https://")
           ? loc
           : `${base}${loc.startsWith("/") ? loc : `/${loc}`}`;
-      return requestNuvemFiscalBinary(path, next, hops + 1);
+      return requestNotaasBinary(path, next, hops + 1);
     }
 
     const buffer = Buffer.from(response.data);
@@ -221,10 +152,9 @@ async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
       });
       return {
         ok: false,
-        mensagem:
-          msg.includes("Nuvem Fiscal")
-            ? msg
-            : "Nuvem Fiscal não retornou PDF válido. A nota pode estar rejeitada ou em processamento.",
+        mensagem: msg.includes("Notaas")
+          ? msg
+          : "Notaas não retornou PDF válido. A nota pode estar rejeitada ou em processamento.",
       };
     }
     return {
@@ -234,7 +164,7 @@ async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
     };
   } catch (err) {
     logger.error(
-      `Nuvem Fiscal: GET ${path} (pdf) falhou`,
+      `Notaas: GET ${path} (pdf) falhou`,
       err.response?.status,
       err.response?.data
         ? Buffer.from(err.response.data).toString("utf8", 0, 300)
@@ -244,87 +174,118 @@ async function requestNuvemFiscalBinary(path, redirectUrl = null, hops = 0) {
       ok: false,
       mensagem: formatarErroApi(err),
       statusCode: err.response?.status,
-      authError: err.response?.status === 401,
+      authError:
+        err.response?.status === 401 || err.response?.status === 403,
     };
   }
 }
 
+/**
+ * Valida a API Key sem emitir nota.
+ * Key válida → tipicamente 404 no invoice fictício; inválida → 401/403.
+ */
+export async function testarConexao() {
+  if (!isNuvemFiscalConfigured()) {
+    return { ok: false, motivo: "NOTAAS_API_KEY ausente ou inválida (prefixo ntaas_)" };
+  }
+  const cfg = getNuvemFiscalConfig();
+  const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
+  try {
+    const { status } = await axios.get(
+      `${base}/invoices/inv_benny_auth_ping/status`,
+      {
+        headers: { "x-api-key": cfg.apiKey, Accept: "application/json" },
+        timeout: 25_000,
+        validateStatus: () => true,
+      },
+    );
+    if (status === 401 || status === 403) {
+      return {
+        ok: false,
+        motivo: `API Key rejeitada (HTTP ${status}). Verifique NOTAAS_API_KEY no Dashboard → API Keys.`,
+      };
+    }
+    return { ok: true, httpStatus: status };
+  } catch (e) {
+    return { ok: false, motivo: e.message || "falha ao contactar Notaas" };
+  }
+}
+
+/** Compat: callers antigos esperavam OAuth — Notaas usa API Key. */
+export async function obterAccessToken() {
+  if (!isNuvemFiscalConfigured()) {
+    throw new Error(
+      "Notaas: configure NOTAAS_API_KEY (prefixo ntaas_) no servidor",
+    );
+  }
+  return getNuvemFiscalConfig().apiKey;
+}
+
 export async function baixarPdfNfse(idProvedor) {
   const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscalBinary(`/nfse/${encodeURIComponent(id)}/pdf`);
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
+  return requestNotaasBinary(`/invoices/${encodeURIComponent(id)}/pdf`);
 }
 
-export async function baixarPdfNfe(idProvedor) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscalBinary(`/nfe/${encodeURIComponent(id)}/pdf`);
+export async function baixarPdfNfe() {
+  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
 }
 
-/** GET /nfse/{id} — consulta status da NFS-e na Nuvem Fiscal */
+/** GET /invoices/{id}/status */
 export async function consultarNfse(idProvedor) {
   const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscal("GET", `/nfse/${encodeURIComponent(id)}`);
-}
-
-/** POST /nfse/{id}/sincronizar — força sincronização com a prefeitura/ADN */
-export async function sincronizarNfseNaPrefeitura(idProvedor) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscal(
-    "POST",
-    `/nfse/${encodeURIComponent(id)}/sincronizar`,
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
+  const res = await requestNotaas(
+    "GET",
+    `/invoices/${encodeURIComponent(id)}/status`,
   );
+  if (res.ok && res.data && typeof res.data === "object") {
+    // Garante invoiceId no objeto para o parser gravar id_provedor
+    if (!res.data.invoiceId) res.data.invoiceId = id;
+  }
+  return res;
 }
 
+/** Notaas não tem sync SEFAZ separado — consulta o status. */
+export async function sincronizarNfseNaPrefeitura(idProvedor) {
+  return consultarNfse(idProvedor);
+}
+
+/**
+ * Emite NFS-e via POST /emitir (nome legado emitirNfseDps).
+ * Body no formato Notaas (tomador/servico/valores).
+ */
 export async function emitirNfseDps(body) {
   if (!isNuvemFiscalConfigured()) {
-    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
+    return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
   }
-  return requestNuvemFiscal("POST", "/nfse/dps", body);
+  return requestNotaas("POST", "/emitir", body);
 }
 
-export async function consultarNfe(idProvedor) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscal("GET", `/nfe/${encodeURIComponent(id)}`);
+export async function consultarNfe() {
+  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
 }
 
-export async function sincronizarNfeNaSefaz(idProvedor) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscal(
-    "POST",
-    `/nfe/${encodeURIComponent(id)}/sincronizar`,
-  );
+export async function sincronizarNfeNaSefaz() {
+  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
 }
 
-export async function emitirNfe(body) {
-  if (!isNuvemFiscalConfigured()) {
-    return { ok: false, mensagem: "Nuvem Fiscal não configurada" };
-  }
-  return requestNuvemFiscal("POST", "/nfe", body);
+export async function emitirNfe() {
+  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
 }
 
-/** POST /nfse/{id}/cancelamento */
+/** POST /cancelar { invoiceId, motivo } */
 export async function cancelarNfse(idProvedor, body = {}) {
   const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NFS-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscal(
-    "POST",
-    `/nfse/${encodeURIComponent(id)}/cancelamento`,
-    body,
-  );
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
+  return requestNotaas("POST", "/cancelar", {
+    invoiceId: id,
+    motivo: String(body.motivo || body.justificativa || "")
+      .trim()
+      .slice(0, 255),
+  });
 }
 
-/** POST /nfe/{id}/cancelamento */
-export async function cancelarNfe(idProvedor, body = {}) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Nuvem Fiscal ausente" };
-  return requestNuvemFiscal(
-    "POST",
-    `/nfe/${encodeURIComponent(id)}/cancelamento`,
-    body,
-  );
+export async function cancelarNfe() {
+  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
 }

@@ -1,4 +1,4 @@
-import {
+﻿import {
   isNuvemFiscalConfigured,
   isNfeEmissaoHabilitada,
   mensagemNfeDesabilitada,
@@ -43,12 +43,12 @@ export const cancelar = async (
 
   if (!nf.id_provedor) {
     return {
-      erro: "Nota sem vínculo na Nuvem Fiscal. Não é possível cancelar.",
+      erro: "Nota sem vínculo na Notaas. Não é possível cancelar.",
     };
   }
 
   if (!isNuvemFiscalConfigured()) {
-    return { erro: "Nuvem Fiscal não configurada no servidor." };
+    return { erro: "Notaas não configurada no servidor (NOTAAS_API_KEY)." };
   }
 
   const modelo = nf.modelo_documento === "NFE" ? "NFE" : "NFSE";
@@ -72,7 +72,7 @@ export const cancelar = async (
   const api = await cancelarFn(nf.id_provedor, body);
   if (!api.ok) {
     return {
-      erro: api.mensagem || `Falha ao cancelar ${label} na Nuvem Fiscal`,
+      erro: api.mensagem || `Falha ao cancelar ${label} na Notaas`,
     };
   }
 
@@ -82,7 +82,7 @@ export const cancelar = async (
     campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
     if (campos.status !== "cancelada") {
       campos.status = "cancelada";
-      campos.mensagem = `${label} cancelada na Nuvem Fiscal.`;
+      campos.mensagem = `${label} cancelada na Notaas.`;
     }
   } else {
     campos = {
@@ -92,7 +92,7 @@ export const cancelar = async (
       linkPdf: nf.link_pdf,
       chaveAcesso: nf.chave_acesso,
       dataEmissao: nf.data_emissao,
-      mensagem: `${label} cancelada na Nuvem Fiscal.`,
+      mensagem: `${label} cancelada na Notaas.`,
       dadosResposta: api.data || {},
       tributos: nf.tributos,
     };
