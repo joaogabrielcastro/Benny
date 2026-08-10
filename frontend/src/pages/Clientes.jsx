@@ -94,15 +94,20 @@ export default function Clientes() {
 
   const excluirCliente = async (cliente) => {
     const confirmado = await confirm({
-      title: "Excluir cliente",
-      message: `Deseja realmente excluir “${cliente.nome}”?\n\nEsta ação não pode ser desfeita.`,
-      confirmLabel: "Excluir",
+      title: "Excluir cliente e vínculos",
+      message:
+        `Deseja excluir “${cliente.nome}” e TODO o histórico vinculado?\n\n` +
+        `Serão removidos também: veículos, orçamentos, ordens de serviço, ` +
+        `agendamentos e registros de notas fiscais no sistema.\n\n` +
+        `Atenção: isso não cancela NFS-e/NF-e já autorizadas na prefeitura/SEFAZ.\n\n` +
+        `Esta ação não pode ser desfeita.`,
+      confirmLabel: "Excluir tudo",
     });
     if (!confirmado) return;
 
     try {
-      await api.delete(`/clientes/${cliente.id}`);
-      toast.success("Cliente excluído com sucesso");
+      const { data } = await api.delete(`/clientes/${cliente.id}`);
+      toast.success(data?.message || "Cliente excluído com sucesso");
 
       if (clientes.length === 1 && currentPage > 1) {
         setCurrentPage((page) => page - 1);

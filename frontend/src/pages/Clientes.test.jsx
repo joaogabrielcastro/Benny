@@ -128,9 +128,11 @@ describe("Clientes - exclusão", () => {
     api.get.mockResolvedValue(respostaPaginada([JOAO, LEANDRO]));
   });
 
-  it("só exclui o cliente após confirmação", async () => {
+  it("só exclui o cliente após confirmação explícita da cascata", async () => {
     const user = userEvent.setup();
-    api.delete.mockResolvedValue({ data: {} });
+    api.delete.mockResolvedValue({
+      data: { message: "Cliente e vínculos excluídos com sucesso" },
+    });
     render(
       <MemoryRouter>
         <Clientes />
@@ -140,30 +142,24 @@ describe("Clientes - exclusão", () => {
     await screen.findByText("João da Silva");
     await user.click(screen.getAllByRole("button", { name: "Excluir" })[0]);
 
-    expect(screen.getByText(/Deseja realmente excluir “João da Silva”/i))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText(/TODO o histórico vinculado/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/não cancela NFS-e\/NF-e/i)).toBeInTheDocument();
     expect(api.delete).not.toHaveBeenCalled();
 
-    const botoesExcluir = screen.getAllByRole("button", { name: "Excluir" });
-    await user.click(botoesExcluir[botoesExcluir.length - 1]);
+    await user.click(screen.getByRole("button", { name: "Excluir tudo" }));
 
     await waitFor(() => {
       expect(api.delete).toHaveBeenCalledWith("/clientes/1");
     });
     expect(toast.success).toHaveBeenCalledWith(
-      "Cliente excluído com sucesso",
+      "Cliente e vínculos excluídos com sucesso",
     );
   });
 
-  it("mostra a mensagem do backend quando o cliente possui vínculos", async () => {
+  it("cancela a exclusão sem chamar a API", async () => {
     const user = userEvent.setup();
-    api.delete.mockRejectedValue({
-      response: {
-        data: {
-          error: "Este cliente possui ordens de serviço vinculadas.",
-        },
-      },
-    });
     render(
       <MemoryRouter>
         <Clientes />
@@ -172,13 +168,8 @@ describe("Clientes - exclusão", () => {
 
     await screen.findByText("João da Silva");
     await user.click(screen.getAllByRole("button", { name: "Excluir" })[0]);
-    const botoesExcluir = screen.getAllByRole("button", { name: "Excluir" });
-    await user.click(botoesExcluir[botoesExcluir.length - 1]);
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        "Este cliente possui ordens de serviço vinculadas.",
-      );
-    });
+    expect(api.delete).not.toHaveBeenCalled();
   });
 });

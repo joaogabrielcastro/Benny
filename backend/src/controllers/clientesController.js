@@ -50,7 +50,10 @@ class ClientesController {
       req.params.id,
     );
     if (!cliente) throw notFound("Cliente não encontrado");
-    res.json({ message: "Cliente excluído com sucesso" });
+    res.json({
+      message: "Cliente e vínculos excluídos com sucesso",
+      removidos: cliente.removidos,
+    });
   }
 }
 

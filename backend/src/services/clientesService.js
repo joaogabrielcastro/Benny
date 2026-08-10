@@ -149,21 +149,150 @@ const atualizar = async (
   );
 };
 
+async function reverterMovimentacoesEstoque(client, { osId, orcamentoId }) {
+  const filtro = osId
+    ? { sql: "os_id = $1", id: osId }
+    : { sql: "orcamento_id = $1", id: orcamentoId };
+
+  const { rows } = await client.query(
+    `SELECT produto_id, tipo, quantidade FROM movimentacoes_estoque WHERE ${filtro.sql}`,
+    [filtro.id],
+  );
+
+  for (const m of rows) {
+    if (m.tipo === "SAIDA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    } else if (m.tipo === "ENTRADA") {
+      await client.query(
+        "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
+        [m.quantidade, m.produto_id],
+      );
+    }
+  }
+
+  await client.query(
+    `DELETE FROM movimentacoes_estoque WHERE ${filtro.sql}`,
+    [filtro.id],
+  );
+}
+
+/**
+ * Remove o cliente e todo o histórico vinculado (OS, orçamentos, veículos,
+ * agendamentos, lembretes e registros locais de NF), revertendo estoque.
+ * Não cancela NFS-e/NF-e na prefeitura/SEFAZ — só apaga o vínculo no Benny.
+ */
 const deletar = async (tenantId = SINGLE_TENANT_ID, id) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      "DELETE FROM clientes WHERE id = $1 AND tenant_id = $2 RETURNING id",
+    await client.query("BEGIN");
+
+    const cliente = await client.query(
+      "SELECT id, nome FROM clientes WHERE id = $1 AND tenant_id = $2 FOR UPDATE",
       [id, tenantId],
     );
-    return result.rows[0] || null;
+    if (!cliente.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const osRows = await client.query(
+      "SELECT id FROM ordens_servico WHERE cliente_id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    const orcRows = await client.query(
+      "SELECT id FROM orcamentos WHERE cliente_id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    const agRows = await client.query(
+      "SELECT id FROM agendamentos WHERE cliente_id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    const veicRows = await client.query(
+      "SELECT id FROM veiculos WHERE cliente_id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+    const nfCount = await client.query(
+      `SELECT COUNT(*)::int AS total
+       FROM notas_fiscais nf
+       JOIN ordens_servico os ON os.id = nf.ordem_servico_id
+       WHERE os.cliente_id = $1 AND os.tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    for (const os of osRows.rows) {
+      await reverterMovimentacoesEstoque(client, { osId: os.id });
+      // Quebra ciclo OS ↔ notas_fiscais antes do DELETE
+      await client.query(
+        "UPDATE ordens_servico SET nf_id = NULL, nf_nfe_id = NULL WHERE id = $1",
+        [os.id],
+      );
+      await client.query(
+        "DELETE FROM notas_fiscais WHERE ordem_servico_id = $1 AND tenant_id = $2",
+        [os.id, tenantId],
+      );
+      await client.query(
+        "DELETE FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
+        [os.id, tenantId],
+      );
+    }
+
+    for (const orc of orcRows.rows) {
+      await reverterMovimentacoesEstoque(client, { orcamentoId: orc.id });
+      await client.query(
+        "DELETE FROM orcamentos WHERE id = $1 AND tenant_id = $2",
+        [orc.id, tenantId],
+      );
+    }
+
+    if (agRows.rows.length > 0) {
+      const agIds = agRows.rows.map((a) => a.id);
+      await client.query(
+        `DELETE FROM lembretes
+         WHERE tipo = 'agendamento' AND referencia_id = ANY($1::int[])`,
+        [agIds],
+      );
+      await client.query(
+        "DELETE FROM agendamentos WHERE cliente_id = $1 AND tenant_id = $2",
+        [id, tenantId],
+      );
+    }
+
+    await client.query(
+      "DELETE FROM veiculos WHERE cliente_id = $1 AND tenant_id = $2",
+      [id, tenantId],
+    );
+
+    const result = await client.query(
+      "DELETE FROM clientes WHERE id = $1 AND tenant_id = $2 RETURNING id, nome",
+      [id, tenantId],
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      ...result.rows[0],
+      removidos: {
+        ordens_servico: osRows.rows.length,
+        orcamentos: orcRows.rows.length,
+        agendamentos: agRows.rows.length,
+        veiculos: veicRows.rows.length,
+        notas_fiscais: nfCount.rows[0]?.total ?? 0,
+      },
+    };
   } catch (error) {
+    await client.query("ROLLBACK");
     if (error.code === "23503") {
       throw new AppError(
         409,
-        "Este cliente possui veículos, orçamentos, ordens de serviço ou agendamentos vinculados e não pode ser excluído.",
+        "Não foi possível excluir o cliente porque ainda há vínculos no sistema.",
       );
     }
     throw error;
+  } finally {
+    client.release();
   }
 };
 
