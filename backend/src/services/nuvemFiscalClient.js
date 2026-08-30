@@ -101,8 +101,13 @@ async function requestNotaas(method, path, body) {
   }
 }
 
-/** GET binário (PDF) — segue redirects 302/307 */
-async function requestNotaasBinary(path, redirectUrl = null, hops = 0) {
+/** GET binário (PDF/XML) — segue redirects 302/307 */
+async function requestNotaasBinary(
+  path,
+  redirectUrl = null,
+  hops = 0,
+  { accept = "application/pdf", kind = "pdf" } = {},
+) {
   if (!isNuvemFiscalConfigured()) {
     return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
   }
@@ -123,7 +128,7 @@ async function requestNotaasBinary(path, redirectUrl = null, hops = 0) {
       validateStatus: (s) => s === 200 || s === 302 || s === 307,
       headers: {
         "x-api-key": cfg.apiKey,
-        Accept: "application/pdf",
+        Accept: accept,
       },
       timeout: 120_000,
       decompress: true,
@@ -141,12 +146,31 @@ async function requestNotaasBinary(path, redirectUrl = null, hops = 0) {
         loc.startsWith("http://") || loc.startsWith("https://")
           ? loc
           : `${base}${loc.startsWith("/") ? loc : `/${loc}`}`;
-      return requestNotaasBinary(path, next, hops + 1);
+      return requestNotaasBinary(path, next, hops + 1, { accept, kind });
     }
 
     const buffer = Buffer.from(response.data);
-    const head = buffer.subarray(0, 4).toString("utf8");
-    if (head !== "%PDF") {
+    const head = buffer.subarray(0, 5).toString("utf8");
+    if (kind === "xml") {
+      if (!head.startsWith("<?xml") && !head.startsWith("<")) {
+        const msg = formatarErroApi({
+          response: { status: response.status, data: buffer },
+        });
+        return {
+          ok: false,
+          mensagem: msg.includes("Notaas")
+            ? msg
+            : "Notaas não retornou XML válido para esta nota.",
+        };
+      }
+      return {
+        ok: true,
+        buffer,
+        contentType: response.headers["content-type"] || "application/xml",
+      };
+    }
+
+    if (head.slice(0, 4) !== "%PDF") {
       const msg = formatarErroApi({
         response: { status: response.status, data: buffer },
       });
@@ -225,6 +249,18 @@ export async function baixarPdfNfse(idProvedor) {
   const id = String(idProvedor || "").trim();
   if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
   return requestNotaasBinary(`/invoices/${encodeURIComponent(id)}/pdf`);
+}
+
+export async function baixarXmlNfse(idProvedor, tipo = "emission") {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
+  const query = tipo === "cancel" ? "?type=cancel" : "";
+  return requestNotaasBinary(
+    `/invoices/${encodeURIComponent(id)}/xml${query}`,
+    null,
+    0,
+    { accept: "application/xml", kind: "xml" },
+  );
 }
 
 export async function baixarPdfNfe() {

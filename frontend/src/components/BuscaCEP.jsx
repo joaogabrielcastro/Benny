@@ -38,8 +38,13 @@ export default function BuscaCEP({
         onEnderecoEncontrado(response.data);
       }
     } catch (error) {
-      console.error("Erro ao buscar CEP:", error);
-      toast.error(error.response?.data?.error || "Erro ao buscar CEP");
+      const status = error.response?.status;
+      const msg =
+        error.response?.data?.error ||
+        (status === 404
+          ? "CEP não encontrado. Confira os dígitos ou preencha o endereço manualmente."
+          : "Erro ao buscar CEP");
+      toast.error(msg);
     } finally {
       setBuscando(false);
     }

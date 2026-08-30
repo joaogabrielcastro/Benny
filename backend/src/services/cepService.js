@@ -1,57 +1,100 @@
 import axios from "axios";
+import { AppError, badRequest, notFound } from "../lib/AppError.js";
+
+function onlyDigits(cep) {
+  return String(cep || "").replace(/\D/g, "");
+}
+
+function mapViaCep(data) {
+  return {
+    cep: data.cep,
+    logradouro: data.logradouro || "",
+    complemento: data.complemento || "",
+    bairro: data.bairro || "",
+    cidade: data.localidade || "",
+    estado: data.uf || "",
+    ibge: data.ibge || "",
+    gia: data.gia || "",
+    ddd: data.ddd || "",
+    siafi: data.siafi || "",
+  };
+}
+
+function mapBrasilApi(data) {
+  return {
+    cep: data.cep,
+    logradouro: data.street || "",
+    complemento: "",
+    bairro: data.neighborhood || "",
+    cidade: data.city || "",
+    estado: data.state || "",
+    ibge: data.location?.ibge?.code || data.city_ibge || "",
+    gia: "",
+    ddd: "",
+    siafi: "",
+  };
+}
+
+async function consultarViaCep(cepLimpo) {
+  const response = await axios.get(
+    `https://viacep.com.br/ws/${cepLimpo}/json/`,
+    { timeout: 5000 },
+  );
+  if (response.data?.erro) return null;
+  return mapViaCep(response.data);
+}
+
+async function consultarBrasilApi(cepLimpo) {
+  try {
+    const response = await axios.get(
+      `https://brasilapi.com.br/api/cep/v2/${cepLimpo}`,
+      { timeout: 5000 },
+    );
+    if (!response.data?.cep) return null;
+    return mapBrasilApi(response.data);
+  } catch (error) {
+    if (error.response?.status === 404) return null;
+    throw error;
+  }
+}
 
 class CepService {
   /**
-   * Busca informações de endereço pelo CEP
-   * @param {string} cep - CEP a ser consultado (com ou sem máscara)
-   * @returns {Promise<Object>} Dados do endereço
+   * Busca endereço pelo CEP (ViaCEP, com fallback BrasilAPI).
+   * @param {string} cep
+   * @returns {Promise<Object>}
    */
   async buscarEnderecoPorCep(cep) {
+    const cepLimpo = onlyDigits(cep);
+    if (cepLimpo.length !== 8) {
+      throw badRequest("CEP inválido. Deve conter 8 dígitos.");
+    }
+
     try {
-      // Remove caracteres não numéricos
-      const cepLimpo = cep.replace(/\D/g, "");
+      const viaCep = await consultarViaCep(cepLimpo);
+      if (viaCep) return viaCep;
 
-      // Valida formato do CEP
-      if (cepLimpo.length !== 8) {
-        throw new Error("CEP inválido. Deve conter 8 dígitos.");
-      }
+      const brasilApi = await consultarBrasilApi(cepLimpo);
+      if (brasilApi) return brasilApi;
 
-      // Consulta API ViaCEP
-      const response = await axios.get(
-        `https://viacep.com.br/ws/${cepLimpo}/json/`,
-        {
-          timeout: 5000, // 5 segundos de timeout
-        }
-      );
-
-      // Verifica se o CEP foi encontrado
-      if (response.data.erro) {
-        throw new Error("CEP não encontrado.");
-      }
-
-      // Retorna dados formatados
-      return {
-        cep: response.data.cep,
-        logradouro: response.data.logradouro,
-        complemento: response.data.complemento,
-        bairro: response.data.bairro,
-        cidade: response.data.localidade,
-        estado: response.data.uf,
-        ibge: response.data.ibge,
-        gia: response.data.gia,
-        ddd: response.data.ddd,
-        siafi: response.data.siafi,
-      };
+      throw notFound("CEP não encontrado. Confira os dígitos ou preencha o endereço manualmente.");
     } catch (error) {
+      if (error instanceof AppError) throw error;
+
       if (error.response?.status === 400) {
-        throw new Error("CEP inválido ou mal formatado.");
+        throw badRequest("CEP inválido ou mal formatado.");
       }
-
       if (error.code === "ECONNABORTED") {
-        throw new Error("Timeout ao consultar o CEP. Tente novamente.");
+        throw new AppError(
+          504,
+          "Timeout ao consultar o CEP. Tente novamente ou preencha o endereço manualmente.",
+        );
       }
 
-      throw new Error(error.message || "Erro ao buscar informações do CEP.");
+      throw new AppError(
+        502,
+        "Serviço de CEP indisponível no momento. Preencha o endereço manualmente.",
+      );
     }
   }
 }

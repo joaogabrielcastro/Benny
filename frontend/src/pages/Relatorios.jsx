@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import toast from "react-hot-toast";
 import PageHeader from "../components/layout/PageHeader";
 import LoadingSpinner from "../components/LoadingSpinner";
+import FechamentoMensal from "../features/relatorios/FechamentoMensal";
 import { useDashboardData } from "../hooks/queries/useDashboard";
 
 const DashboardCharts = lazy(
@@ -19,7 +20,7 @@ export default function Relatorios() {
     <div className="space-y-8 page-enter">
       <PageHeader
         title="Relatórios"
-        subtitle="Indicadores de faturamento, ordens de serviço e desempenho do estoque."
+        subtitle="Indicadores operacionais e fechamento fiscal mensal para o contador."
       />
 
       {isLoading ? (
@@ -29,6 +30,8 @@ export default function Relatorios() {
           <DashboardCharts relatorio={data?.relatorio} />
         </Suspense>
       )}
+
+      <FechamentoMensal />
     </div>
   );
 }

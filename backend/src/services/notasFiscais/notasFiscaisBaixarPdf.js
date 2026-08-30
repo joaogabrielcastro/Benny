@@ -26,7 +26,7 @@ export const baixarPdf = async (tenantId, nfId) => {
         erro: `Nota rejeitada na Notaas (${bruto || "sem detalhe"}). PDF não disponível — corrija e reemita.`,
       };
     }
-    if (interno !== "autorizada") {
+    if (interno !== "autorizada" && interno !== "cancelada") {
       return {
         erro: `Nota ainda não autorizada na Notaas (${bruto || interno}). Aguarde ou use Atualizar status.`,
       };
