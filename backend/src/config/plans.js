@@ -149,3 +149,113 @@ export function upgradeTargetForFeature(currentPlanId, featureKey) {
   }
   return "enterprise";
 }
+
+/** Matriz de comparação exibida na página de planos (accordion). */
+export function getPlanComparison() {
+  return [
+    {
+      id: "operacao",
+      titulo: "Organize sua operação comercial",
+      itens: [
+        {
+          label: "Ordens de serviço",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Orçamentos com aprovação do cliente",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Controle de estoque",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Cadastro de clientes e veículos",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Agenda de serviços",
+          valores: { basic: false, premium: true, enterprise: true },
+        },
+        {
+          label: "Contas a pagar",
+          valores: { basic: false, premium: true, enterprise: true },
+        },
+      ],
+    },
+    {
+      id: "relatorios",
+      titulo: "Relatórios e indicadores",
+      itens: [
+        {
+          label: "Dashboard com indicadores operacionais",
+          valores: { basic: false, premium: true, enterprise: true },
+        },
+        {
+          label: "Relatórios de vendas e faturamento",
+          valores: { basic: false, premium: true, enterprise: true },
+        },
+        {
+          label: "Fechamento mensal fiscal (.zip para contador)",
+          valores: { basic: false, premium: true, enterprise: true },
+        },
+        {
+          label: "Emissão de NFS-e",
+          valores: { basic: false, premium: false, enterprise: true },
+        },
+      ],
+    },
+    {
+      id: "equipe",
+      titulo: "Equipe e permissões",
+      itens: [
+        {
+          label: "Usuários na conta",
+          valores: { basic: "2", premium: "5", enterprise: "Ilimitado" },
+        },
+        {
+          label: "Orçamentos por mês",
+          valores: { basic: "50", premium: "200", enterprise: "Ilimitado" },
+        },
+        {
+          label: "Perfis admin e mecânico",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Gestão de usuários",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+      ],
+    },
+    {
+      id: "plataforma",
+      titulo: "Plataforma e suporte",
+      itens: [
+        {
+          label: "Acesso web (desktop e celular)",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Backup completo (.zip)",
+          valores: { basic: false, premium: false, enterprise: true },
+        },
+        {
+          label: "Suporte por e-mail",
+          valores: { basic: true, premium: true, enterprise: true },
+        },
+        {
+          label: "Suporte prioritário",
+          valores: { basic: false, premium: true, enterprise: true },
+        },
+        {
+          label: "Suporte dedicado via WhatsApp",
+          valores: { basic: false, premium: false, enterprise: true },
+        },
+        {
+          label: "Onboarding personalizado",
+          valores: { basic: false, premium: false, enterprise: true },
+        },
+      ],
+    },
+  ];
+}

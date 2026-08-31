@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getPlanById,
   getPlanCatalog,
+  getPlanComparison,
   getPlanFeatures,
   maxUsuariosForPlan,
   maxOrcamentosMesForPlan,
@@ -53,5 +54,16 @@ describe("plans catalog", () => {
     assert.equal(planHasFeature("enterprise", "nfse"), true);
     assert.equal(planHasFeature("enterprise", "backup"), true);
     assert.deepEqual(getPlanFeatures("basic").agenda, false);
+  });
+
+  it("matriz de comparação para a página de planos", () => {
+    const comparacao = getPlanComparison();
+    assert.ok(comparacao.length >= 4);
+    assert.equal(comparacao[0].titulo, "Organize sua operação comercial");
+    const nfs = comparacao
+      .flatMap((s) => s.itens)
+      .find((i) => i.label === "Emissão de NFS-e");
+    assert.equal(nfs?.valores.enterprise, true);
+    assert.equal(nfs?.valores.basic, false);
   });
 });

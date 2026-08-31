@@ -1,4 +1,5 @@
 import * as billingService from "../services/billingService.js";
+import { getPlanComparison } from "../config/plans.js";
 import { resolveTenantId } from "../config/singleTenant.js";
 import { AppError, forbidden } from "../lib/AppError.js";
 import { ROLES } from "../config/roles.js";
@@ -7,7 +8,7 @@ import { rethrowKnownErrors } from "../lib/controllerHelpers.js";
 class BillingController {
   async listPlans(_req, res) {
     const plans = await billingService.listPublicPlans();
-    res.json({ plans });
+    res.json({ plans, comparacao: getPlanComparison() });
   }
 
   async getSubscription(req, res) {
