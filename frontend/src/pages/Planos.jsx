@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import Logo from "../components/Logo";
+import ComparacaoPlanos from "../components/planos/ComparacaoPlanos";
 import { useAuth } from "../contexts/AuthContext";
 
 function rotuloUsuarios(max) {
@@ -28,6 +29,7 @@ export default function Planos() {
   const { isAuthenticated, isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const [plans, setPlans] = useState([]);
+  const [comparacao, setComparacao] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(emptySignup);
@@ -44,6 +46,7 @@ export default function Planos() {
       try {
         const { data } = await api.get("/billing/plans");
         setPlans(data.plans || []);
+        setComparacao(data.comparacao || []);
       } catch {
         toast.error("Não foi possível carregar os planos");
       } finally {
@@ -202,10 +205,13 @@ export default function Planos() {
         )}
 
         {!loading && plans.length > 0 && (
+          <ComparacaoPlanos comparacao={comparacao} />
+        )}
+
+        {!loading && plans.length > 0 && (
           <p className="mt-8 text-center text-xs text-slate-500 max-w-2xl mx-auto">
-            O plano Basic cobre o dia a dia da oficina. Ao fazer upgrade, você
-            libera agenda, financeiro, relatórios e — no Enterprise — emissão
-            fiscal e backup completo. Pagamento processado pela Stripe.
+            Pagamento processado com segurança pela Stripe. Você pode trocar de
+            plano a qualquer momento pela área de assinatura.
           </p>
         )}
 

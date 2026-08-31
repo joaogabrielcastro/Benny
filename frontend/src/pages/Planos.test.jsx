@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import Planos from "./Planos";
 
@@ -16,6 +17,33 @@ vi.mock("../contexts/AuthContext", () => ({
 }));
 
 import api from "../services/api";
+
+const COMPARACAO = [
+  {
+    id: "operacao",
+    titulo: "Organize sua operação comercial",
+    itens: [
+      {
+        label: "Ordens de serviço",
+        valores: { basic: true, premium: true, enterprise: true },
+      },
+      {
+        label: "Agenda de serviços",
+        valores: { basic: false, premium: true, enterprise: true },
+      },
+    ],
+  },
+  {
+    id: "relatorios",
+    titulo: "Relatórios e indicadores",
+    itens: [
+      {
+        label: "Emissão de NFS-e",
+        valores: { basic: false, premium: false, enterprise: true },
+      },
+    ],
+  },
+];
 
 const PLANS = [
   {
@@ -63,7 +91,7 @@ function cardDoPlano(nome) {
 describe("Planos", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.get.mockResolvedValue({ data: { plans: PLANS } });
+    api.get.mockResolvedValue({ data: { plans: PLANS, comparacao: COMPARACAO } });
   });
 
   async function renderPlanos() {
@@ -130,6 +158,35 @@ describe("Planos", () => {
     expect(screen.getAllByText("Mais popular")).toHaveLength(1);
     expect(
       within(cardDoPlano("Premium")).getByText("Mais popular"),
+    ).toBeVisible();
+  });
+
+  it("exibe a comparação detalhada em accordion", async () => {
+    const user = userEvent.setup();
+    await renderPlanos();
+
+    expect(
+      screen.getByRole("heading", { name: "Compare os planos", level: 2 }),
+    ).toBeVisible();
+
+    const secaoOperacao = screen.getByRole("button", {
+      name: /Organize sua operação comercial/i,
+    });
+    expect(secaoOperacao).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("rowheader", { name: "Ordens de serviço" })).toBeVisible();
+
+    const secaoRelatorios = screen.getByRole("button", {
+      name: /Relatórios e indicadores/i,
+    });
+    expect(secaoRelatorios).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("rowheader", { name: "Emissão de NFS-e" })).toBeNull();
+
+    await user.click(secaoRelatorios);
+    await waitFor(() => {
+      expect(secaoRelatorios).toHaveAttribute("aria-expanded", "true");
+    });
+    expect(
+      await screen.findByRole("rowheader", { name: "Emissão de NFS-e" }),
     ).toBeVisible();
   });
 });
