@@ -36,6 +36,7 @@ import Logo from "../Logo";
 import ThemeToggle from "../ThemeToggle";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useSubscription } from "../../hooks/useSubscription";
 
 import { navItemsForRole } from "../../utils/roles";
 
@@ -105,10 +106,11 @@ export default function AppSidebar() {
   const navigate = useNavigate();
 
   const { logout, user, roleLabel: papel } = useAuth();
+  const { hasFeature } = useSubscription();
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navItems = navItemsForRole(user?.role);
+  const navItems = navItemsForRole(user?.role, { hasFeature });
 
 
 

@@ -6,6 +6,7 @@ import {
   getPlanById,
   getPlanByStripePriceId,
   getPlanCatalog,
+  getPlanFeatures,
   maxUsuariosForPlan,
   maxOrcamentosMesForPlan,
 } from "../config/plans.js";
@@ -492,6 +493,7 @@ export async function getSubscriptionSummary(tenantId) {
     ...publicTenantBilling(tenant),
     usuarios_ativos: count.rows[0]?.c ?? 0,
     plan_nome: plan?.nome || tenant.plano,
+    features: getPlanFeatures(tenant.plano),
     writable: isSubscriptionWritable(tenant),
     stripe_configured: isStripeConfigured(),
   };

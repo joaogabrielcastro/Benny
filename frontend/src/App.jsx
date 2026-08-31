@@ -194,7 +194,7 @@ function AppShell() {
               <Route
                 path="/agendamentos"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute planFeature="agenda">
                     <Agendamentos />
                   </ProtectedRoute>
                 }
@@ -202,7 +202,7 @@ function AppShell() {
               <Route
                 path="/contas-pagar"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute planFeature="contas_pagar">
                     <ContasPagar />
                   </ProtectedRoute>
                 }
@@ -218,7 +218,7 @@ function AppShell() {
               <Route
                 path="/relatorios"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute planFeature="relatorios">
                     <Relatorios />
                   </ProtectedRoute>
                 }

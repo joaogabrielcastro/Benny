@@ -27,6 +27,8 @@ const PLANS = [
     maxOrcamentosMes: 50,
     destaque: false,
     disponivel: true,
+    recursos: ["Ordens de serviço", "Controle de estoque"],
+    beneficiosExtras: [],
   },
   {
     id: "premium",
@@ -37,6 +39,8 @@ const PLANS = [
     maxOrcamentosMes: 200,
     destaque: true,
     disponivel: true,
+    recursos: ["Tudo do Basic", "Agenda de serviços", "Relatórios e indicadores"],
+    beneficiosExtras: ["Suporte prioritário por e-mail"],
   },
   {
     id: "enterprise",
@@ -47,6 +51,8 @@ const PLANS = [
     maxOrcamentosMes: 9999,
     destaque: false,
     disponivel: false,
+    recursos: ["Tudo do Premium", "Emissão de NFS-e"],
+    beneficiosExtras: ["Suporte dedicado via WhatsApp"],
   },
 ];
 
@@ -93,14 +99,20 @@ describe("Planos", () => {
     ).toHaveTextContent("Ilimitado");
   });
 
-  it("não repete os recursos comuns dentro dos cards", async () => {
+  it("mostra recursos e benefícios exclusivos por plano", async () => {
     await renderPlanos();
 
-    expect(screen.getAllByText("Controle de estoque")).toHaveLength(1);
-    expect(screen.getAllByText("Ordens de serviço")).toHaveLength(1);
-    expect(
-      screen.getByRole("heading", { name: "Incluído em todos os planos" }),
-    ).toBeVisible();
+    const basic = within(cardDoPlano("Basic"));
+    expect(basic.getByText("Ordens de serviço")).toBeVisible();
+    expect(basic.queryByText("Agenda de serviços")).toBeNull();
+
+    const premium = within(cardDoPlano("Premium"));
+    expect(premium.getByText("Agenda de serviços")).toBeVisible();
+    expect(premium.getByText("Suporte prioritário por e-mail")).toBeVisible();
+
+    const enterprise = within(cardDoPlano("Enterprise"));
+    expect(enterprise.getByText("Emissão de NFS-e")).toBeVisible();
+    expect(enterprise.getByText("Suporte dedicado via WhatsApp")).toBeVisible();
   });
 
   it("desabilita o plano sem preço configurado na Stripe", async () => {

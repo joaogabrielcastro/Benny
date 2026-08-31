@@ -5,17 +5,6 @@ import api from "../services/api";
 import Logo from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 
-const RECURSOS_INCLUSOS = [
-  "Ordens de serviço",
-  "Orçamentos com aprovação do cliente",
-  "Controle de estoque",
-  "Agenda de serviços",
-  "Contas a pagar",
-  "Cadastro de clientes e veículos",
-  "Emissão de NFS-e",
-  "Relatórios e indicadores",
-];
-
 function rotuloUsuarios(max) {
   if (max == null) return "—";
   return max >= 999 ? "Ilimitado" : String(max);
@@ -134,8 +123,8 @@ export default function Planos() {
             Planos para sua oficina
           </h1>
           <p className="text-slate-400 max-w-xl mx-auto">
-            Escolha o plano, pague com segurança via Stripe e comece a gerenciar OS,
-            orçamentos e estoque no mesmo dia.
+            Comece com o essencial e evolua para relatórios, fiscal e suporte
+            dedicado conforme sua oficina cresce.
           </p>
         </div>
 
@@ -161,7 +150,7 @@ export default function Planos() {
                 <p className="text-3xl font-extrabold mt-3 mb-1">{plan.precoLabel}</p>
                 <p className="text-sm text-slate-400">{plan.descricao}</p>
 
-                <dl className="my-5 flex-1 divide-y divide-slate-700/60 border-y border-slate-700/60">
+                <dl className="my-4 divide-y divide-slate-700/60 border-y border-slate-700/60">
                   <Limite
                     label="Usuários"
                     valor={rotuloUsuarios(plan.maxUsuarios)}
@@ -171,6 +160,25 @@ export default function Planos() {
                     valor={rotuloOrcamentos(plan.maxOrcamentosMes)}
                   />
                 </dl>
+
+                <ul className="flex-1 space-y-2 text-sm text-slate-300 mb-5">
+                  {(plan.recursos || []).map((recurso) => (
+                    <li key={recurso} className="flex items-start gap-2">
+                      <span aria-hidden="true" className="text-emerald-400 shrink-0">
+                        ✓
+                      </span>
+                      {recurso}
+                    </li>
+                  ))}
+                  {(plan.beneficiosExtras || []).map((beneficio) => (
+                    <li key={beneficio} className="flex items-start gap-2">
+                      <span aria-hidden="true" className="text-blue-400 shrink-0">
+                        ★
+                      </span>
+                      <span className="text-blue-100">{beneficio}</span>
+                    </li>
+                  ))}
+                </ul>
 
                 <button
                   type="button"
@@ -194,26 +202,11 @@ export default function Planos() {
         )}
 
         {!loading && plans.length > 0 && (
-          <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-4">
-              Incluído em todos os planos
-            </h2>
-            <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3 text-sm text-slate-300">
-              {RECURSOS_INCLUSOS.map((recurso) => (
-                <li key={recurso} className="flex items-start gap-2">
-                  <span aria-hidden="true" className="text-emerald-400">
-                    ✓
-                  </span>
-                  {recurso}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-xs text-slate-500">
-              Os planos se diferenciam pelo tamanho da operação — quantos
-              usuários acessam o sistema e quantos orçamentos você emite por
-              mês. Todos os recursos acima estão liberados desde o Basic.
-            </p>
-          </section>
+          <p className="mt-8 text-center text-xs text-slate-500 max-w-2xl mx-auto">
+            O plano Basic cobre o dia a dia da oficina. Ao fazer upgrade, você
+            libera agenda, financeiro, relatórios e — no Enterprise — emissão
+            fiscal e backup completo. Pagamento processado pela Stripe.
+          </p>
         )}
 
         {selected && !(isAuthenticated && isAdmin) && (
@@ -304,7 +297,7 @@ export default function Planos() {
 
         <p className="text-center text-xs text-slate-500 mt-8">
           &ldquo;Ilimitado&rdquo; usa um teto alto no sistema, não um limite
-          rígido. Pagamento processado pela Stripe.
+          rígido.
         </p>
       </main>
     </div>
