@@ -26,6 +26,7 @@ import notasFiscaisRoutes from "./notasFiscaisRoutes.js";
 import usuariosRoutes from "./usuariosRoutes.js";
 import billingRoutes from "./billingRoutes.js";
 import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
+import { requirePlanFeature } from "../middleware/requirePlanFeature.js";
 
 const router = express.Router();
 
@@ -48,13 +49,13 @@ router.use("/servicos", servicosRoutes);
 router.use("/clientes", clientesRoutes);
 router.use("/veiculos", veiculosRoutes);
 router.use("/ordens-servico", osTeam, ordensServicoRoutes);
-router.use("/agendamentos", osTeam, agendamentosRoutes);
-router.use("/contas-pagar", adminOnly, contasPagarRoutes);
+router.use("/agendamentos", osTeam, requirePlanFeature("agenda"), agendamentosRoutes);
+router.use("/contas-pagar", adminOnly, requirePlanFeature("contas_pagar"), contasPagarRoutes);
 router.use("/lembretes", adminOnly, lembretesRoutes);
-router.use("/relatorios", adminOnly, relatoriosRoutes);
+router.use("/relatorios", adminOnly, requirePlanFeature("relatorios"), relatoriosRoutes);
 router.use("/auditoria", adminOnly, auditoriaRoutes);
-router.use("/backup", backupRoutes);
-router.use("/notas-fiscais", adminOnly, notasFiscaisRoutes);
+router.use("/backup", requirePlanFeature("backup"), backupRoutes);
+router.use("/notas-fiscais", adminOnly, requirePlanFeature("nfse"), notasFiscaisRoutes);
 router.use("/usuarios", adminOnly, usuariosRoutes);
 
 export default router;

@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   getPlanById,
   getPlanCatalog,
+  getPlanFeatures,
   maxUsuariosForPlan,
   maxOrcamentosMesForPlan,
+  planHasFeature,
   PLAN_IDS,
 } from "../src/config/plans.js";
 
@@ -29,5 +31,27 @@ describe("plans catalog", () => {
   it("getPlanById", () => {
     assert.equal(getPlanById("premium")?.nome, "Premium");
     assert.equal(getPlanById("nope"), null);
+  });
+
+  it("expõe recursos e benefícios por plano", () => {
+    const basic = getPlanById("basic");
+    const premium = getPlanById("premium");
+    const enterprise = getPlanById("enterprise");
+
+    assert.ok(basic.recursos.length >= 4);
+    assert.ok(premium.recursos.some((r) => r.includes("Agenda")));
+    assert.ok(enterprise.recursos.some((r) => r.includes("NFS-e")));
+    assert.ok(premium.beneficiosExtras.length >= 1);
+    assert.ok(enterprise.beneficiosExtras.length >= 1);
+  });
+
+  it("features por tier", () => {
+    assert.equal(planHasFeature("basic", "agenda"), false);
+    assert.equal(planHasFeature("basic", "relatorios"), false);
+    assert.equal(planHasFeature("premium", "agenda"), true);
+    assert.equal(planHasFeature("premium", "nfse"), false);
+    assert.equal(planHasFeature("enterprise", "nfse"), true);
+    assert.equal(planHasFeature("enterprise", "backup"), true);
+    assert.deepEqual(getPlanFeatures("basic").agenda, false);
   });
 });
