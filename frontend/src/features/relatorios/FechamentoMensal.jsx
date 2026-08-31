@@ -131,7 +131,7 @@ export default function FechamentoMensal() {
             Atualizar
           </Button>
           <Button
-            leftIcon={<FiDownload />}
+            leftIcon={FiDownload}
             onClick={handleExport}
             loading={exportando}
             disabled={isLoading || isError || !data}
