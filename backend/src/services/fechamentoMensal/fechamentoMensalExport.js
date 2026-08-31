@@ -1,4 +1,4 @@
-import archiver from "archiver";
+import { createRequire } from "node:module";
 import { PassThrough } from "node:stream";
 import { baixarPdf } from "../notasFiscais/notasFiscaisBaixarPdf.js";
 import { baixarXmlNfse } from "../nuvemFiscalClient.js";
@@ -9,6 +9,10 @@ import {
   nomeArquivoNota,
   nomeArquivoZip,
 } from "./fechamentoMensalUtils.js";
+
+// archiver é CJS — default import ESM falha no Node 22
+const require = createRequire(import.meta.url);
+const archiver = require("archiver");
 
 function bufferFromStream(stream) {
   return new Promise((resolve, reject) => {
