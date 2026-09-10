@@ -1,434 +1,239 @@
-# 🚗 Benny's Centro Automotivo - Sistema de Gestão
+# Benny — Gestão de Oficina Automotiva (SaaS)
 
-Sistema completo para gestão de oficina mecânica com React, Node.js e PostgreSQL.
+Sistema de gestão para oficinas mecânicas: OS, orçamentos, estoque, agenda, financeiro, NFS-e e billing Stripe. Roda como **SaaS multi-oficina** (um backend + Postgres) ou em modo **single-tenant** (uma oficina por deploy).
 
-## 🚀 Funcionalidades
+**Produção (referência):** frontend `https://benny.jwsoftware.com.br` · API `https://api-benny.jwsoftware.com.br`
 
-### 📋 Gestão de Ordens de Serviço
+---
 
-- Criar, editar e visualizar OS com workflow completo
-- Impressão profissional de OS com logo e detalhes
-- **Geração de Nota Fiscal (NF) para OS finalizadas** 🆕
-- Controle de status (Aberta, Em Andamento, Finalizada, Cancelada)
-- Histórico completo de alterações (auditoria)
-- Busca avançada por número, cliente, placa ou data
-- Filtros por status e período
-- Ordenação de colunas
-- Paginação automática
+## Stack
 
-### 💰 Orçamentos
+| Camada | Tecnologia |
+|--------|------------|
+| Frontend | React 18, Vite, TailwindCSS, TanStack Query, React Router |
+| Backend | Node.js 22, Express, Zod, JWT (Bearer + cookie httpOnly) |
+| Banco | PostgreSQL 14+ (migrations em `backend/migrations/`) |
+| Fiscal | **Notaas** — NFS-e em produção |
+| Billing | Stripe (planos Basic / Premium / Enterprise) |
+| Deploy | Coolify (Docker multistage) |
+| Testes | `node:test` (backend), Vitest + Testing Library (frontend) |
 
-- Criação de orçamentos detalhados
-- **Compartilhamento via WhatsApp ou link público**
-- Cliente pode aprovar/reprovar online
-- Conversão automática para OS após aprovação
-- Baixa automática de estoque na aprovação
-- Controle de status (Pendente, Aprovado, Reprovado)
+---
 
-### 📦 Controle de Estoque
+## Funcionalidades
 
-- Cadastro completo de produtos
-- Alertas de estoque baixo
-- Baixa automática em OS e orçamentos aprovados
-- Movimentações de entrada/saída rastreadas
-- Histórico de movimentações
+### Operação
+- **Ordens de serviço** — workflow (Aberta → Em andamento → Finalizada / Cancelada), impressão, auditoria
+- **Orçamentos** — link público, aprovação pelo cliente, conversão em OS com baixa de estoque
+- **Estoque** — produtos, alertas de mínimo, movimentações rastreadas
+- **Clientes e veículos** — CEP (ViaCEP + fallback BrasilAPI), exclusão em cascata (admin)
+- **Agenda** — conflitos de horário, lembretes
+- **Contas a pagar** — categorias, vencimentos, contas recorrentes
+- **Usuários** — roles `admin` e `mecanico` (RBAC)
 
-### 👥 Clientes e Veículos
+### Relatórios e fiscal
+- **Relatórios** — faturamento, OS, estoque (gráficos)
+- **Fechamento mensal** — totais NFS-e/NF-e do mês, tributos e **export ZIP** (CSV/JSON + PDF + XML) para o contador
+- **NFS-e** — emissão via Notaas a partir de OS finalizada (serviços; peças na mesma nota enquanto NF-e estiver off)
+- **NF-e** — estrutura no banco; **emissão ainda não integrada** na Notaas (`NOTAAS_NFE_ENABLED=false`)
 
-- Cadastro integrado de clientes
-- **Busca automática de endereço por CEP (ViaCEP)** 🆕
-- Múltiplos veículos por cliente
-- Histórico completo de serviços
+### SaaS
+- Multi-tenant por `tenant_id`
+- Planos com limites de usuários e orçamentos/mês
+- Assinatura Stripe (checkout / portal) — ver `docs/SAAS_STRIPE.md`
+- Tenant legado pode ficar **Premium sem Stripe** (ajuste direto em `tenants`)
 
-### 📊 Dashboard Analítico
+---
 
-- Faturamento do mês
-- Ticket médio
-- OS abertas vs totais
-- Produtos com estoque baixo
-- Gráfico de faturamento mensal (6 meses)
-- Top 10 produtos mais vendidos
-- **Exportação de relatórios em PDF**
+## Planos (catálogo)
 
-### 📅 Agendamentos 🆕
+| Plano | Preço (exibição) | Usuários | Orçamentos/mês |
+|-------|------------------|----------|----------------|
+| Basic | R$ 100/mês | 2 | 50 |
+| Premium | R$ 250/mês | 5 | 200 |
+| Enterprise | R$ 397/mês | 999 | 9999 |
 
-- Calendário completo de agendamentos
-- Detecção de conflitos de horários
-- Status (Agendado, Confirmado, Em Andamento, Concluído, Cancelado)
-- Lembretes automáticos
-- Busca por cliente, veículo ou serviço
-- Integração com sistema de notificações
+A cobrança efetiva usa os Price IDs do Stripe (`STRIPE_PRICE_*`). Os valores acima são o catálogo da aplicação.
 
-### 💳 Contas a Pagar 🆕
+---
 
-- Gestão completa de contas
-- Dashboard com totais (Pagas, Pendentes, Vencidas)
-- Alertas de vencimento
-- 8 categorias pré-definidas
-- Filtros por status, categoria e período
-- Integração com sistema de lembretes
+## Requisitos
 
-### 🔔 Sistema de Lembretes e Notificações 🆕
+- Node.js **22**
+- PostgreSQL **14+**
+- NPM
 
-- Widget flutuante de notificações
-- Processamento automático a cada 30 minutos
-- Lembretes de agendamentos próximos
-- Alertas de contas a vencer
-- Atualização periódica do widget (polling)
-- Marcar como lido/não lido
+---
 
-### 📄 Notas Fiscais 🆕
+## Ambiente local
 
-- Geração automática de NF para OS finalizadas
-- Numeração sequencial (000001, 000002...)
-- Cálculo automático de tributos:
-  - ICMS (18%)
-  - ISS (5%)
-  - PIS (1.65%)
-  - COFINS (7.6%)
-- Modal detalhado com todos os dados da NF
-- Vinculação NF ↔ OS
-
-### 🎨 Interface Moderna
-
-- **Dark Mode** com salvamento de preferência
-- Design responsivo (mobile-first)
-- Loading states e feedback visual
-- Toast notifications para ações
-- Confirmações customizadas
-- Lazy loading de páginas
-
-### ⚡ Performance e Infraestrutura
-
-- Cache HTTP para endpoints frequentes
-- Compressão de respostas (gzip)
-- Paginação otimizada
-- Queries SQL eficientes
-- Logs via console (stdout/stderr capturados pela plataforma)
-- Backup automático diário (local + S3 opcional)
-- Sistema de health check
-
-## 📋 Requisitos
-
-- **Node.js** 18 ou superior
-- **PostgreSQL** 14+ (Docker local, Coolify ou servidor próprio)
-- NPM ou Yarn
-
-## 🔧 Instalação Local
-
-### 1. Clone o repositório
+### Docker (recomendado)
 
 ```bash
-git clone <seu-repositorio>
-cd Benny
+cp .env.docker.example .env.docker   # se ainda não tiver
+docker compose --env-file .env.docker up --build
 ```
 
-### 2. Backend
+- Frontend: http://localhost:8080  
+- API: http://localhost:3011/api/health  
+- Login padrão (seed): ver `docs/DOCKER.md`
+
+### Manual
+
+**Backend**
 
 ```bash
 cd backend
-npm install
-
-# Configure as variáveis de ambiente
 cp .env.example .env
-# Edite o .env e adicione sua DATABASE_URL do PostgreSQL
-
-# Iniciar servidor
+# Ajuste DATABASE_URL, JWT_SECRET, PORT=3011
+npm install
+npm run migrate
 npm run dev
 ```
 
-O backend estará em `http://localhost:3000`
-
-### 3. Frontend
+**Frontend**
 
 ```bash
 cd frontend
+cp .env.example .env   # se existir
+# VITE_API_URL=http://localhost:3011/api  (ou deixe o proxy do Vite)
 npm install
-
-# Iniciar aplicação
 npm run dev
 ```
 
-O frontend estará em `http://localhost:5173`
+Frontend: http://localhost:5173 · API: http://localhost:3011
 
-## ☁️ Deploy em Produção
+---
 
-### Backend (Render)
+## Produção (Coolify)
 
-1. Crie uma conta no [Render](https://render.com)
-2. Conecte seu repositório GitHub
-3. Crie um Web Service apontando para `/backend`
-4. Configure a variável de ambiente:
-   - `DATABASE_URL`: Sua connection string do PostgreSQL
+Guia completo: [`docs/DEPLOY_COOLIFY.md`](docs/DEPLOY_COOLIFY.md)
 
-### Frontend (Vercel)
+Resumo:
 
-1. Instale a Vercel CLI: `npm i -g vercel`
-2. Na pasta raiz do projeto: `vercel`
-3. Siga as instruções
-4. Configure a variável de ambiente:
-   - `VITE_API_URL`: URL do seu backend no Render
+1. Postgres no Coolify → `DATABASE_URL` no backend  
+2. Backend: base `/backend`, porta **3011**, healthcheck `GET /api/health`  
+3. Frontend: build Vite com `VITE_API_URL=https://api-benny.seudominio.com.br`  
+4. Variáveis críticas: `JWT_SECRET`, `FRONTEND_URL`, `SINGLE_TENANT_MODE`, `NOTAAS_*`, Stripe se SaaS  
+5. Após deploy: migrations rodam no start (`npm start` → `migrate` + `server.js`)
 
-### Banco de dados (PostgreSQL)
+---
 
-1. **Local / testes:** `docker compose --env-file .env.docker up` (ver `docs/DOCKER.md`)
-2. **Produção:** Postgres no Coolify ou VPS — veja `docs/DEPLOY_COOLIFY.md`
-3. Copie a connection string para `DATABASE_URL` no `.env` do backend
-4. Após deploy: `npm run migrate`
+## Fiscal (Notaas)
 
-## 📁 Estrutura do Projeto
+| Documento | Status |
+|-----------|--------|
+| NFS-e | Integrada (emitir, status, PDF, XML, cancelar) |
+| NF-e | Desligada — client Notaas ainda não implementado |
+
+Documentação: [`docs/MIGRACAO_NOTAAS.md`](docs/MIGRACAO_NOTAAS.md)
+
+Variáveis típicas:
+
+```env
+NOTAAS_API_KEY=ntaas_...
+NOTAAS_API_URL=https://platform.notaas.com.br/api/v1
+NOTAAS_CNPJ_EMITENTE=...
+NOTAAS_AMBIENTE=producao
+NOTAAS_CODIGO_MUNICIPIO_IBGE=4105805
+NOTAAS_C_TRIB_NAC=310103
+NOTAAS_NFE_ENABLED=false
+```
+
+Teste de API Key: `cd backend && npm run test-notaas`
+
+---
+
+## Estrutura (visão geral)
 
 ```
 Benny/
 ├── backend/
-│   ├── server.js           # API REST principal (monolito em migração)
-│   ├── database.js         # Pool PostgreSQL e migrations
-│   ├── test-api.js         # Testes automatizados
-│   ├── package.json
-│   ├── .env               # Variáveis de ambiente
-│   │
-│   └── src/               # 🆕 Arquitetura MVC
-│       ├── config/
-│       │   ├── database.js
-│       │   └── logger.js
-│       ├── services/
-│       │   ├── cepService.js
-│       │   └── nfService.js
+│   ├── server.js                 # Express + CORS + health
+│   ├── database.js               # Pool PostgreSQL
+│   ├── docker-entrypoint.mjs     # wait DB → migrate → seed → server
+│   ├── migrations/               # SQL versionado
+│   ├── scripts/                  # migrate, seed, smoke Notaas
+│   ├── tests/                    # node:test
+│   └── src/
+│       ├── config/               # plans, jwt, Notaas, Stripe, roles
 │       ├── controllers/
-│       │   ├── cepController.js
-│       │   └── nfController.js
+│       ├── services/             # domínio (OS, NF, billing, fechamento…)
 │       ├── routes/
-│       │   ├── index.js
-│       │   ├── cepRoutes.js
-│       │   └── nfRoutes.js
-│       ├── models/         # (preparado)
-│       ├── middlewares/    # (preparado)
-│       └── utils/          # (preparado)
-│
+│       ├── middleware/
+│       └── schemas/              # Zod
 ├── frontend/
-│   ├── src/
-│   │   ├── pages/         # Páginas da aplicação
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Estoque.jsx
-│   │   │   ├── Orcamentos.jsx
-│   │   │   ├── OrcamentoForm.jsx
-│   │   │   ├── OrcamentoDetalhes.jsx
-│   │   │   ├── OrcamentoPublico.jsx
-│   │   │   ├── OrdensServico.jsx
-│   │   │   ├── OSForm.jsx
-│   │   │   ├── OSDetalhes.jsx       # 🆕 Com geração de NF
-│   │   │   ├── Agendamentos.jsx     # 🆕
-│   │   │   └── ContasPagar.jsx      # 🆕
-│   │   │
-│   │   ├── components/    # Componentes reutilizáveis
-│   │   │   ├── AdvancedFilters.jsx
-│   │   │   ├── AuditHistory.jsx
-│   │   │   ├── BuscaCEP.jsx         # 🆕
-│   │   │   ├── ConfirmDialog.jsx
-│   │   │   ├── LoadingSpinner.jsx
-│   │   │   ├── Logo.jsx
-│   │   │   ├── NovoClienteModal.jsx # 🔄 Atualizado com CEP
-│   │   │   ├── NotificacoesWidget.jsx # 🆕
-│   │   │   ├── OSImpressao.jsx
-│   │   │   ├── Pagination.jsx
-│   │   │   ├── SearchBar.jsx
-│   │   │   ├── SortableHeader.jsx
-│   │   │   └── ThemeToggle.jsx
-│   │   │
-│   │   ├── contexts/      # React Context
-│   │   │   └── ThemeContext.jsx
-│   │   │
-│   │   ├── services/      # API Client
-│   │   │   └── api.js
-│   │   │
-│   │   ├── utils/         # Utilitários
-│   │   │   ├── formatters.js
-│   │   │   ├── formValidation.jsx
-│   │   │   └── pdfExport.js
-│   │   │
-│   │   ├── styles/
-│   │   │   └── print.css  # Estilos para impressão
-│   │   │
-│   │   ├── App.jsx        # Rotas e Layout
-│   │   ├── main.jsx
-│   │   └── index.css
-│   │
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
-│
-├── vercel.json            # Config Vercel
-└── README.md
+│   └── src/
+│       ├── pages/
+│       ├── features/             # OS fiscal, dashboard, fechamento
+│       ├── components/
+│       ├── hooks/
+│       └── contexts/             # Auth, Theme
+├── docs/                         # Deploy, Docker, SaaS, Notaas, RBAC
+└── docker-compose.yml
 ```
-
-## 🔌 API Endpoints
-
-### Produtos
-
-- `GET /api/produtos` - Listar (com paginação)
-- `GET /api/produtos/:id` - Buscar por ID
-- `POST /api/produtos` - Criar
-- `PUT /api/produtos/:id` - Atualizar
-- `DELETE /api/produtos/:id` - Deletar
-- `GET /api/produtos/alertas/estoque-baixo` - Estoque baixo
-
-### Clientes e Veículos
-
-- `GET /api/clientes` - Listar clientes
-- `POST /api/clientes` - Criar cliente
-- `GET /api/veiculos/cliente/:id` - Veículos do cliente
-- `POST /api/veiculos` - Cadastrar veículo
-
-### Orçamentos
-
-- `GET /api/orcamentos` - Listar (com filtros)
-- `GET /api/orcamentos/:id` - Buscar por ID
-- `POST /api/orcamentos` - Criar
-- `PUT /api/orcamentos/:id` - Atualizar
-- `POST /api/orcamentos/:id/converter-os` - Converter em OS
-- `GET /api/orcamentos/publico/:id` - Visualização pública
-- `PUT /api/orcamentos/publico/:id/aprovar` - Aprovação pública
-- `PUT /api/orcamentos/publico/:id/reprovar` - Reprovação pública
-
-### Ordens de Serviço
-
-### Ordens de Serviço
-
-- `GET /api/ordens-servico` - Listar (com filtros)
-- `GET /api/ordens-servico/:id` - Buscar por ID
-- `POST /api/ordens-servico` - Criar
-- `PUT /api/ordens-servico/:id` - Atualizar status
-
-### 📄 Notas Fiscais 🆕
-
-- `POST /api/notas-fiscais/gerar/:osId` - Gerar NF para OS
-- `GET /api/notas-fiscais` - Listar todas
-- `GET /api/notas-fiscais/:id` - Buscar por ID
-- `PUT /api/notas-fiscais/:id/cancelar` - Cancelar NF
-
-### 📅 Agendamentos 🆕
-
-- `GET /api/agendamentos` - Listar (com filtros)
-- `GET /api/agendamentos/:id` - Buscar por ID
-- `POST /api/agendamentos` - Criar
-- `PUT /api/agendamentos/:id` - Atualizar
-- `DELETE /api/agendamentos/:id` - Deletar
-- `GET /api/agendamentos/conflitos` - Verificar conflitos
-- `POST /api/agendamentos/:id/reagendar` - Reagendar
-
-### 💳 Contas a Pagar 🆕
-
-- `GET /api/contas-pagar` - Listar (com filtros)
-- `GET /api/contas-pagar/:id` - Buscar por ID
-- `POST /api/contas-pagar` - Criar
-- `PUT /api/contas-pagar/:id` - Atualizar
-- `DELETE /api/contas-pagar/:id` - Deletar
-- `POST /api/contas-pagar/:id/pagar` - Marcar como paga
-
-### 🔔 Lembretes 🆕
-
-- `GET /api/lembretes` - Listar (com filtros)
-- `GET /api/lembretes/nao-lidos` - Não lidos
-- `PUT /api/lembretes/:id/lido` - Marcar como lido
-
-### 🏠 CEP 🆕
-
-- `GET /api/cep/:cep` - Buscar endereço por CEP
-
-### Relatórios
-
-- `GET /api/relatorios/dashboard` - Dados do dashboard
-- `GET /api/relatorios/vendas` - Relatório de vendas
-
-### Sistema
-
-- `GET /api/health` - Health check
-- `POST /api/backup` - Criar backup manual
-- `GET /api/backup/list` - Listar backups
-
-### Auditoria
-
-- `GET /api/auditoria/ordens-servico/:id` - Histórico de OS
-- `GET /api/auditoria/orcamentos/:id` - Histórico de orçamento
-
-## 🛠️ Tecnologias Utilizadas
-
-### Backend
-
-- **Node.js** 18+ com Express.js
-- **PostgreSQL** com pool de conexões (`pg`)
-- Logging via console estruturado (sem dependência externa)
-- **node-schedule** para tarefas agendadas (backups, lembretes)
-- **axios** para integração com APIs externas (ViaCEP, Notaas)
-- **zod** para validação de schemas
-- **Stripe** para assinaturas SaaS
-- **compression** para otimização
-
-### Frontend
-
-- **React 18** com Vite
-- **React Router v6** para navegação
-- **TailwindCSS** para estilização
-- **date-fns** para manipulação de datas
-- **react-hot-toast** para notificações
-- **react-to-print** para impressão
-- **recharts** para gráficos
-- **jsPDF** para exportação de PDFs
-
-### APIs Externas
-
-- **ViaCEP** - Busca de endereços brasileiros
-
-## 🔒 Segurança
-
-- Variáveis de ambiente para credenciais
-- SSL/TLS nas conexões de banco
-- Validação de dados com zod
-- Sanitização de inputs
-- CORS configurado (credentials + allow-list)
-- JWT (Bearer + cookie httpOnly)
-- Logs de auditoria
-
-## 🧪 Testes
-
-Execute a bateria de testes da API:
-
-```bash
-cd backend
-npm test
-```
-
-## 🎯 Próximas Melhorias
-
-- [ ] Autenticação de usuários (JWT)
-- [ ] Permissões por perfil (admin, mecânico, atendente)
-- [ ] Notificações por email
-- [ ] Integração com pagamento online
-- [ ] App mobile (React Native)
-- [ ] Impressão de múltiplas OS
-- [ ] Relatórios avançados em PDF
-- [ ] Backup em nuvem (S3)
-- [ ] ✅ Sistema de agendamentos (Concluído)
-- [ ] ✅ Contas a pagar (Concluído)
-- [ ] ✅ Busca de CEP (Concluído)
-- [ ] ✅ Geração de NF (Concluído)
-- [ ] 🚧 Migração completa para MVC (Em andamento)
-
-## 📚 Documentação Adicional
-
-- [📄 NOVAS_FUNCIONALIDADES.md](NOVAS_FUNCIONALIDADES.md) - Documentação detalhada das novas features
-- [📖 GUIA_MIGRACAO_MVC.md](GUIA_MIGRACAO_MVC.md) - Guia completo de migração para MVC
-- [📋 FUNCIONALIDADES_AGENDAMENTOS.md](FUNCIONALIDADES_AGENDAMENTOS.md) - Sistema de agendamentos e contas
-
-## 📄 Licença
-
-Este projeto é proprietário e de uso interno.
-
-## 👨‍💻 Suporte
-
-Para suporte ou dúvidas, entre em contato através do email ou WhatsApp da oficina.
 
 ---
 
-**Desenvolvido com ❤️ para Benny's Centro Automotivo**
+## API (principais grupos)
+
+Todas sob `/api` (exceto health). Autenticadas com JWT, salvo auth, CEP, orçamento público e webhook Stripe.
+
+| Grupo | Exemplos |
+|-------|----------|
+| Auth | `POST /auth/login`, `POST /auth/logout` |
+| OS / orçamentos / estoque / clientes | CRUD paginado |
+| Notas fiscais | `POST /notas-fiscais/gerar/:osId/nfse`, `GET /:id/pdf`, cancelar |
+| Relatórios | `GET /relatorios/dashboard`, `GET /relatorios/fechamento-mensal`, export ZIP |
+| Billing | `GET /billing/plans`, checkout, subscription, webhook |
+| Sistema | `GET /health`, backup, auditoria |
+
+---
+
+## Testes
+
+```bash
+# Backend
+cd backend && npm test
+
+# Frontend
+cd frontend && npm test
+```
+
+CI: `.github/workflows/ci.yml`
+
+---
+
+## Documentação
+
+| Doc | Conteúdo |
+|-----|----------|
+| [`docs/DEPLOY_COOLIFY.md`](docs/DEPLOY_COOLIFY.md) | Deploy produção |
+| [`docs/DOCKER.md`](docs/DOCKER.md) | Ambiente local Docker |
+| [`docs/SAAS_STRIPE.md`](docs/SAAS_STRIPE.md) | Multi-tenant + Stripe |
+| [`docs/MIGRACAO_NOTAAS.md`](docs/MIGRACAO_NOTAAS.md) | Provedor fiscal Notaas |
+| [`docs/RBAC.md`](docs/RBAC.md) | Roles admin / mecânico |
+| [`docs/REFACTORING.md`](docs/REFACTORING.md) | Notas de arquitetura |
+
+---
+
+## Segurança (resumo)
+
+- JWT + cookie httpOnly (híbrido)
+- Helmet, rate limit, CORS com allow-list
+- Senhas com bcrypt
+- Secrets só em env / Coolify (nunca no git)
+- Assinatura inativa bloqueia mutações no modo SaaS
+
+---
+
+## Roadmap conhecido
+
+- [ ] Integração **NF-e** na Notaas (peças separadas da NFS-e)
+- [ ] CT-e / notas de entrada (fora do escopo atual)
+- [ ] Notificações por e-mail
+
+---
+
+**Licença:** uso proprietário / interno.  
+**Produto:** Benny — gestão automotiva (JW Software).
