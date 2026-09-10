@@ -12,6 +12,10 @@ vi.mock("../features/dashboard/DashboardCharts", () => ({
   ),
 }));
 
+vi.mock("../features/relatorios/FechamentoMensal", () => ({
+  default: () => <div data-testid="fechamento-mensal" />,
+}));
+
 vi.mock("react-hot-toast", () => ({
   default: { error: vi.fn() },
 }));

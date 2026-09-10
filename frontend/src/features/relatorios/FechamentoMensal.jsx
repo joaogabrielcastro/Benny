@@ -193,21 +193,6 @@ export default function FechamentoMensal() {
             />
           </div>
 
-          <div className="mt-6 rounded-xl border border-amber-200/80 bg-amber-50/80 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-            <p className="font-medium">Itens fora do escopo atual</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              <li>CT-e: não implementado</li>
-              <li>Notas de entrada: não implementado</li>
-            </ul>
-            {data?.avisos?.length ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 opacity-90">
-                {data.avisos.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-
           <div className="mt-8">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
               <FiFileText />

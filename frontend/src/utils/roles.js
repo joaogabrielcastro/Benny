@@ -48,17 +48,21 @@ export const NAV_ITEMS = [
   { to: "/", label: "Início", end: true, roles: [ROLES.ADMIN] },
   { to: "/ordens-servico", label: "Ordens de serviço", roles: [ROLES.ADMIN, ROLES.MECANICO] },
   { to: "/orcamentos", label: "Orçamentos", roles: [ROLES.ADMIN] },
-  { to: "/agendamentos", label: "Agenda", roles: [ROLES.ADMIN, ROLES.MECANICO] },
-  { to: "/contas-pagar", label: "Contas a pagar", roles: [ROLES.ADMIN] },
-  { to: "/relatorios", label: "Relatórios", roles: [ROLES.ADMIN] },
+  { to: "/agendamentos", label: "Agenda", roles: [ROLES.ADMIN, ROLES.MECANICO], planFeature: "agenda" },
+  { to: "/contas-pagar", label: "Contas a pagar", roles: [ROLES.ADMIN], planFeature: "contas_pagar" },
+  { to: "/relatorios", label: "Relatórios", roles: [ROLES.ADMIN], planFeature: "relatorios" },
   { to: "/estoque", label: "Estoque", roles: [ROLES.ADMIN] },
   { to: "/clientes", label: "Clientes", roles: [ROLES.ADMIN] },
   { to: "/usuarios", label: "Usuários", roles: [ROLES.ADMIN] },
   { to: "/assinatura", label: "Assinatura", roles: [ROLES.ADMIN] },
 ];
 
-export function navItemsForRole(role) {
+export function navItemsForRole(role, { hasFeature } = {}) {
   const r = normalizeRole(role);
   if (!r) return [];
-  return NAV_ITEMS.filter((item) => item.roles.includes(r));
+  return NAV_ITEMS.filter((item) => {
+    if (!item.roles.includes(r)) return false;
+    if (item.planFeature && hasFeature && !hasFeature(item.planFeature)) return false;
+    return true;
+  });
 }
