@@ -129,8 +129,8 @@ export default function OrcamentoForm() {
 
   const carregarServicos = async () => {
     try {
-      const res = await api.get("/servicos");
-      setServicos(Array.isArray(res.data) ? res.data : res.data.data || []);
+      const res = await api.get("/servicos", { params: { limit: 10000 } });
+      setServicos(unwrapListResponse(res.data));
     } catch (error) {
       console.error("Erro ao carregar serviços:", error);
     }
@@ -254,6 +254,16 @@ export default function OrcamentoForm() {
   };
 
   const handleServicoCriado = (novoServico) => {
+    if (novoServico?.id) {
+      setServicos((prev) => {
+        if (prev.some((s) => Number(s.id) === Number(novoServico.id))) {
+          return prev;
+        }
+        return [...prev, novoServico].sort((a, b) =>
+          String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"),
+        );
+      });
+    }
     carregarServicos();
     if (servicoModalIndex !== null) {
       const idx = servicoModalIndex;
@@ -631,6 +641,14 @@ export default function OrcamentoForm() {
                   >
                     <option value="">-- Selecionar serviço --</option>
                     <option value="__add_new__">+ Novo Serviço</option>
+                    {item.servico_id &&
+                      !servicos.some(
+                        (s) => Number(s.id) === Number(item.servico_id),
+                      ) && (
+                        <option value={item.servico_id}>
+                          {item.descricao || `Serviço #${item.servico_id}`}
+                        </option>
+                      )}
                     {servicos.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nome}

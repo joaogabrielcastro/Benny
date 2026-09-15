@@ -4,6 +4,7 @@ import { calcularTotais } from "../domain/calcularTotais.js";
 import { proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
 import { produtosTemColunaNcm } from "../lib/schemaCache.js";
+import { baixarEstoqueProduto } from "./estoqueMovimentacao.js";
 
 async function queryProdutosOs(osId) {
   const temNcm = await produtosTemColunaNcm(pool);
@@ -19,18 +20,16 @@ async function queryProdutosOs(osId) {
   return pool.query("SELECT * FROM os_produtos WHERE os_id = $1", [osId]);
 }
 
-async function deducaoEstoque(client, os_id, produtos = []) {
+async function deducaoEstoque(client, tenantId, os_id, produtos = []) {
   for (const p of produtos) {
     if (!p.produto_id) continue;
-    await client.query(
-      "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-      [p.quantidade, p.produto_id],
-    );
-    await client.query(
-      `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
-       VALUES ($1,'SAIDA',$2,'Utilizado na OS',$3)`,
-      [p.produto_id, p.quantidade, os_id],
-    );
+    await baixarEstoqueProduto(client, {
+      tenantId,
+      produtoId: p.produto_id,
+      quantidade: p.quantidade,
+      motivo: "Utilizado na OS",
+      osId: os_id,
+    });
   }
 }
 
@@ -224,7 +223,7 @@ const criar = async (
         ],
       );
     }
-    await deducaoEstoque(client, os_id, produtos);
+    await deducaoEstoque(client, tenantId, os_id, produtos);
 
     for (const s of servicos) {
       await client.query(
@@ -333,33 +332,10 @@ const atualizar = async (
       client,
     );
 
-    // Finalizada → dar baixa no estoque (idempotente)
-    if (status === "Finalizada" && statusAnterior !== "Finalizada") {
-      const baixaExistente = await client.query(
-        "SELECT id FROM movimentacoes_estoque WHERE os_id=$1 AND motivo='OS finalizada - baixa' LIMIT 1",
-        [id],
-      );
-      if (baixaExistente.rows.length === 0) {
-        const produtosOS = await client.query(
-          "SELECT * FROM os_produtos WHERE os_id = $1",
-          [id],
-        );
-        for (const p of produtosOS.rows) {
-          if (!p.produto_id) continue;
-          await client.query(
-            "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-            [p.quantidade, p.produto_id],
-          );
-          await client.query(
-            `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
-             VALUES ($1,'SAIDA',$2,'OS finalizada - baixa',$3)`,
-            [p.produto_id, p.quantidade, id],
-          );
-        }
-      }
-    }
+    // Estoque já é baixado na criação da OS (ou na aprovação do orçamento).
+    // Finalizar NÃO deve baixar de novo — evita dedução dupla.
 
-    // Cancelada → devolver itens ao estoque (idempotente)
+    // Cancelada → devolver itens ao estoque (idempotente), escopo tenant
     if (status === "Cancelada" && statusAnterior !== "Cancelada") {
       const devolucaoExistente = await client.query(
         "SELECT id FROM movimentacoes_estoque WHERE os_id=$1 AND motivo='OS cancelada - devolução' LIMIT 1",
@@ -373,8 +349,10 @@ const atualizar = async (
         for (const p of produtosOS.rows) {
           if (!p.produto_id) continue;
           await client.query(
-            "UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-            [p.quantidade, p.produto_id],
+            `UPDATE produtos
+             SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP
+             WHERE id = $2 AND tenant_id = $3`,
+            [p.quantidade, p.produto_id, tenantId],
           );
           await client.query(
             `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)

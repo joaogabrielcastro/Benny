@@ -5,7 +5,8 @@
  * Observação: parseInt(undefined) é NaN; NaN || 20 virava 20 e ignorava ?limit=50000 em alguns ambientes.
  */
 const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 500;
+/** Catálogos (produtos/serviços) pedem limit alto no front. */
+const MAX_LIMIT = 10000;
 
 export const paginate = (req, res, next) => {
   const pageRaw = Array.isArray(req.query.page)

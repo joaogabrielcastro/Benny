@@ -18,12 +18,31 @@ function roleOrThrow(role) {
 
 const findUserByEmail = async (email) => {
   try {
+    if (SINGLE_TENANT_MODE) {
+      const result = await pool.query(
+        `SELECT id, nome, email, senha_hash, role, ativo, tenant_id
+         FROM usuarios
+         WHERE email = $1 AND tenant_id = $2`,
+        [email, SINGLE_TENANT_ID],
+      );
+      if (result.rows[0]) {
+        return { user: result.rows[0], tableName: "usuarios" };
+      }
+      return { user: null, tableName: null };
+    }
+
     const result = await pool.query(
       `SELECT id, nome, email, senha_hash, role, ativo, tenant_id
        FROM usuarios
        WHERE email = $1`,
       [email],
     );
+
+    // Mesmo e-mail em tenants distintos: sem slug no login, falha fechada
+    // (evita autenticar no tenant "errado" por ORDER implícito).
+    if (result.rows.length > 1) {
+      return { user: null, tableName: null, ambiguous: true };
+    }
 
     if (result.rows[0]) {
       return { user: result.rows[0], tableName: "usuarios" };

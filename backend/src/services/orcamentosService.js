@@ -4,6 +4,7 @@ import pool from "../../database.js";
 import { calcularTotais } from "../domain/calcularTotais.js";
 import { proximoNumeroOrcamento, proximoNumeroOS } from "../domain/numeracao.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
+import { baixarEstoqueProduto } from "./estoqueMovimentacao.js";
 
 // ─── Helpers internos ─────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ async function inserirItens(
   }
 }
 
-async function darBaixaEstoque(client, orcamento_id) {
+async function darBaixaEstoque(client, tenantId, orcamento_id) {
   // Idempotente: verifica se já existe movimentação
   const movExistente = await client.query(
     "SELECT id FROM movimentacoes_estoque WHERE orcamento_id = $1 AND motivo = 'Orçamento aprovado' LIMIT 1",
@@ -73,15 +74,13 @@ async function darBaixaEstoque(client, orcamento_id) {
 
   for (const p of produtos.rows) {
     if (!p.produto_id) continue;
-    await client.query(
-      "UPDATE produtos SET quantidade = quantidade - $1, atualizado_em = CURRENT_TIMESTAMP WHERE id = $2",
-      [p.quantidade, p.produto_id],
-    );
-    await client.query(
-      `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, orcamento_id)
-       VALUES ($1, 'SAIDA', $2, 'Orçamento aprovado', $3)`,
-      [p.produto_id, p.quantidade, orcamento_id],
-    );
+    await baixarEstoqueProduto(client, {
+      tenantId,
+      produtoId: p.produto_id,
+      quantidade: p.quantidade,
+      motivo: "Orçamento aprovado",
+      orcamentoId: orcamento_id,
+    });
   }
 }
 
@@ -103,8 +102,8 @@ async function converterEmOSInterno(
     const row = existente.rows[0];
     if (excluirOrcamentoApos) {
       await client.query(
-        "UPDATE movimentacoes_estoque SET orcamento_id = NULL WHERE orcamento_id = $1",
-        [orcamentoId],
+        "UPDATE movimentacoes_estoque SET os_id = COALESCE(os_id, $1), orcamento_id = NULL WHERE orcamento_id = $2",
+        [row.id, orcamentoId],
       );
       await client.query(
         "UPDATE ordens_servico SET orcamento_id = NULL WHERE id = $1",
@@ -191,14 +190,20 @@ async function converterEmOSInterno(
 
   if (excluirOrcamentoApos) {
     await client.query(
-      "UPDATE movimentacoes_estoque SET orcamento_id = NULL WHERE orcamento_id = $1",
-      [orcamentoId],
+      "UPDATE movimentacoes_estoque SET os_id = COALESCE(os_id, $1), orcamento_id = NULL WHERE orcamento_id = $2",
+      [os_id, orcamentoId],
     );
     await client.query(
       "UPDATE ordens_servico SET orcamento_id = NULL WHERE id = $1",
       [os_id],
     );
     await client.query("DELETE FROM orcamentos WHERE id = $1", [orcamentoId]);
+  } else {
+    // Mantém orçamento, mas vincula baixa ao OS para cancelamento/exclusão corretos
+    await client.query(
+      "UPDATE movimentacoes_estoque SET os_id = COALESCE(os_id, $1) WHERE orcamento_id = $2",
+      [os_id, orcamentoId],
+    );
   }
 
   return { id: os_id, numero };
@@ -440,7 +445,7 @@ const atualizar = async (
 
     let os = null;
     if (status === "Aprovado" && prev.rows[0].status !== "Aprovado") {
-      await darBaixaEstoque(client, id);
+      await darBaixaEstoque(client, tenantId, id);
       os = await converterEmOSInterno(client, tenantId, id, {
         excluirOrcamentoApos: true,
       });
@@ -482,7 +487,7 @@ const aprovarPorToken = async (token) => {
 
     let os = null;
     if (!jaAprovado) {
-      await darBaixaEstoque(client, orcamentoId);
+      await darBaixaEstoque(client, tenant, orcamentoId);
       os = await converterEmOSInterno(client, tenant, orcamentoId, {
         excluirOrcamentoApos: true,
       });
