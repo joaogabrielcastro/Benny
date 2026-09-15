@@ -43,6 +43,8 @@ jobs:
       - run: npm ci
       - name: Aguardar schema (database.js no boot dos testes)
         run: node -e "import pool from './database.js'; await new Promise(r=>setTimeout(r,8000)); await pool.end();"
+      - name: Aplicar migrations
+        run: npm run migrate
       - run: npm test
       - run: npm run test:integration
 

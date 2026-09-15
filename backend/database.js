@@ -279,6 +279,7 @@ async function initDatabase() {
         motivo TEXT,
         os_id INTEGER,
         orcamento_id INTEGER,
+        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (produto_id) REFERENCES produtos(id),
         FOREIGN KEY (os_id) REFERENCES ordens_servico(id),
@@ -341,8 +342,18 @@ async function initDatabase() {
 
     // Adicionar coluna orcamento_id na tabela movimentacoes_estoque se não existir
     await client.query(`
-      ALTER TABLE movimentacoes_estoque 
+      ALTER TABLE movimentacoes_estoque
       ADD COLUMN IF NOT EXISTS orcamento_id INTEGER REFERENCES orcamentos(id);
+    `);
+
+    // ASE 5.2 — tenant_id em movimentações (migration 017; também no boot DDL)
+    await client.query(`
+      ALTER TABLE movimentacoes_estoque
+      ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE;
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_movimentacoes_estoque_tenant
+      ON movimentacoes_estoque (tenant_id);
     `);
 
     // Adicionar coluna marca na tabela veiculos se não existir
