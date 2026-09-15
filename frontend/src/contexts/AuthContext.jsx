@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import api from "../services/api";
 import { normalizeRole, isAdmin, isMecanico, roleLabel } from "../utils/roles";
 
@@ -11,33 +11,72 @@ function normalizeAuthPayload(payload) {
   };
 }
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem("auth_user");
-      if (!stored) return null;
-      const parsed = JSON.parse(stored);
-      if (!parsed) return null;
-      const role = normalizeRole(parsed.role);
-      if (!role) {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("auth_user");
-        return null;
-      }
-      return { ...parsed, role };
-    } catch {
-      return null;
-    }
-  });
+function clearLegacyAuthStorage() {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_user");
+  localStorage.removeItem("isAuthenticated");
+  localStorage.removeItem("usuario");
+}
 
-  const token = localStorage.getItem("auth_token");
-  const isAuthenticated = !!token && !!user;
+/**
+ * ASE 5.2 — autenticação cookie-first.
+ * O JWT fica no cookie httpOnly (backend). localStorage guarda só o perfil
+ * para UX; a prova de sessão é GET /auth/me com credentials.
+ * Tokens legados em localStorage ainda são enviados como Bearer (compat).
+ */
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [bootstrapping, setBootstrapping] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get("/auth/me");
+        const raw = data?.user || data;
+        const role = normalizeRole(raw?.role);
+        if (!role) {
+          clearLegacyAuthStorage();
+          if (!cancelled) setUser(null);
+          return;
+        }
+        const userWithRole = { ...raw, role };
+        localStorage.setItem("auth_user", JSON.stringify(userWithRole));
+        // Remove token do storage: cookie httpOnly é a fonte da verdade
+        localStorage.removeItem("auth_token");
+        if (!cancelled) setUser(userWithRole);
+      } catch {
+        // Fallback: perfil cacheado + Bearer legado (migração)
+        try {
+          const stored = localStorage.getItem("auth_user");
+          const token = localStorage.getItem("auth_token");
+          if (stored && token) {
+            const parsed = JSON.parse(stored);
+            const role = normalizeRole(parsed?.role);
+            if (role && !cancelled) {
+              setUser({ ...parsed, role });
+              return;
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+        clearLegacyAuthStorage();
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setBootstrapping(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = useCallback(async (email, senha) => {
     const { data } = await api.post("/auth/login", { email, senha });
     const auth = normalizeAuthPayload(data);
 
-    if (!auth.token || !auth.user) {
+    if (!auth.user) {
       throw new Error("Resposta de autenticação inválida");
     }
 
@@ -46,14 +85,12 @@ export function AuthProvider({ children }) {
       throw new Error("Perfil de acesso inválido");
     }
 
-    localStorage.setItem("auth_token", auth.token);
-    const userWithRole = {
-      ...auth.user,
-      role,
-    };
+    // Cookie httpOnly já foi setado pelo backend; não persistir JWT no storage
+    localStorage.removeItem("auth_token");
+    const userWithRole = { ...auth.user, role };
     localStorage.setItem("auth_user", JSON.stringify(userWithRole));
     setUser(userWithRole);
-    return auth;
+    return { ...auth, token: null };
   }, []);
 
   const logout = useCallback(async () => {
@@ -62,14 +99,12 @@ export function AuthProvider({ children }) {
     } catch {
       /* cookie pode já ter expirado */
     }
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("usuario");
+    clearLegacyAuthStorage();
     setUser(null);
   }, []);
 
   const role = normalizeRole(user?.role);
+  const isAuthenticated = !!user && !!role;
 
   return (
     <AuthContext.Provider
@@ -77,6 +112,7 @@ export function AuthProvider({ children }) {
         user,
         role,
         isAuthenticated,
+        bootstrapping,
         isAdmin: isAdmin(user),
         isMecanico: isMecanico(user),
         roleLabel: roleLabel(role),

@@ -109,6 +109,6 @@ describe("baixarEstoqueProduto — adversariais", () => {
       orcamentoId: 77,
     });
 
-    assert.deepEqual(inserts[0], [10, 2, "Utilizado na OS", 55, 77]);
+    assert.deepEqual(inserts[0], [10, 2, "Utilizado na OS", 55, 77, 1]);
   });
 });

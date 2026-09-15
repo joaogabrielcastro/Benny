@@ -33,8 +33,8 @@ export async function baixarEstoqueProduto(
     );
   }
   await client.query(
-    `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id, orcamento_id)
-     VALUES ($1,'SAIDA',$2,$3,$4,$5)`,
-    [produtoId, quantidade, motivo, osId, orcamentoId],
+    `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id, orcamento_id, tenant_id)
+     VALUES ($1,'SAIDA',$2,$3,$4,$5,$6)`,
+    [produtoId, quantidade, motivo, osId, orcamentoId, tenantId],
   );
 }

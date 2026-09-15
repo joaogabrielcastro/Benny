@@ -43,7 +43,7 @@ describe("ProtectedRoute", () => {
   });
 
   it("redireciona para login se não autenticado", () => {
-    renderWithAuth({ isAuthenticated: false, user: null });
+    renderWithAuth({ isAuthenticated: false, user: null, bootstrapping: false });
     expect(screen.getByText("Login Page")).toBeInTheDocument();
   });
 
@@ -51,6 +51,7 @@ describe("ProtectedRoute", () => {
     renderWithAuth({
       isAuthenticated: true,
       user: { role: "admin" },
+      bootstrapping: false,
     });
     expect(screen.getByText("Estoque Page")).toBeInTheDocument();
   });
@@ -60,6 +61,7 @@ describe("ProtectedRoute", () => {
       {
         isAuthenticated: true,
         user: { role: "mecanico" },
+        bootstrapping: false,
       },
       "/estoque",
     );
@@ -71,6 +73,7 @@ describe("ProtectedRoute", () => {
       {
         isAuthenticated: true,
         user: { role: "mecanico" },
+        bootstrapping: false,
       },
       "/agendamentos",
     );

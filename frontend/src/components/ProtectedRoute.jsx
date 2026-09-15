@@ -11,9 +11,13 @@ import LoadingSpinner from "./LoadingSpinner";
  * @param {string} [props.planFeature] — exige recurso do plano (ex.: agenda, relatorios)
  */
 export default function ProtectedRoute({ children, roles, planFeature }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, bootstrapping } = useAuth();
   const location = useLocation();
   const { hasFeature, loading } = useSubscription();
+
+  if (bootstrapping) {
+    return <LoadingSpinner size="lg" />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

@@ -2,8 +2,10 @@ import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 import { calcularTotais } from "../domain/calcularTotais.js";
 import { proximoNumeroOS } from "../domain/numeracao.js";
+import { assertTransicaoStatusOs } from "../domain/osStatusTransitions.js";
 import { registrarAuditoria } from "../utils/auditoria.js";
 import { produtosTemColunaNcm } from "../lib/schemaCache.js";
+import { AppError } from "../lib/AppError.js";
 import { baixarEstoqueProduto } from "./estoqueMovimentacao.js";
 
 async function queryProdutosOs(osId) {
@@ -278,6 +280,20 @@ const atualizar = async (
     }
 
     const statusAnterior = prev.rows[0].status;
+    const statusFinal =
+      status !== undefined && status !== null && status !== ""
+        ? status
+        : statusAnterior;
+
+    try {
+      assertTransicaoStatusOs(statusAnterior, statusFinal);
+    } catch (e) {
+      if (e?.code === "STATUS_TRANSITION_INVALID") {
+        await client.query("ROLLBACK");
+        throw new AppError(400, e.message);
+      }
+      throw e;
+    }
 
     const prevRow = prev.rows[0];
     const kmFinal =
@@ -307,7 +323,7 @@ const atualizar = async (
            atualizado_em = CURRENT_TIMESTAMP
        WHERE id=$7 AND tenant_id=$8`,
       [
-        status,
+        statusFinal,
         respTecnicoFinal,
         kmFinal,
         previsaoFinal,
@@ -336,7 +352,7 @@ const atualizar = async (
     // Finalizar NÃO deve baixar de novo — evita dedução dupla.
 
     // Cancelada → devolver itens ao estoque (idempotente), escopo tenant
-    if (status === "Cancelada" && statusAnterior !== "Cancelada") {
+    if (statusFinal === "Cancelada" && statusAnterior !== "Cancelada") {
       const devolucaoExistente = await client.query(
         "SELECT id FROM movimentacoes_estoque WHERE os_id=$1 AND motivo='OS cancelada - devolução' LIMIT 1",
         [id],
@@ -355,9 +371,9 @@ const atualizar = async (
             [p.quantidade, p.produto_id, tenantId],
           );
           await client.query(
-            `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id)
-             VALUES ($1,'ENTRADA',$2,'OS cancelada - devolução',$3)`,
-            [p.produto_id, p.quantidade, id],
+            `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id, tenant_id)
+             VALUES ($1,'ENTRADA',$2,'OS cancelada - devolução',$3,$4)`,
+            [p.produto_id, p.quantidade, id, tenantId],
           );
         }
       }

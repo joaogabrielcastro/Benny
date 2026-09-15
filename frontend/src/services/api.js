@@ -18,11 +18,16 @@ const api = axios.create({
   },
 });
 
-// Híbrido: Bearer (localStorage) + cookie httpOnly (withCredentials)
+/**
+ * Cookie httpOnly é o mecanismo principal (withCredentials).
+ * Bearer legado só se ainda existir auth_token (migração ASE 5.2).
+ */
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("auth_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const legacy = localStorage.getItem("auth_token");
+  if (legacy) {
+    config.headers.Authorization = `Bearer ${legacy}`;
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
   }
   return config;
 });
