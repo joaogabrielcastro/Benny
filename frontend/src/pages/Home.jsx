@@ -5,6 +5,7 @@ import {
   FiTool,
   FiFileText,
   FiPackage,
+  FiClipboard,
   FiCalendar,
   FiDollarSign,
   FiPlus,
@@ -75,7 +76,7 @@ export default function Home() {
             <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
               Acesso rápido
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <QuickLink
                 to="/orcamentos/novo"
                 title="Nova OS / orçamento"
@@ -93,6 +94,12 @@ export default function Home() {
                 title="Estoque"
                 description="Produtos e inventário"
                 icon={FiPackage}
+              />
+              <QuickLink
+                to="/servicos"
+                title="Serviços"
+                description="Catálogo de mão de obra"
+                icon={FiClipboard}
               />
             </div>
           </div>

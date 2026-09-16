@@ -94,6 +94,8 @@ export default function Servicos() {
         onConfirm={() => handleDeletar(confirmDialog.servicoId)}
         title="Confirmar exclusão"
         message="Deseja realmente excluir este serviço? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
       />
 
       <PageHeader

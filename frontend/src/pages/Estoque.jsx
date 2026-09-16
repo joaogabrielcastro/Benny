@@ -95,6 +95,8 @@ export default function Estoque() {
         onConfirm={() => handleDeletar(confirmDialog.produtoId)}
         title="Confirmar Exclusão"
         message="Deseja realmente deletar este produto? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
       />
 
       <PageHeader
