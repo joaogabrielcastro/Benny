@@ -2,8 +2,10 @@
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+# Lockfile obrigatório: `npm install` só com package.json causa
+# "Cannot read properties of null (reading 'edgesOut')" em árvores grandes.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 
