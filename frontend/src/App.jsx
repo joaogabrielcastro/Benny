@@ -20,6 +20,7 @@ import { useAuth } from "./contexts/AuthContext";
 
 const Login = lazy(() => import("./pages/Login"));
 const Estoque = lazy(() => import("./pages/Estoque"));
+const Servicos = lazy(() => import("./pages/Servicos"));
 const Orcamentos = lazy(() => import("./pages/Orcamentos"));
 const OrcamentoForm = lazy(() => import("./pages/OrcamentoForm"));
 const OrcamentoDetalhes = lazy(() => import("./pages/OrcamentoDetalhes"));
@@ -84,6 +85,7 @@ function AppShell() {
     location.pathname === "/ordens-servico" ||
     location.pathname === "/orcamentos" ||
     location.pathname === "/estoque" ||
+    location.pathname === "/servicos" ||
     location.pathname === "/clientes";
 
   return (
@@ -124,6 +126,14 @@ function AppShell() {
                 element={
                   <ProtectedRoute>
                     <Estoque />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/servicos"
+                element={
+                  <ProtectedRoute>
+                    <Servicos />
                   </ProtectedRoute>
                 }
               />

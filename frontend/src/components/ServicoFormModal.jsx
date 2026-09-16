@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import Modal from "./Modal";
+
+const emptyForm = () => ({
+  codigo: "",
+  nome: "",
+  descricao: "",
+  valor_unitario: 0,
+});
 
 export default function ServicoFormModal({
   servico,
@@ -9,14 +16,22 @@ export default function ServicoFormModal({
   onClose,
   onSaved,
 }) {
-  const [formData, setFormData] = useState(
-    servico || {
-      codigo: "",
-      nome: "",
-      descricao: "",
-      valor_unitario: 0,
-    },
-  );
+  const [formData, setFormData] = useState(emptyForm);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (servico) {
+      setFormData({
+        codigo: servico.codigo || "",
+        nome: servico.nome || "",
+        descricao: servico.descricao || "",
+        valor_unitario: Number(servico.valor_unitario) || 0,
+      });
+    } else {
+      setFormData(emptyForm());
+    }
+  }, [isOpen, servico]);
 
   if (!isOpen) return null;
 
@@ -31,6 +46,7 @@ export default function ServicoFormModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      setSalvando(true);
       let res;
       if (servico && servico.id) {
         res = await api.put(`/servicos/${servico.id}`, formData);
@@ -46,6 +62,8 @@ export default function ServicoFormModal({
         "Erro ao salvar serviço: " +
           (error.response?.data?.error || error.message),
       );
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -119,15 +137,17 @@ export default function ServicoFormModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={salvando}
             className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            disabled={salvando}
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            Salvar
+            {salvando ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </form>

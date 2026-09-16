@@ -42,6 +42,7 @@ describe("roles", () => {
     const admin = navItemsForRole("admin");
     const mec = navItemsForRole("mecanico");
     expect(admin.some((i) => i.to === "/estoque")).toBe(true);
+    expect(admin.some((i) => i.to === "/servicos")).toBe(true);
     expect(admin.some((i) => i.to === "/relatorios")).toBe(true);
     expect(mec.every((i) =>
       ["/ordens-servico", "/agendamentos"].includes(i.to),

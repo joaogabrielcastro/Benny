@@ -16,7 +16,7 @@ import {
   FiBarChart2,
 
   FiPackage,
-
+  FiClipboard,
   FiUser,
 
   FiUsers,
@@ -56,7 +56,7 @@ const ICONS = {
   "/relatorios": FiBarChart2,
 
   "/estoque": FiPackage,
-
+  "/servicos": FiClipboard,
   "/clientes": FiUser,
 
   "/usuarios": FiUsers,

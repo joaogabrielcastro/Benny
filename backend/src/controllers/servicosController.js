@@ -7,9 +7,11 @@ class ServicosController {
   async listar(req, res) {
     const tenantId = resolveTenantId(req);
     const { limit, offset, page } = req.pagination;
+    const busca = req.query.busca || undefined;
     const { rows, total } = await servicosService.listar(tenantId, {
       limit,
       offset,
+      busca,
     });
     sendPaginated(res, { rows, total, page, limit });
   }

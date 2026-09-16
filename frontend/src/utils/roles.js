@@ -52,6 +52,7 @@ export const NAV_ITEMS = [
   { to: "/contas-pagar", label: "Contas a pagar", roles: [ROLES.ADMIN], planFeature: "contas_pagar" },
   { to: "/relatorios", label: "Relatórios", roles: [ROLES.ADMIN], planFeature: "relatorios" },
   { to: "/estoque", label: "Estoque", roles: [ROLES.ADMIN] },
+  { to: "/servicos", label: "Serviços", roles: [ROLES.ADMIN] },
   { to: "/clientes", label: "Clientes", roles: [ROLES.ADMIN] },
   { to: "/usuarios", label: "Usuários", roles: [ROLES.ADMIN] },
   { to: "/assinatura", label: "Assinatura", roles: [ROLES.ADMIN] },

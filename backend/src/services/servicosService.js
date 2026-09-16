@@ -3,18 +3,30 @@ import pool from "../../database.js";
 
 const listar = async (
   tenantId = SINGLE_TENANT_ID,
-  { limit = 20, offset = 0 } = {},
+  { limit = 20, offset = 0, busca } = {},
 ) => {
-  const countResult = await pool.query(
-    "SELECT COUNT(*)::int AS total FROM servicos WHERE tenant_id = $1",
-    [tenantId],
-  );
-  const total = countResult.rows[0]?.total ?? 0;
-  const result = await pool.query(
-    "SELECT * FROM servicos WHERE tenant_id = $1 ORDER BY nome LIMIT $2 OFFSET $3",
-    [tenantId, limit, offset],
-  );
-  return { rows: result.rows, total };
+  let where = "WHERE tenant_id = $1";
+  const params = [tenantId];
+  let i = 2;
+
+  if (busca) {
+    where += ` AND (nome ILIKE $${i} OR codigo ILIKE $${i} OR COALESCE(descricao, '') ILIKE $${i})`;
+    params.push(`%${busca}%`);
+    i++;
+  }
+
+  const limitIdx = i;
+  const offsetIdx = i + 1;
+
+  const [result, countResult] = await Promise.all([
+    pool.query(
+      `SELECT * FROM servicos ${where} ORDER BY nome LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      [...params, limit, offset],
+    ),
+    pool.query(`SELECT COUNT(*)::int AS total FROM servicos ${where}`, params),
+  ]);
+
+  return { rows: result.rows, total: countResult.rows[0]?.total ?? 0 };
 };
 
 const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
