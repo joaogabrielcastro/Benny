@@ -160,10 +160,19 @@ export const gerarParaOs = async (
       const cfgFiscal = getNuvemFiscalConfig();
       dadosEnvio = {
         ...dadosEnvio,
-        referencia: montagem.body.referencia,
+        referencia:
+          montagem.meta?.referencia ||
+          montagem.body.referencia ||
+          referencia,
         ambiente: cfgFiscal.ambiente,
         competencia: montagem.body.competencia,
         provedor: PROVEDOR_FISCAL_ID,
+        ...(modelo === "NFE" && montagem.meta
+          ? {
+              serie: montagem.meta.serie,
+              nNF_local: montagem.meta.nNF,
+            }
+          : {}),
       };
 
       try {

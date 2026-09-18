@@ -66,19 +66,45 @@ describe("nuvemRespostaParser — Notaas statuses", () => {
     assert.doesNotMatch(campos.mensagem, /consulta|\d{2}:\d{2}:\d{2}/i);
   });
 
-  it("extrai número curto quando Notaas manda chave no campo numero", () => {
+  it("extrai chaveAcesso e nNf da resposta NF-e issued", () => {
     const campos = camposFromRespostaNuvem(
       {
+        invoiceId: "uuid-nfe-1",
         status: "issued",
-        invoiceId: "inv_abc",
-        numeroNfe: "NFS41058052255961553000100000000000001426083529461110",
-        issuedAt: "2026-03-12T19:00:00.000Z",
+        modelo: 55,
+        nNf: 42,
+        serie: 1,
+        chaveAcesso: "41260512345678000195550010000000421234567890",
+        pdfUrl:
+          "https://platform.notaas.com.br/api/v1/nfe/invoices/uuid-nfe-1/danfe",
+        issuedAt: "2026-05-11T12:00:05.000Z",
       },
-      100,
-      "NFSE",
+      99.8,
+      "NFE",
     );
     assert.equal(campos.status, "autorizada");
-    assert.equal(campos.numeroNf, "14");
-    assert.match(campos.chaveAcesso, /^NFS/);
+    assert.equal(campos.idProvedor, "uuid-nfe-1");
+    assert.equal(campos.numeroNf, "42");
+    assert.equal(
+      campos.chaveAcesso,
+      "41260512345678000195550010000000421234567890",
+    );
+    assert.match(campos.linkPdf, /danfe/);
+  });
+
+  it("usa xMotivo SEFAZ em rejeição NF-e", () => {
+    const campos = camposFromRespostaNuvem(
+      {
+        invoiceId: "uuid-nfe-err",
+        status: "error",
+        cStat: 225,
+        xMotivo: "Falha no Schema XML do lote de NFe",
+      },
+      50,
+      "NFE",
+    );
+    assert.equal(campos.status, "rejeitada");
+    assert.match(campos.mensagem, /225/);
+    assert.match(campos.mensagem, /Schema/i);
   });
 });

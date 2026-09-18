@@ -2,127 +2,96 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { montarCorpoEmissaoNfe } from "../src/services/nuvemFiscalNfePayload.js";
 
-describe("montarCorpoEmissaoNfe", () => {
+describe("montarCorpoEmissaoNfe (Notaas)", () => {
   const envBackup = { ...process.env };
 
   beforeEach(() => {
-    process.env.NUVEM_FISCAL_CODIGO_MUNICIPIO_IBGE = "4105805";
-    process.env.NUVEM_FISCAL_CNPJ_EMITENTE = "55961553000100";
-    process.env.NUVEM_FISCAL_EMITENTE_IE = "1234567890";
-    process.env.NUVEM_FISCAL_RESP_TEC_CNPJ = "10782612000137";
-    process.env.NUVEM_FISCAL_RESP_TEC_CONTATO = "Suporte Benny ERP";
-    process.env.NUVEM_FISCAL_RESP_TEC_EMAIL = "suporte@exemplo.com.br";
-    process.env.NUVEM_FISCAL_RESP_TEC_FONE = "41999999999";
-    process.env.NUVEM_FISCAL_RESP_TEC_CSRT_ID = "1";
-    process.env.NUVEM_FISCAL_RESP_TEC_CSRT = "TOKENCSRTEXEMPLO123";
+    process.env.NOTAAS_CODIGO_MUNICIPIO_IBGE = "4105805";
+    process.env.NOTAAS_NFE_CFOP = "5102";
+    process.env.NOTAAS_NFE_CSOSN = "102";
+    process.env.NOTAAS_NFE_NCM = "87089990";
+    process.env.NOTAAS_NFE_SERIE = "1";
   });
 
   afterEach(() => {
     process.env = { ...envBackup };
   });
 
-  it("inclui nNF obrigatório em infNFe.ide", () => {
-    const os = { id: 1, numero: "OS-100" };
-    const cliente = {
-      nome: "Cliente",
-      cep: "83411100",
-      cpf_cnpj: "12345678909",
-      cidade: "Colombo",
-      estado: "PR",
-      codigo_ibge: "4105805",
-    };
-    const produtos = [
-      {
-        codigo: "P1",
-        descricao: "Filtro",
-        quantidade: 1,
-        valor_unitario: 50,
-        valor_total: 50,
-      },
-    ];
+  const clienteOk = {
+    nome: "Cliente Teste",
+    cep: "83411100",
+    cpf_cnpj: "12345678909",
+    cidade: "Colombo",
+    estado: "PR",
+    codigo_ibge: "4105805",
+    endereco: "Rua A",
+    numero: "100",
+    bairro: "Centro",
+  };
 
-    const result = montarCorpoEmissaoNfe(os, cliente, produtos, { nNF: 42 });
+  const produtosOk = [
+    {
+      codigo: "P1",
+      descricao: "Filtro de oleo",
+      quantidade: 2,
+      valor_unitario: 25,
+      valor_total: 50,
+      ncm: "84212300",
+    },
+  ];
+
+  it("monta body Notaas com dest, items e pagamentos", () => {
+    const result = montarCorpoEmissaoNfe(
+      { id: 1, numero: "OS-100" },
+      clienteOk,
+      produtosOk,
+      { nNF: 42, referencia: "benny-nfe-1" },
+    );
     assert.equal(result.ok, true);
-    assert.equal(result.body.infNFe.ide.nNF, 42);
-    assert.equal(result.body.infNFe.ide.serie, 1);
-    assert.equal(result.body.infNFe.emit.IE, "1234567890");
-    assert.equal(result.body.infNFe.emit.CRT, 1);
-    assert.equal(result.body.infNFe.infRespTec.CNPJ, "10782612000137");
-    assert.equal(result.body.infNFe.infRespTec.xContato, "Suporte Benny ERP");
+    assert.equal(result.body.modelo, 55);
+    assert.equal(result.body.dest.cpf, "12345678909");
+    assert.equal(result.body.dest.endereco.codigoMunicipio, 4105805);
+    assert.equal(result.body.items.length, 1);
+    assert.equal(result.body.items[0].ncm, "84212300");
+    assert.equal(result.body.items[0].cfop, "5102");
+    assert.equal(result.body.items[0].csosn, "102");
+    assert.equal(result.body.pagamentos[0].tipoPagamento, "01");
+    assert.equal(result.body.pagamentos[0].valor, 50);
+    assert.equal(result.meta.referencia, "benny-nfe-1");
+    assert.equal(result.meta.nNF, 42);
+    assert.equal(result.body.referencia, undefined);
   });
 
-  it("falha sem CSRT do responsável técnico (rejeição 975)", () => {
-    delete process.env.NUVEM_FISCAL_RESP_TEC_CSRT;
+  it("funciona sem nNF (numeração fica na Notaas)", () => {
+    const result = montarCorpoEmissaoNfe(
+      { id: 1, numero: "OS-100" },
+      clienteOk,
+      produtosOk,
+      {},
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.meta.nNF, null);
+  });
+
+  it("falha sem produtos", () => {
     const result = montarCorpoEmissaoNfe(
       { id: 1, numero: "OS-1" },
-      {
-        nome: "Cliente",
-        cep: "83411100",
-        cpf_cnpj: "12345678909",
-        cidade: "Colombo",
-        estado: "PR",
-        codigo_ibge: "4105805",
-      },
-      [{ codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 }],
-      { nNF: 1 },
+      clienteOk,
+      [],
+      {},
     );
     assert.equal(result.ok, false);
-    assert.match(result.erro, /975|CSRT/i);
+    assert.match(result.erro, /peças|produtos/i);
   });
 
-  it("falha sem responsável técnico (infRespTec)", () => {
-    delete process.env.NUVEM_FISCAL_RESP_TEC_CNPJ;
+  it("falha sem CPF/CNPJ e CEP do cliente", () => {
     const result = montarCorpoEmissaoNfe(
       { id: 1, numero: "OS-1" },
-      {
-        nome: "Cliente",
-        cep: "83411100",
-        cpf_cnpj: "12345678909",
-        cidade: "Colombo",
-        estado: "PR",
-        codigo_ibge: "4105805",
-      },
-      [{ codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 }],
-      { nNF: 1 },
+      { nome: "X", cidade: "Colombo", estado: "PR" },
+      produtosOk,
+      {},
     );
     assert.equal(result.ok, false);
-    assert.match(result.erro, /972|infRespTec|Responsável técnico/i);
-  });
-
-  it("falha sem IE do emitente", () => {
-    delete process.env.NUVEM_FISCAL_EMITENTE_IE;
-    const result = montarCorpoEmissaoNfe(
-      { id: 1, numero: "OS-1" },
-      {
-        nome: "Cliente",
-        cep: "83411100",
-        cpf_cnpj: "12345678909",
-        cidade: "Colombo",
-        estado: "PR",
-      },
-      [{ codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 }],
-      { nNF: 1 },
-    );
-    assert.equal(result.ok, false);
-    assert.match(result.erro, /IE/i);
-  });
-
-  it("falha sem nNF", () => {
-    const os = { id: 1, numero: "OS-100" };
-    const cliente = {
-      nome: "Cliente",
-      cep: "83411100",
-      cpf_cnpj: "12345678909",
-      cidade: "Colombo",
-      estado: "PR",
-      codigo_ibge: "4105805",
-    };
-    const produtos = [
-      { codigo: "P1", descricao: "Peca", quantidade: 1, valor_total: 10 },
-    ];
-
-    const result = montarCorpoEmissaoNfe(os, cliente, produtos, {});
-    assert.equal(result.ok, false);
-    assert.match(result.erro, /nNF/i);
+    assert.match(result.erro, /CPF|CNPJ|CEP|IBGE/i);
   });
 });

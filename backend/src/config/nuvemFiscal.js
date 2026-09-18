@@ -154,7 +154,7 @@ export function getNuvemFiscalConfig() {
       envFirst("NOTAAS_ISS_RETIDO", "ACBR_API_ISS_RETIDO").toLowerCase() ===
         "true" ||
       envFirst("NOTAAS_ISS_RETIDO", "ACBR_API_ISS_RETIDO") === "1",
-    // Campos NF-e legados (NF-e Notaas ainda não integrada)
+    // Campos NF-e (payload / defaults; emitente e CSRT ficam no painel Notaas)
     cuf:
       parseInt(
         envFirst("NOTAAS_CUF", "ACBR_API_CUF", "NUVEM_FISCAL_CUF", "41"),
@@ -262,7 +262,7 @@ export function isNuvemFiscalConfigured() {
 
 export const isFiscalProviderConfigured = isNuvemFiscalConfigured;
 
-/** NF-e de peças — desabilitada por padrão (Notaas NF-e ainda não integrada). */
+/** NF-e de peças — desabilitada por padrão; ligue NOTAAS_NFE_ENABLED=true para testar. */
 export function isNfeEmissaoHabilitada() {
   const v = envFirst(
     "NOTAAS_NFE_ENABLED",

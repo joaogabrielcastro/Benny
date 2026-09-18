@@ -131,9 +131,12 @@ function nfPareceAutorizada(data) {
   const num =
     data.numero ??
     data.numeroNfe ??
+    data.nNf ??
+    data.nNF ??
     data.nNFSe ??
     data.nfse?.numero;
   const chave =
+    data.chaveAcesso ??
     data.chNFSe ??
     data.chave ??
     data.chave_acesso ??
@@ -196,6 +199,15 @@ export function resumoMensagensApi(data) {
   if (typeof data.errorMessage === "string" && data.errorMessage.trim()) {
     const cod = data.errorCode ? `[${data.errorCode}] ` : "";
     partes.push(`${cod}${data.errorMessage.trim()}`);
+  }
+
+  // NF-e SEFAZ (Notaas): cStat + xMotivo
+  if (data.xMotivo && String(data.xMotivo).trim()) {
+    const cod = data.cStat != null ? `[${data.cStat}] ` : "";
+    const linha = `${cod}${String(data.xMotivo).trim()}`;
+    if (!partes.some((p) => p.includes(String(data.xMotivo).trim()))) {
+      partes.push(linha);
+    }
   }
 
   if (Array.isArray(data.errors) && data.errors.length) {
@@ -297,6 +309,7 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
   }
 
   const chaveRaw =
+    data?.chaveAcesso ??
     data?.chNFSe ??
     data?.DPS?.chave ??
     data?.chave ??
@@ -306,6 +319,8 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
   const numeroRaw =
     data?.numero ??
     data?.numeroNfe ??
+    data?.nNf ??
+    data?.nNF ??
     data?.nNFSe ??
     data?.nfse?.numero ??
     null;

@@ -6,9 +6,6 @@ import {
 import logger from "../config/logger.js";
 import { isNuvemFilaProcessamento } from "./notasFiscais/nuvemNotaNaoEncontrada.js";
 
-const MSG_NFE_NAO_INTEGRADA =
-  "NF-e via Notaas ainda não está integrada neste servidor. Use NFS-e.";
-
 function apiHeaders(apiKey) {
   return {
     "x-api-key": apiKey,
@@ -263,8 +260,22 @@ export async function baixarXmlNfse(idProvedor, tipo = "emission") {
   );
 }
 
-export async function baixarPdfNfe() {
-  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
+export async function baixarPdfNfe(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
+  return requestNotaasBinary(`/nfe/invoices/${encodeURIComponent(id)}/danfe`);
+}
+
+export async function baixarXmlNfe(idProvedor, tipo = "emission") {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
+  const query = tipo === "cancel" ? "?type=cancel" : "";
+  return requestNotaasBinary(
+    `/nfe/invoices/${encodeURIComponent(id)}/xml${query}`,
+    null,
+    0,
+    { accept: "application/xml", kind: "xml" },
+  );
 }
 
 /** GET /invoices/{id}/status */
@@ -298,16 +309,30 @@ export async function emitirNfseDps(body) {
   return requestNotaas("POST", "/emitir", body);
 }
 
-export async function consultarNfe() {
-  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
+/** GET /nfe/invoices/{id}/status */
+export async function consultarNfe(idProvedor) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
+  const res = await requestNotaas(
+    "GET",
+    `/nfe/invoices/${encodeURIComponent(id)}/status`,
+  );
+  if (res.ok && res.data && typeof res.data === "object") {
+    if (!res.data.invoiceId) res.data.invoiceId = id;
+  }
+  return res;
 }
 
-export async function sincronizarNfeNaSefaz() {
-  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
+export async function sincronizarNfeNaSefaz(idProvedor) {
+  return consultarNfe(idProvedor);
 }
 
-export async function emitirNfe() {
-  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
+/** POST /nfe/emitir — NF-e modelo 55 */
+export async function emitirNfe(body) {
+  if (!isNuvemFiscalConfigured()) {
+    return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
+  }
+  return requestNotaas("POST", "/nfe/emitir", body);
 }
 
 /** POST /cancelar { invoiceId, motivo } */
@@ -322,6 +347,14 @@ export async function cancelarNfse(idProvedor, body = {}) {
   });
 }
 
-export async function cancelarNfe() {
-  return { ok: false, mensagem: MSG_NFE_NAO_INTEGRADA };
+/** POST /nfe/cancelar { invoiceId, motivo } */
+export async function cancelarNfe(idProvedor, body = {}) {
+  const id = String(idProvedor || "").trim();
+  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
+  return requestNotaas("POST", "/nfe/cancelar", {
+    invoiceId: id,
+    motivo: String(body.motivo || body.justificativa || "")
+      .trim()
+      .slice(0, 255),
+  });
 }

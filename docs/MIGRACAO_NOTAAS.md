@@ -10,13 +10,17 @@ Documentação: [docs.notaas.com.br](https://docs.notaas.com.br)
 |------|----------------------|--------|
 | Auth | OAuth `client_id` / `secret` | Header `x-api-key: ntaas_...` |
 | Emissão NFS-e | `POST /nfse/dps` | `POST /api/v1/emitir` |
-| Status | `GET /nfse/{id}` | `GET /api/v1/invoices/{id}/status` |
-| PDF | `GET /nfse/{id}/pdf` | `GET /api/v1/invoices/{id}/pdf` |
-| Cancelar | `POST /nfse/{id}/cancelamento` | `POST /api/v1/cancelar` |
+| Status NFS-e | `GET /nfse/{id}` | `GET /api/v1/invoices/{id}/status` |
+| PDF NFS-e | `GET /nfse/{id}/pdf` | `GET /api/v1/invoices/{id}/pdf` |
+| Cancelar NFS-e | `POST /nfse/{id}/cancelamento` | `POST /api/v1/cancelar` |
+| Emissão NF-e | — | `POST /api/v1/nfe/emitir` |
+| Status NF-e | — | `GET /api/v1/nfe/invoices/{id}/status` |
+| DANFE | — | `GET /api/v1/nfe/invoices/{id}/danfe` |
+| Cancelar NF-e | — | `POST /api/v1/nfe/cancelar` |
 
 Base URL: `https://platform.notaas.com.br/api/v1`
 
-**Escopo atual:** só **NFS-e** (serviços + peças na mesma nota enquanto NF-e estiver desligada). NF-e Notaas ainda não está integrada.
+**Escopo:** **NFS-e** (serviços) e **NF-e** (peças, modelo 55). NF-e fica desligada por padrão (`NOTAAS_NFE_ENABLED=false`); ligue só para testes/homologação depois de configurar emitente e certificado no painel Notaas.
 
 ## Painel Notaas
 
@@ -36,9 +40,12 @@ NOTAAS_CODIGO_MUNICIPIO_IBGE=4105805
 NOTAAS_C_TRIB_NAC=310103
 NOTAAS_C_NBS=120013110
 NOTAAS_ALIQUOTA_ISS=2
+# Teste NF-e: true — produção: mantenha false até validar homologação
 NOTAAS_NFE_ENABLED=false
 WDAPI2_TOKEN=<token wdapi2>
 ```
+
+Para testar NF-e: no painel Notaas configure empresa + certificado A1 + CSRT (se a UF exigir), defina `NOTAAS_NFE_ENABLED=true` e `NOTAAS_AMBIENTE=homologacao`, emita a partir de uma OS finalizada com peças.
 
 Remova `ACBR_API_*` / `NUVEM_FISCAL_CLIENT_*` para evitar confusão. Params fiscais antigos (`NUVEM_FISCAL_C_TRIB_NAC` etc.) ainda funcionam como fallback se `NOTAAS_*` correspondente estiver vazio.
 

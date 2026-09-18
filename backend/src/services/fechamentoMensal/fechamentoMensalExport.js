@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { PassThrough } from "node:stream";
 import { baixarPdf } from "../notasFiscais/notasFiscaisBaixarPdf.js";
-import { baixarXmlNfse } from "../nuvemFiscalClient.js";
+import { baixarXmlNfe, baixarXmlNfse } from "../nuvemFiscalClient.js";
 import { isNuvemFiscalConfigured } from "../../config/nuvemFiscal.js";
 import {
   gerarCsvEventos,
@@ -24,24 +24,30 @@ function bufferFromStream(stream) {
 }
 
 async function baixarXmlNota(nota, tipo = "emission") {
-  if (String(nota.modelo_documento).toUpperCase() !== "NFSE") {
-    return { ok: false, mensagem: "XML disponível apenas para NFS-e nesta versão." };
-  }
   if (!nota.id_provedor) {
     return { ok: false, mensagem: "Nota sem vínculo na Notaas." };
   }
-  return baixarXmlNfse(nota.id_provedor, tipo);
+  const modelo = String(nota.modelo_documento).toUpperCase();
+  if (modelo === "NFE") {
+    return baixarXmlNfe(nota.id_provedor, tipo);
+  }
+  if (modelo === "NFSE") {
+    return baixarXmlNfse(nota.id_provedor, tipo);
+  }
+  return { ok: false, mensagem: "Modelo de documento sem XML nesta versão." };
 }
 
 export async function exportarPacoteZip(resumo, tenantId) {
   const { periodo, notas, totais, avisos } = resumo;
   const erros = [];
-  const notasComDocumento = notas.filter(
-    (n) =>
+  const notasComDocumento = notas.filter((n) => {
+    const modelo = String(n.modelo_documento).toUpperCase();
+    return (
       n.id_provedor &&
       (n.status === "autorizada" || n.status === "cancelada") &&
-      String(n.modelo_documento).toUpperCase() === "NFSE",
-  );
+      (modelo === "NFSE" || modelo === "NFE")
+    );
+  });
 
   const passThrough = new PassThrough();
   const archive = archiver("zip", { zlib: { level: 6 } });
@@ -56,7 +62,7 @@ export async function exportarPacoteZip(resumo, tenantId) {
   if (!isNuvemFiscalConfigured()) {
     erros.push("Notaas não configurada — PDFs e XMLs não foram incluídos.");
   } else if (notasComDocumento.length === 0) {
-    erros.push("Nenhuma NFS-e autorizada/cancelada com vínculo Notaas neste mês.");
+    erros.push("Nenhuma NFS-e/NF-e autorizada/cancelada com vínculo Notaas neste mês.");
   } else {
     for (const nota of notasComDocumento) {
       const base = nomeArquivoNota(nota, "pdf").replace(/\.pdf$/, "");

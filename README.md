@@ -35,7 +35,7 @@ Sistema de gestão para oficinas mecânicas: OS, orçamentos, estoque, agenda, f
 - **Relatórios** — faturamento, OS, estoque (gráficos)
 - **Fechamento mensal** — totais NFS-e/NF-e do mês, tributos e **export ZIP** (CSV/JSON + PDF + XML) para o contador
 - **NFS-e** — emissão via Notaas a partir de OS finalizada (serviços; peças na mesma nota enquanto NF-e estiver off)
-- **NF-e** — estrutura no banco; **emissão ainda não integrada** na Notaas (`NOTAAS_NFE_ENABLED=false`)
+- **NF-e** — emissão via Notaas (`POST /nfe/emitir`); ligue `NOTAAS_NFE_ENABLED=true` para testar (padrão: desligada)
 
 ### SaaS
 - Multi-tenant por `tenant_id`
@@ -124,7 +124,7 @@ Resumo:
 | Documento | Status |
 |-----------|--------|
 | NFS-e | Integrada (emitir, status, PDF, XML, cancelar) |
-| NF-e | Desligada — client Notaas ainda não implementado |
+| NF-e | Integrada; desligada por padrão (`NOTAAS_NFE_ENABLED=false`) — ligue para testar |
 
 Documentação: [`docs/MIGRACAO_NOTAAS.md`](docs/MIGRACAO_NOTAAS.md)
 
