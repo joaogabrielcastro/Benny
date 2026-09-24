@@ -13,6 +13,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { formatarMoeda } from "../utils/formatters";
 import { useAuth } from "../contexts/AuthContext";
 import { useOSForm } from "../hooks/os/useOSForm";
+import { rotuloVeiculo, COMBUSTIVEIS } from "../features/veiculos/rotuloVeiculo";
 import OSFormItensProdutos from "../features/os/OSFormItensProdutos";
 import OSFormItensServicos from "../features/os/OSFormItensServicos";
 
@@ -120,7 +121,7 @@ export default function OSForm() {
                   <option value="">Selecione o veículo</option>
                   {veiculos.map((v) => (
                     <option key={v.id} value={v.id}>
-                      {v.marca} {v.modelo} {v.cor} {v.ano} - Placa: {v.placa}
+                      {rotuloVeiculo(v)}
                     </option>
                   ))}
                 </select>
@@ -225,6 +226,22 @@ export default function OSForm() {
 
         <div className="pro-card p-6">
           <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="consumidor-final">
+              Consumidor final?
+            </label>
+            <select
+              id="consumidor-final"
+              value={formData.consumidor_final}
+              onChange={(e) => setFormData({ ...formData, consumidor_final: e.target.value })}
+              className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+            >
+              <option value="">Não informado</option>
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </select>
+            <p className="mt-1 text-sm text-slate-500">Vale só para esta ordem de serviço. Não muda o cadastro do cliente.</p>
+          </div>
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Observações Gerais
             </label>
@@ -303,6 +320,9 @@ function VeiculoFormModal({ clienteId, onClose }) {
     placa: "",
     ano: "",
     chassi: "",
+    versao: "",
+    motor: "",
+    combustivel: "",
   });
 
   const handleSubmit = async (e) => {
@@ -327,7 +347,7 @@ function VeiculoFormModal({ clienteId, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
             Novo Veículo
@@ -399,6 +419,41 @@ function VeiculoFormModal({ clienteId, onClose }) {
                 placeholder="Preenchido ao buscar pela placa"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Versão</label>
+                <input
+                  type="text"
+                  value={formData.versao}
+                  onChange={(e) => setFormData({ ...formData, versao: e.target.value })}
+                  placeholder="Comfortline"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motor</label>
+                <input
+                  type="text"
+                  value={formData.motor}
+                  onChange={(e) => setFormData({ ...formData, motor: e.target.value })}
+                  placeholder="2.0 TSI"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Combustível</label>
+              <select
+                value={formData.combustivel}
+                onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                <option value="">Não informado</option>
+                {COMBUSTIVEIS.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>

@@ -116,7 +116,7 @@ export function montarResumoFromNotas(notas, ano, mes) {
     notas: lista,
     avisos: [
       "CT-e e notas de entrada ainda não estão disponíveis nesta versão.",
-      "NF-e só entra no fechamento quando a emissão via Notaas estiver habilitada.",
+      "NF-e entra no fechamento quando a emissão via Brasil NFe estiver habilitada.",
     ],
   };
 }

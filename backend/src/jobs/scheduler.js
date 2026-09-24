@@ -5,6 +5,7 @@ import {
 } from "../config/singleTenant.js";
 import backupService from "../services/backupService.js";
 import pool from "../../database.js";
+import { sincronizarNfsePendentes } from "./sincronizarNfsePendentes.js";
 
 // ─── Backup automático ───────────────────────────────────────────────────────
 
@@ -205,6 +206,13 @@ export function initScheduler(db = pool) {
   schedule.scheduleJob("*/30 * * * *", () => processarLembretesPendentes(db));
   setTimeout(() => processarLembretesPendentes(db), 5000);
   console.log("[INFO] Verificação de lembretes agendada a cada 30 minutos");
+
+  schedule.scheduleJob("*/2 * * * *", () => {
+    sincronizarNfsePendentes(db).catch((err) => {
+      console.error("[ERROR] Polling NFS-e:", err.message);
+    });
+  });
+  console.log("[INFO] Consulta de NFS-e em processamento a cada 2 minutos");
 
   schedule.scheduleJob("0 0 * * *", () => gerarContasRecorrentes(db));
   setTimeout(() => gerarContasRecorrentes(db), 8000);

@@ -7,7 +7,9 @@ const listar = async (tenantId = SINGLE_TENANT_ID, filtros) => {
   let query = `
     SELECT a.*, 
            c.nome as cliente_nome, c.telefone as cliente_telefone,
-           v.modelo as veiculo_modelo, v.placa as veiculo_placa
+           v.marca as veiculo_marca, v.modelo as veiculo_modelo,
+            v.versao as veiculo_versao, v.motor as veiculo_motor, v.ano as veiculo_ano,
+            v.placa as veiculo_placa
     FROM agendamentos a
     LEFT JOIN clientes c ON a.cliente_id = c.id
     LEFT JOIN veiculos v ON a.veiculo_id = v.id
@@ -75,7 +77,9 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
   const result = await pool.query(
     `SELECT a.*, 
             c.nome as cliente_nome, c.telefone as cliente_telefone,
-            v.modelo as veiculo_modelo, v.placa as veiculo_placa
+            v.marca as veiculo_marca, v.modelo as veiculo_modelo,
+            v.versao as veiculo_versao, v.motor as veiculo_motor, v.ano as veiculo_ano,
+            v.placa as veiculo_placa
      FROM agendamentos a
      LEFT JOIN clientes c ON a.cliente_id = c.id
      LEFT JOIN veiculos v ON a.veiculo_id = v.id
@@ -200,7 +204,9 @@ const hojeLista = async (tenantId = SINGLE_TENANT_ID) => {
   const result = await pool.query(
     `SELECT a.*, 
             c.nome as cliente_nome, c.telefone as cliente_telefone,
-            v.modelo as veiculo_modelo, v.placa as veiculo_placa
+            v.marca as veiculo_marca, v.modelo as veiculo_modelo,
+            v.versao as veiculo_versao, v.motor as veiculo_motor, v.ano as veiculo_ano,
+            v.placa as veiculo_placa
      FROM agendamentos a
      LEFT JOIN clientes c ON a.cliente_id = c.id
      LEFT JOIN veiculos v ON a.veiculo_id = v.id

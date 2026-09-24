@@ -3,6 +3,7 @@ import {
   DEFAULTS_ORCAMENTO,
   carregarDefaultsImpressao,
 } from "../utils/impressaoDefaults";
+import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
 const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
   // Expor método imprimir para o componente pai
@@ -328,9 +329,15 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
                 {orcamento.cliente_nome || "Não informado"}
               </td>
               <td style={{ padding: "3px", width: "50%" }}>
-                <strong>Veículo:</strong> {orcamento.veiculo_marca}{" "}
-                {orcamento.veiculo_modelo} {orcamento.veiculo_cor}{" "}
-                {orcamento.veiculo_ano || "Não informado"}
+                <strong>Veículo:</strong>{" "}
+                {rotuloVeiculo({
+                  marca: orcamento.veiculo_marca,
+                  modelo: orcamento.veiculo_modelo,
+                  versao: orcamento.veiculo_versao,
+                  motor: orcamento.veiculo_motor,
+                  ano: orcamento.veiculo_ano,
+                  placa: orcamento.veiculo_placa,
+                })}
               </td>
             </tr>
             <tr>

@@ -10,6 +10,7 @@ const NFE_KEYS = [
   "NOTAAS_NFE_ENABLED",
   "ACBR_API_NFE_ENABLED",
   "NUVEM_FISCAL_NFE_ENABLED",
+  "BRASILNFE_TOKEN",
 ];
 const INC_KEYS = [
   "NOTAAS_NFSE_INCLUIR_PECAS",
@@ -48,6 +49,12 @@ describe("isNfeEmissaoHabilitada", () => {
   it("liga com NOTAAS_NFE_ENABLED=true", () => {
     clearNfe();
     process.env.NOTAAS_NFE_ENABLED = "true";
+    assert.equal(isNfeEmissaoHabilitada(), true);
+  });
+
+  it("liga com BRASILNFE_TOKEN sem flag da Notaas (alias legado continua aceito)", () => {
+    clearNfe();
+    process.env.BRASILNFE_TOKEN = "token-teste";
     assert.equal(isNfeEmissaoHabilitada(), true);
   });
 

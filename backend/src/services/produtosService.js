@@ -76,6 +76,7 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
             COALESCE(valor_custo, 0)::numeric as valor_custo,
             COALESCE(valor_venda, 0)::numeric as valor_venda,
             COALESCE(estoque_minimo, 0)::numeric as estoque_minimo,
+            ncm,
             criado_em, atualizado_em
      FROM produtos WHERE id = $1::integer AND tenant_id = $2`,
     [id, tenantId],
@@ -98,14 +99,16 @@ const criar = async (
     valor_custo,
     valor_venda,
     estoque_minimo,
+    ncm = null,
   },
 ) => {
   const codigoInformado = normalizeCodigoOpcional(codigo);
+  const ncmGravar = ncm || null;
 
   if (codigoInformado !== "") {
     const result = await pool.query(
-      `INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, ncm, tenant_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         codigoInformado,
         nome,
@@ -114,6 +117,7 @@ const criar = async (
         valor_custo || 0,
         valor_venda || 0,
         estoque_minimo || 5,
+        ncmGravar,
         tenantId,
       ],
     );
@@ -123,12 +127,12 @@ const criar = async (
   const sqlAuto = `
     WITH next_num AS (
       SELECT COALESCE(MAX((regexp_match(codigo, '^P-([0-9]+)$'))[1]::int), 0) + 1 AS n
-      FROM produtos WHERE tenant_id = $7 AND codigo ~ '^P-[0-9]+$'
+      FROM produtos WHERE tenant_id = $8 AND codigo ~ '^P-[0-9]+$'
     )
-    INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, tenant_id)
+    INSERT INTO produtos (codigo, nome, descricao, quantidade, valor_custo, valor_venda, estoque_minimo, ncm, tenant_id)
     SELECT (
       'P-' || lpad(next_num.n::text, GREATEST(4, length(next_num.n::text)), '0')
-    ), $1, $2, $3, $4, $5, $6, $7
+    ), $1, $2, $3, $4, $5, $6, $7, $8
     FROM next_num
     RETURNING *`;
 
@@ -139,6 +143,7 @@ const criar = async (
     valor_custo || 0,
     valor_venda || 0,
     estoque_minimo || 5,
+    ncmGravar,
     tenantId,
   ];
 
@@ -166,13 +171,14 @@ const atualizar = async (
     valor_custo,
     valor_venda,
     estoque_minimo,
+    ncm = null,
   },
 ) => {
   const result = await pool.query(
     `UPDATE produtos
      SET codigo = $1, nome = $2, descricao = $3, quantidade = $4, valor_custo = $5,
-         valor_venda = $6, estoque_minimo = $7, atualizado_em = CURRENT_TIMESTAMP
-     WHERE id = $8 AND tenant_id = $9 RETURNING *`,
+         valor_venda = $6, estoque_minimo = $7, ncm = $8, atualizado_em = CURRENT_TIMESTAMP
+     WHERE id = $9 AND tenant_id = $10 RETURNING *`,
     [
       codigo,
       nome,
@@ -181,6 +187,7 @@ const atualizar = async (
       valor_custo,
       valor_venda,
       estoque_minimo,
+      ncm || null,
       id,
       tenantId,
     ],

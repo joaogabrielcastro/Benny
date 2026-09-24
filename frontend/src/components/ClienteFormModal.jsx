@@ -35,6 +35,8 @@ const emptyForm = {
   estado: "",
   cep: "",
   codigo_ibge: "",
+  situacao_icms: "",
+  inscricao_estadual: "",
 };
 
 function inferirTipoPessoa(cpfCnpj) {
@@ -63,6 +65,8 @@ function clienteParaForm(c) {
     estado: c.estado || "",
     cep: c.cep ? mascaraCEP(c.cep) : "",
     codigo_ibge: c.codigo_ibge || "",
+    situacao_icms: c.situacao_icms || "",
+    inscricao_estadual: c.inscricao_estadual || "",
   };
 }
 
@@ -131,6 +135,8 @@ export default function ClienteFormModal({
       estado: formData.estado,
       cep: removerMascara(formData.cep),
       codigo_ibge: formData.codigo_ibge || undefined,
+      situacao_icms: formData.situacao_icms || null,
+      inscricao_estadual: formData.inscricao_estadual.trim() || null,
     };
 
     if (!validarCPFouCNPJ(formData.cpf_cnpj)) {
@@ -362,6 +368,42 @@ export default function ClienteFormModal({
                 setFormData({ ...formData, cidade: e.target.value })
               }
               required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="situacao-icms">
+                Situação perante o ICMS
+              </label>
+              <select
+                id="situacao-icms"
+                value={formData.situacao_icms}
+                onChange={(e) =>
+                  setFormData({ ...formData, situacao_icms: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md"
+              >
+                <option value="">Não informado</option>
+                <option value="CONTRIBUINTE_ICMS">Contribuinte ICMS</option>
+                <option value="CONTRIBUINTE_ISENTO">Contribuinte isento de IE</option>
+                <option value="NAO_CONTRIBUINTE">Não contribuinte</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {formData.situacao_icms === "CONTRIBUINTE_ICMS"
+                  ? "A inscrição estadual é necessária para emitir NF-e."
+                  : "Necessário para emissão de NF-e. Não é preenchido pelo CPF ou CNPJ."}
+              </p>
+            </div>
+            <Input
+              label="Inscrição Estadual"
+              value={formData.inscricao_estadual}
+              onChange={(e) =>
+                setFormData({ ...formData, inscricao_estadual: e.target.value })
+              }
+              placeholder={
+                formData.situacao_icms === "NAO_CONTRIBUINTE" ||
+                formData.situacao_icms === "CONTRIBUINTE_ISENTO"
+                  ? "Opcional"
+                  : ""
+              }
             />
             <Input
               label="Estado"

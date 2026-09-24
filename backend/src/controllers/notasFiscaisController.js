@@ -53,6 +53,7 @@ class NotasFiscaisController {
       resolveTenantId(req),
       req.params.osId,
       modelo,
+      { usuarioId: req.user?.id ?? null },
     );
     if (result.erro) throw new AppError(400, result.erro);
     res.json({ message: result.message, nf: result.nf });
@@ -73,9 +74,22 @@ class NotasFiscaisController {
     const result = await notasFiscaisService.gerarParaOs(
       resolveTenantId(req),
       req.params.osId,
-      { forcarNovaEmissao, modeloDocumento },
+      { forcarNovaEmissao, modeloDocumento, usuarioId: req.user?.id ?? null },
     );
-    if (result.erro) throw new AppError(400, result.erro);
+    if (result.erro) {
+      throw new AppError(
+        400,
+        result.erro,
+        result.code
+          ? {
+              code: result.code,
+              message: result.erro,
+              ...(result.produtos ? { produtos: result.produtos } : {}),
+              ...(result.campos ? { campos: result.campos } : {}),
+            }
+          : null,
+      );
+    }
     res.status(201).json({ message: result.message, nf: result.nf });
   }
 
@@ -84,7 +98,7 @@ class NotasFiscaisController {
     const result = await notasFiscaisService.cancelar(
       resolveTenantId(req),
       req.params.id,
-      body,
+      { ...body, usuarioId: req.user?.id ?? null },
     );
     if (result.erro) throw new AppError(400, result.erro);
     res.json({ message: result.message, nf: result.nf });

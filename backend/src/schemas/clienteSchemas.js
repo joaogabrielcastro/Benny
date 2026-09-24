@@ -15,6 +15,11 @@ export const createClienteSchema = z.object({
   cidade: optionalStr,
   estado: optionalStr,
   codigo_ibge: optionalStr,
+  situacao_icms: z
+    .enum(["CONTRIBUINTE_ICMS", "CONTRIBUINTE_ISENTO", "NAO_CONTRIBUINTE"])
+    .optional()
+    .nullable(),
+  inscricao_estadual: optionalStr,
 });
 
 export const updateClienteSchema = createClienteSchema.partial().extend({

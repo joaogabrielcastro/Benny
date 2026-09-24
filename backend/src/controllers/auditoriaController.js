@@ -9,16 +9,46 @@ import { parseIdParam } from "../lib/controllerHelpers.js";
  * - tenant_id persistido em dados_anteriores/dados_novos (histórico pós-DELETE).
  * Cross-tenant → 404 (sem vazamento).
  */
+export function semSegredoAuditoria(row) {
+  const limpar = (obj) => {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj ?? null;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (/token|api[_-]?key|senha|secret|certific|cpf|cnpj|payload|dados_envio/i.test(k)) {
+        continue;
+      }
+      out[k] = v;
+    }
+    return out;
+  };
+  return {
+    ...row,
+    dados_anteriores: limpar(row.dados_anteriores),
+    dados_novos: limpar(row.dados_novos),
+  };
+}
+
 async function buscarAuditoriaEscopada(req, res, tabela, label) {
   const tenantId = resolveTenantId(req);
   const id = parseIdParam(req.params.id, label);
+
+  const fiscalOs =
+    tabela === "ordens_servico"
+      ? `OR (
+           a.tabela = 'notas_fiscais'
+           AND COALESCE(NULLIF(a.dados_novos->>'ordem_servico_id', ''), '') = $1::text
+           AND COALESCE(NULLIF(a.dados_novos->>'tenant_id', ''), '') = $2::text
+         )`
+      : "";
 
   const result = await pool.query(
     `
     SELECT a.*
     FROM auditoria a
-    WHERE a.tabela = $3
-      AND a.registro_id = $1
+    WHERE (
+      (a.tabela = $3 AND a.registro_id = $1)
+      ${fiscalOs}
+    )
       AND (
         EXISTS (
           SELECT 1
@@ -35,7 +65,7 @@ async function buscarAuditoriaEscopada(req, res, tabela, label) {
   );
 
   if (result.rows.length > 0) {
-    return res.json(result.rows);
+    return res.json(result.rows.map(semSegredoAuditoria));
   }
 
   const vivo = await pool.query(

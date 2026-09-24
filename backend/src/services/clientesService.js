@@ -80,12 +80,17 @@ const criar = async (
     cidade,
     estado,
     codigo_ibge,
+    situacao_icms = null,
+    inscricao_estadual = null,
   },
 ) => {
   const ibge = await resolveCodigoIbgeCliente(cep, codigo_ibge);
   const result = await pool.query(
-    `INSERT INTO clientes (nome, telefone, cpf_cnpj, email, endereco, cep, numero, complemento, bairro, cidade, estado, codigo_ibge, tenant_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+    `INSERT INTO clientes (
+       nome, telefone, cpf_cnpj, email, endereco, cep, numero, complemento,
+       bairro, cidade, estado, codigo_ibge, situacao_icms, inscricao_estadual, tenant_id
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
     [
       nome,
       telefone,
@@ -99,16 +104,16 @@ const criar = async (
       cidade,
       estado,
       ibge,
+      situacao_icms || null,
+      inscricao_estadual ? String(inscricao_estadual).trim() : null,
       tenantId,
     ],
   );
   return result.rows[0];
 };
 
-const atualizar = async (
-  tenantId,
-  id,
-  {
+const atualizar = async (tenantId, id, dados) => {
+  const {
     nome,
     telefone,
     cpf_cnpj,
@@ -121,15 +126,21 @@ const atualizar = async (
     cidade,
     estado,
     codigo_ibge,
-  },
-) => {
+    situacao_icms,
+    inscricao_estadual,
+  } = dados;
+  const defineSituacao = Object.prototype.hasOwnProperty.call(dados, "situacao_icms");
+  const defineIe = Object.prototype.hasOwnProperty.call(dados, "inscricao_estadual");
   const ibge = await resolveCodigoIbgeCliente(cep, codigo_ibge);
   await pool.query(
     `UPDATE clientes
      SET nome=$1, telefone=$2, cpf_cnpj=$3, email=$4, endereco=$5,
          cep=$6, numero=$7, complemento=$8, bairro=$9, cidade=$10, estado=$11,
-         codigo_ibge=$12, atualizado_em=CURRENT_TIMESTAMP
-     WHERE id=$13 AND tenant_id=$14`,
+         codigo_ibge=$12,
+         situacao_icms = CASE WHEN $13 THEN $14 ELSE situacao_icms END,
+         inscricao_estadual = CASE WHEN $15 THEN $16 ELSE inscricao_estadual END,
+         atualizado_em=CURRENT_TIMESTAMP
+     WHERE id=$17 AND tenant_id=$18`,
     [
       nome,
       telefone,
@@ -143,6 +154,10 @@ const atualizar = async (
       cidade,
       estado,
       ibge,
+      defineSituacao,
+      situacao_icms || null,
+      defineIe,
+      inscricao_estadual ? String(inscricao_estadual).trim() : null,
       id,
       tenantId,
     ],

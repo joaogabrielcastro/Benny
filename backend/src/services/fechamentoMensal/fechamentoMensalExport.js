@@ -1,8 +1,7 @@
 import { createRequire } from "node:module";
 import { PassThrough } from "node:stream";
 import { baixarPdf } from "../notasFiscais/notasFiscaisBaixarPdf.js";
-import { baixarXmlNfe, baixarXmlNfse } from "../nuvemFiscalClient.js";
-import { isNuvemFiscalConfigured } from "../../config/nuvemFiscal.js";
+import { resolveFiscalProvider } from "../fiscal/providers/index.js";
 import {
   gerarCsvEventos,
   gerarCsvResumo,
@@ -23,18 +22,19 @@ function bufferFromStream(stream) {
   });
 }
 
-async function baixarXmlNota(nota, tipo = "emission") {
+async function baixarXmlNota(nota, tenantId, tipo = "emission") {
+  const provider = await resolveFiscalProvider({
+    modeloDocumento: nota.modelo_documento,
+    provedor: nota.provedor,
+    tenantId,
+  });
   if (!nota.id_provedor) {
-    return { ok: false, mensagem: "Nota sem vínculo na Notaas." };
+    return { ok: false, mensagem: `Nota sem vínculo na ${provider.rotulo}.` };
   }
-  const modelo = String(nota.modelo_documento).toUpperCase();
-  if (modelo === "NFE") {
-    return baixarXmlNfe(nota.id_provedor, tipo);
+  if (!provider.isConfigured()) {
+    return { ok: false, mensagem: provider.mensagemNaoConfigurado() };
   }
-  if (modelo === "NFSE") {
-    return baixarXmlNfse(nota.id_provedor, tipo);
-  }
-  return { ok: false, mensagem: "Modelo de documento sem XML nesta versão." };
+  return provider.baixarXml(nota.id_provedor, tipo);
 }
 
 export async function exportarPacoteZip(resumo, tenantId) {
@@ -59,10 +59,8 @@ export async function exportarPacoteZip(resumo, tenantId) {
   archive.append(gerarCsvResumo(notas), { name: "resumo.csv" });
   archive.append(gerarCsvEventos(notas), { name: "eventos-cancelamento.csv" });
 
-  if (!isNuvemFiscalConfigured()) {
-    erros.push("Notaas não configurada — PDFs e XMLs não foram incluídos.");
-  } else if (notasComDocumento.length === 0) {
-    erros.push("Nenhuma NFS-e/NF-e autorizada/cancelada com vínculo Notaas neste mês.");
+  if (notasComDocumento.length === 0) {
+    erros.push("Nenhuma NFS-e/NF-e autorizada/cancelada com vínculo no provedor neste mês.");
   } else {
     for (const nota of notasComDocumento) {
       const base = nomeArquivoNota(nota, "pdf").replace(/\.pdf$/, "");
@@ -74,7 +72,7 @@ export async function exportarPacoteZip(resumo, tenantId) {
         archive.append(pdf.buffer, { name: `pdf/${base}.pdf` });
       }
 
-      const xml = await baixarXmlNota(nota, "emission");
+      const xml = await baixarXmlNota(nota, tenantId, "emission");
       if (xml.ok) {
         archive.append(xml.buffer, { name: `xml/emissao/${base}.xml` });
       } else {
@@ -82,7 +80,7 @@ export async function exportarPacoteZip(resumo, tenantId) {
       }
 
       if (nota.status === "cancelada") {
-        const xmlCancel = await baixarXmlNota(nota, "cancel");
+        const xmlCancel = await baixarXmlNota(nota, tenantId, "cancel");
         if (xmlCancel.ok) {
           archive.append(xmlCancel.buffer, {
             name: `xml/cancelamento/${base}-cancel.xml`,

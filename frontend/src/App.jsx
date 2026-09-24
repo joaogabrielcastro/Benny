@@ -35,6 +35,7 @@ const Clientes = lazy(() => import("./pages/Clientes"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Planos = lazy(() => import("./pages/Planos"));
 const Assinatura = lazy(() => import("./pages/Assinatura"));
+const ConfiguracaoFiscal = lazy(() => import("./pages/ConfiguracaoFiscal"));
 const BillingSucesso = lazy(() => import("./pages/BillingSucesso"));
 
 function App() {
@@ -246,6 +247,14 @@ function AppShell() {
                 element={
                   <ProtectedRoute>
                     <Assinatura />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/configuracao-fiscal"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <ConfiguracaoFiscal />
                   </ProtectedRoute>
                 }
               />

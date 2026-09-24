@@ -1,6 +1,13 @@
 import { SINGLE_TENANT_ID } from "../config/singleTenant.js";
 import pool from "../../database.js";
 
+function textoCadastro(valor, max) {
+  if (valor == null) return null;
+  const limpo = String(valor).replace(/\s+/g, " ").trim();
+  if (!limpo) return null;
+  return limpo.slice(0, max);
+}
+
 const listar = async (
   tenantId = SINGLE_TENANT_ID,
   { limit = 20, offset = 0 } = {},
@@ -32,17 +39,69 @@ const listarPorCliente = async (tenantId = SINGLE_TENANT_ID, clienteId) => {
 
 const criar = async (
   tenantId = SINGLE_TENANT_ID,
-  { cliente_id, modelo, marca, cor, placa, ano, chassi },
+  { cliente_id, modelo, marca, cor, placa, ano, chassi, versao, motor, combustivel },
+  db = pool,
 ) => {
   const chassiNorm = chassi
     ? String(chassi).trim().toUpperCase().slice(0, 20)
     : null;
-  const result = await pool.query(
-    `INSERT INTO veiculos (cliente_id, modelo, marca, cor, placa, ano, chassi, tenant_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [cliente_id, modelo, marca || null, cor, placa, ano, chassiNorm, tenantId],
+  const result = await db.query(
+    `INSERT INTO veiculos (
+       cliente_id, modelo, marca, cor, placa, ano, chassi,
+       versao, motor, combustivel, tenant_id
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [
+      cliente_id,
+      modelo,
+      marca || null,
+      cor,
+      placa,
+      ano,
+      chassiNorm,
+      textoCadastro(versao, 80),
+      textoCadastro(motor, 80),
+      combustivel || null,
+      tenantId,
+    ],
   );
   return result.rows[0];
 };
 
-export default { listar, listarPorCliente, criar };
+const atualizar = async (tenantId = SINGLE_TENANT_ID, id, dados, db = pool) => {
+  const atual = await db.query(
+    "SELECT * FROM veiculos WHERE id = $1 AND tenant_id = $2",
+    [id, tenantId],
+  );
+  if (!atual.rows[0]) return null;
+  const prev = atual.rows[0];
+  const chassi =
+    dados.chassi !== undefined
+      ? dados.chassi
+        ? String(dados.chassi).trim().toUpperCase().slice(0, 20)
+        : null
+      : prev.chassi;
+  const result = await db.query(
+    `UPDATE veiculos
+     SET modelo = $1, marca = $2, cor = $3, placa = $4, ano = $5, chassi = $6,
+         versao = $7, motor = $8, combustivel = $9
+     WHERE id = $10 AND tenant_id = $11
+     RETURNING *`,
+    [
+      dados.modelo !== undefined ? dados.modelo : prev.modelo,
+      dados.marca !== undefined ? dados.marca || null : prev.marca,
+      dados.cor !== undefined ? dados.cor : prev.cor,
+      dados.placa !== undefined ? dados.placa : prev.placa,
+      dados.ano !== undefined ? dados.ano : prev.ano,
+      chassi,
+      dados.versao !== undefined ? textoCadastro(dados.versao, 80) : prev.versao,
+      dados.motor !== undefined ? textoCadastro(dados.motor, 80) : prev.motor,
+      dados.combustivel !== undefined ? dados.combustivel || null : prev.combustivel,
+      id,
+      tenantId,
+    ],
+  );
+  return result.rows[0] || null;
+};
+
+export default { listar, listarPorCliente, criar, atualizar };

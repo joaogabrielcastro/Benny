@@ -11,6 +11,9 @@ import { showSuccess, showError, showPromise } from "../utils/toast.jsx";
 import { validarNumeroPositivo } from "../utils/validators";
 import ProdutoFormModal from "../components/ProdutoFormModal";
 import ServicoFormModal from "../components/ServicoFormModal";
+import AssistenteOrcamento from "../features/orcamentos/AssistenteOrcamento";
+import { aplicarSugestoesNoOrcamento } from "../features/orcamentos/aplicarSugestoes";
+import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
 export default function OrcamentoForm() {
   const navigate = useNavigate();
@@ -22,6 +25,7 @@ export default function OrcamentoForm() {
   const [produtos, setProdutos] = useState([]);
   const [mostrarClienteForm, setMostrarClienteForm] = useState(false);
   const [mostrarVeiculoForm, setMostrarVeiculoForm] = useState(false);
+  const [veiculoEmEdicao, setVeiculoEmEdicao] = useState(null);
 
   const [formData, setFormData] = useState({
     cliente_id: "",
@@ -397,13 +401,30 @@ export default function OrcamentoForm() {
                   <option value="">Selecione o veículo</option>
                   {veiculos.map((v) => (
                     <option key={v.id} value={v.id}>
-                      {v.marca} {v.modelo} {v.cor} {v.ano} - Placa: {v.placa}
+                      {rotuloVeiculo(v)}
                     </option>
                   ))}
                 </select>
                 <button
                   type="button"
-                  onClick={() => setMostrarVeiculoForm(true)}
+                  onClick={() => {
+                    const atual = veiculos.find(
+                      (v) => String(v.id) === String(formData.veiculo_id),
+                    );
+                    setVeiculoEmEdicao(atual || null);
+                    setMostrarVeiculoForm(true);
+                  }}
+                  disabled={!formData.veiculo_id}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:bg-gray-400 disabled:text-white"
+                >
+                  Dados
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVeiculoEmEdicao(null);
+                    setMostrarVeiculoForm(true);
+                  }}
                   disabled={!formData.cliente_id}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
                 >
@@ -478,6 +499,20 @@ export default function OrcamentoForm() {
             />
           </div>
         </div>
+
+        <AssistenteOrcamento
+          clienteId={formData.cliente_id}
+          veiculoId={formData.veiculo_id}
+          km={formData.km}
+          itensProdutos={itensProdutos}
+          itensServicos={itensServicos}
+          onAplicar={(args) => {
+            const aplicado = aplicarSugestoesNoOrcamento(args);
+            setItensProdutos(aplicado.itensProdutos);
+            setItensServicos(aplicado.itensServicos);
+            return aplicado;
+          }}
+        />
 
         {/* Produtos */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
@@ -788,11 +823,15 @@ export default function OrcamentoForm() {
 
       <NovoVeiculoModal
         isOpen={mostrarVeiculoForm}
-        onClose={() => setMostrarVeiculoForm(false)}
+        onClose={() => {
+          setMostrarVeiculoForm(false);
+          setVeiculoEmEdicao(null);
+        }}
         clienteId={formData.cliente_id}
+        veiculo={veiculoEmEdicao}
         onVeiculoCriado={(veiculo) => {
           carregarVeiculos(formData.cliente_id);
-          setFormData({ ...formData, veiculo_id: veiculo.id });
+          if (veiculo?.id) setFormData({ ...formData, veiculo_id: veiculo.id });
         }}
       />
 

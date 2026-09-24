@@ -8,15 +8,15 @@ import { produtosTemColunaNcm } from "../lib/schemaCache.js";
 import { AppError } from "../lib/AppError.js";
 import { baixarEstoqueProduto } from "./estoqueMovimentacao.js";
 
-async function queryProdutosOs(osId) {
+async function queryProdutosOs(osId, tenantId) {
   const temNcm = await produtosTemColunaNcm(pool);
   if (temNcm) {
     return pool.query(
-      `SELECT op.*, p.ncm AS produto_ncm
+      `SELECT op.*, p.ncm AS produto_ncm, p.id AS produto_do_tenant
        FROM os_produtos op
-       LEFT JOIN produtos p ON p.id = op.produto_id
+       LEFT JOIN produtos p ON p.id = op.produto_id AND p.tenant_id = $2
        WHERE op.os_id = $1`,
-      [osId],
+      [osId, tenantId],
     );
   }
   return pool.query("SELECT * FROM os_produtos WHERE os_id = $1", [osId]);
@@ -129,8 +129,9 @@ const listar = async (
   const dataResult = await pool.query(
     `SELECT os.*,
             c.nome as cliente_nome, c.telefone as cliente_telefone,
-            v.modelo as veiculo_modelo, v.placa as veiculo_placa,
-            v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi
+            v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+            v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi,
+            v.versao as veiculo_versao, v.motor as veiculo_motor, v.combustivel as veiculo_combustivel
      ${fromJoin}
      ${where}
      ORDER BY ${sortCol} ${sortDir}
@@ -150,15 +151,16 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
               c.complemento as cliente_complemento, c.bairro as cliente_bairro,
               c.cidade as cliente_cidade, c.estado as cliente_estado, c.cep as cliente_cep,
               c.codigo_ibge as cliente_codigo_ibge,
-              v.modelo as veiculo_modelo, v.placa as veiculo_placa,
-              v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi
+              v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+              v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi,
+              v.versao as veiculo_versao, v.motor as veiculo_motor, v.combustivel as veiculo_combustivel
        FROM ordens_servico os
        LEFT JOIN clientes c ON os.cliente_id = c.id
        LEFT JOIN veiculos v ON os.veiculo_id = v.id
        WHERE os.id = $1 AND os.tenant_id = $2`,
       [id, tenantId],
     ),
-    queryProdutosOs(id),
+    queryProdutosOs(id, tenantId),
     pool.query("SELECT * FROM os_servicos WHERE os_id = $1", [id]),
   ]);
   if (!os.rows[0]) return null;
@@ -177,6 +179,7 @@ const criar = async (
     observacoes_veiculo,
     observacoes_gerais,
     responsavel_tecnico,
+    consumidor_final,
     produtos = [],
     servicos = [],
   },
@@ -191,8 +194,8 @@ const criar = async (
     );
 
     const osResult = await client.query(
-      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total, responsavel_tecnico, status, tenant_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'Aberta',$12) RETURNING id`,
+      `INSERT INTO ordens_servico (numero, cliente_id, veiculo_id, km, previsao_entrega, observacoes_veiculo, observacoes_gerais, valor_produtos, valor_servicos, valor_total, responsavel_tecnico, consumidor_final, status, tenant_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Aberta',$13) RETURNING id`,
       [
         numero,
         cliente_id,
@@ -205,6 +208,7 @@ const criar = async (
         valor_servicos,
         valor_total,
         responsavel_tecnico,
+        consumidor_final === true ? true : consumidor_final === false ? false : null,
         tenantId,
       ],
     );
@@ -264,6 +268,7 @@ const atualizar = async (
     previsao_entrega,
     observacoes_veiculo,
     observacoes_gerais,
+    consumidor_final,
   },
 ) => {
   const client = await pool.connect();
@@ -314,14 +319,20 @@ const atualizar = async (
       responsavel_tecnico !== undefined
         ? responsavel_tecnico
         : prevRow.responsavel_tecnico;
+    const consumidorFinal =
+      consumidor_final === true || consumidor_final === false
+        ? consumidor_final
+        : consumidor_final === null
+          ? null
+          : prevRow.consumidor_final;
 
     await client.query(
       `UPDATE ordens_servico
        SET status=$1::varchar, responsavel_tecnico=$2::varchar, km=$3, previsao_entrega=$4,
-           observacoes_veiculo=$5, observacoes_gerais=$6,
+           observacoes_veiculo=$5, observacoes_gerais=$6, consumidor_final=$7,
            finalizado_em = CASE WHEN $1::varchar = 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END,
            atualizado_em = CURRENT_TIMESTAMP
-       WHERE id=$7 AND tenant_id=$8`,
+       WHERE id=$8 AND tenant_id=$9`,
       [
         statusFinal,
         respTecnicoFinal,
@@ -329,6 +340,7 @@ const atualizar = async (
         previsaoFinal,
         obsVeiculoFinal,
         obsGeraisFinal,
+        consumidorFinal,
         id,
         tenantId,
       ],

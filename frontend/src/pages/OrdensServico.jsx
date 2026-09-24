@@ -18,6 +18,7 @@ import Pagination from "../components/Pagination";
 import SortableHeader from "../components/SortableHeader";
 import PageHeader from "../components/layout/PageHeader";
 import { useAuth } from "../contexts/AuthContext";
+import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -242,9 +243,23 @@ export default function OrdensServico() {
                   </td>
                   <td
                     className="px-3 py-4 text-sm text-gray-700 dark:text-gray-300 max-w-0 truncate"
-                    title={`${os.veiculo_modelo} - ${os.veiculo_placa}`}
+                    title={rotuloVeiculo({
+                      marca: os.veiculo_marca,
+                      modelo: os.veiculo_modelo,
+                      versao: os.veiculo_versao,
+                      motor: os.veiculo_motor,
+                      ano: os.veiculo_ano,
+                      placa: os.veiculo_placa,
+                    })}
                   >
-                    {os.veiculo_modelo} - {os.veiculo_placa}
+                    {rotuloVeiculo({
+                      marca: os.veiculo_marca,
+                      modelo: os.veiculo_modelo,
+                      versao: os.veiculo_versao,
+                      motor: os.veiculo_motor,
+                      ano: os.veiculo_ano,
+                      placa: os.veiculo_placa,
+                    })}
                   </td>
                   <td className="px-3 py-4 text-sm font-semibold text-gray-900 dark:text-gray-200 whitespace-nowrap">
                     {formatarMoeda(os.valor_total)}

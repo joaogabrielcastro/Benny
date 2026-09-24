@@ -96,6 +96,7 @@ export function getNuvemFiscalConfig() {
     cNbs,
     codigoMunicipioIbge:
       codigoMunicipioIbge.length === 7 ? codigoMunicipioIbge : "",
+    /** @deprecated Legado da NFS-e. A NF-e Brasil NFe não usa estes fallbacks no destinatário. */
     tomadorCpfFallback: envFirst(
       "NOTAAS_TOMADOR_CPF",
       "ACBR_API_TOMADOR_CPF",
@@ -160,18 +161,21 @@ export function getNuvemFiscalConfig() {
         envFirst("NOTAAS_CUF", "ACBR_API_CUF", "NUVEM_FISCAL_CUF", "41"),
         10,
       ) || 41,
+    /** @deprecated Legado single-tenant. A NF-e não usa este CFOP global como fonte. */
     nfeCfop: envFirst(
       "NOTAAS_NFE_CFOP",
       "ACBR_API_NFE_CFOP",
       "NUVEM_FISCAL_NFE_CFOP",
       "5102",
     ).replace(/\D/g, ""),
+    /** @deprecated Legado single-tenant. A NF-e não usa este CSOSN global como fonte. */
     nfeCsosn: envFirst(
       "NOTAAS_NFE_CSOSN",
       "ACBR_API_NFE_CSOSN",
       "NUVEM_FISCAL_NFE_CSOSN",
       "103",
     ).replace(/\D/g, ""),
+    /** @deprecated Legado. A NF-e Brasil NFe não usa este valor como fallback. */
     nfeNcm: envFirst(
       "NOTAAS_NFE_NCM",
       "ACBR_API_NFE_NCM",
@@ -186,6 +190,7 @@ export function getNuvemFiscalConfig() {
         "NUVEM_FISCAL_NFE_IE",
       ),
     ),
+    /** @deprecated Legado. A NF-e não usa este CRT global; o regime fica no tenant. */
     nfeCrt:
       parseInt(
         envFirst("NOTAAS_NFE_CRT", "ACBR_API_NFE_CRT", "NUVEM_FISCAL_NFE_CRT", "1"),
@@ -262,8 +267,15 @@ export function isNuvemFiscalConfigured() {
 
 export const isFiscalProviderConfigured = isNuvemFiscalConfigured;
 
-/** NF-e de peças — desabilitada por padrão; ligue NOTAAS_NFE_ENABLED=true para testar. */
+/**
+ * NF-e de peças via Brasil NFe.
+ * Liga com BRASILNFE_TOKEN.
+ * Aliases legados (deprecated, não usar em deploy novo):
+ * NOTAAS_NFE_ENABLED, ACBR_API_NFE_ENABLED, NUVEM_FISCAL_NFE_ENABLED.
+ * A NFS-e não depende desta flag.
+ */
 export function isNfeEmissaoHabilitada() {
+  if (String(process.env.BRASILNFE_TOKEN || "").trim()) return true;
   const v = envFirst(
     "NOTAAS_NFE_ENABLED",
     "ACBR_API_NFE_ENABLED",

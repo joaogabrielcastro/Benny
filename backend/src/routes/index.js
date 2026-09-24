@@ -25,6 +25,7 @@ import backupRoutes from "./backupRoutes.js";
 import notasFiscaisRoutes from "./notasFiscaisRoutes.js";
 import usuariosRoutes from "./usuariosRoutes.js";
 import billingRoutes from "./billingRoutes.js";
+import configFiscalRoutes from "./configFiscalRoutes.js";
 import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 import { requirePlanFeature } from "../middleware/requirePlanFeature.js";
 
@@ -57,5 +58,6 @@ router.use("/auditoria", adminOnly, auditoriaRoutes);
 router.use("/backup", requirePlanFeature("backup"), backupRoutes);
 router.use("/notas-fiscais", adminOnly, requirePlanFeature("nfse"), notasFiscaisRoutes);
 router.use("/usuarios", adminOnly, usuariosRoutes);
+router.use("/configuracao-fiscal", adminOnly, configFiscalRoutes);
 
 export default router;

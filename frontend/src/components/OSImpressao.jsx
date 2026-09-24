@@ -3,6 +3,7 @@ import {
   DEFAULTS_OS,
   carregarDefaultsImpressao,
 } from "../utils/impressaoDefaults";
+import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
 const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
   const formatarData = (data) => {
@@ -348,8 +349,15 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
                 <strong>Cliente:</strong> {os.cliente_nome || "Não informado"}
               </td>
               <td style={{ padding: "5px", width: "50%" }}>
-                <strong>Veículo:</strong> {os.veiculo_marca} {os.veiculo_modelo}{" "}
-                {os.veiculo_cor} {os.veiculo_ano || "Não informado"}
+                <strong>Veículo:</strong>{" "}
+                {rotuloVeiculo({
+                  marca: os.veiculo_marca,
+                  modelo: os.veiculo_modelo,
+                  versao: os.veiculo_versao,
+                  motor: os.veiculo_motor,
+                  ano: os.veiculo_ano,
+                  placa: os.veiculo_placa,
+                })}
               </td>
             </tr>
             <tr>

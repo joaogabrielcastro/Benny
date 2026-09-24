@@ -1,14 +1,16 @@
 ﻿import {
-  isNuvemFiscalConfigured,
   isNfeEmissaoHabilitada,
   mensagemNfeDesabilitada,
 } from "../../config/nuvemFiscal.js";
+import { resolveFiscalProvider } from "../fiscal/providers/index.js";
 import {
-  cancelarNfe,
-  cancelarNfse,
-  consultarNfe,
-  consultarNfse,
-} from "../nuvemFiscalClient.js";
+  FISCAL_PROVIDERS,
+  normalizarModeloDocumento,
+} from "../fiscal/constants.js";
+import {
+  eventoFiscalPorStatus,
+  registrarEventoFiscal,
+} from "../fiscal/fiscalAuditoria.js";
 import { camposFromRespostaNuvem } from "./nuvemRespostaParser.js";
 import { mapNfParaRespostaApi } from "./notasFiscaisMapper.js";
 import {
@@ -23,7 +25,7 @@ const MOTIVO_PADRAO =
 export const cancelar = async (
   tenantId = SINGLE_TENANT_ID,
   nfId,
-  { motivo, codigo } = {},
+  { motivo, codigo, usuarioId = null } = {},
 ) => {
   const nf = await buscarPorId(tenantId, nfId);
   if (!nf) return { erro: "Nota fiscal não encontrada" };
@@ -41,48 +43,77 @@ export const cancelar = async (
     };
   }
 
+  const modelo = normalizarModeloDocumento(nf.modelo_documento);
+  const provider = await resolveFiscalProvider({
+    modeloDocumento: modelo,
+    provedor: nf.provedor,
+    tenantId,
+  });
+  const label = modelo === "NFE" ? "NF-e" : "NFS-e";
+
   if (!nf.id_provedor) {
     return {
-      erro: "Nota sem vínculo na Notaas. Não é possível cancelar.",
+      erro: `Nota sem vínculo na ${provider.rotulo}. Não é possível cancelar.`,
     };
   }
 
-  if (!isNuvemFiscalConfigured()) {
-    return { erro: "Notaas não configurada no servidor (NOTAAS_API_KEY)." };
+  if (!provider.isConfigured()) {
+    return { erro: provider.mensagemNaoConfigurado() };
   }
 
-  const modelo = nf.modelo_documento === "NFE" ? "NFE" : "NFSE";
   if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
     return { erro: mensagemNfeDesabilitada() };
   }
-  const label = modelo === "NFE" ? "NF-e" : "NFS-e";
-  const valorOs = Number(nf.valor_total) || 0;
 
+  const valorOs = Number(nf.valor_total) || 0;
+  const dados =
+    nf.dados_resposta && typeof nf.dados_resposta === "object"
+      ? nf.dados_resposta
+      : {};
   const body =
-    modelo === "NFE"
-      ? { justificativa: (motivo || MOTIVO_PADRAO).trim().slice(0, 255) }
+    provider.id === FISCAL_PROVIDERS.BRASIL_NFE
+      ? {
+          justificativa: (motivo || MOTIVO_PADRAO).trim().slice(0, 255),
+          numeroProtocolo:
+            nf.protocolo ||
+            dados.numeroProtocolo ||
+            dados.ReturnNF?.NumeroProtocolo ||
+            "",
+          chave: nf.chave_acesso || nf.id_provedor,
+        }
       : {
           motivo: (motivo || MOTIVO_PADRAO).trim().slice(0, 255),
           ...(codigo ? { codigo: String(codigo).trim() } : {}),
         };
 
-  const cancelarFn = modelo === "NFE" ? cancelarNfe : cancelarNfse;
-  const consultarFn = modelo === "NFE" ? consultarNfe : consultarNfse;
+  const idCancelamento =
+    provider.id === FISCAL_PROVIDERS.BRASIL_NFE
+      ? nf.chave_acesso || nf.id_provedor
+      : nf.id_provedor;
 
-  const api = await cancelarFn(nf.id_provedor, body);
+  const api = await provider.cancelar(idCancelamento, body);
   if (!api.ok) {
     return {
-      erro: api.mensagem || `Falha ao cancelar ${label} na Notaas`,
+      erro: api.mensagem || `Falha ao cancelar ${label}.`,
     };
   }
 
-  const consulta = await consultarFn(nf.id_provedor);
+  const consulta =
+    provider.id === FISCAL_PROVIDERS.BRASIL_NFE
+      ? { ok: true, data: api.data, confirmadoExternamente: true }
+      : await provider.consultar(nf.id_provedor);
+
   let campos;
   if (consulta.ok) {
-    campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
+    campos = camposFromRespostaNuvem(
+      consulta.data,
+      valorOs,
+      modelo,
+      provider.rotulo,
+    );
     if (campos.status !== "cancelada") {
       campos.status = "cancelada";
-      campos.mensagem = `${label} cancelada na Notaas.`;
+      campos.mensagem = `${label} cancelada.`;
     }
   } else {
     campos = {
@@ -91,8 +122,10 @@ export const cancelar = async (
       numeroNf: nf.numero,
       linkPdf: nf.link_pdf,
       chaveAcesso: nf.chave_acesso,
+      serie: nf.serie,
+      protocolo: nf.protocolo,
       dataEmissao: nf.data_emissao,
-      mensagem: `${label} cancelada na Notaas.`,
+      mensagem: `${label} cancelada.`,
       dadosResposta: api.data || {},
       tributos: nf.tributos,
     };
@@ -105,6 +138,17 @@ export const cancelar = async (
     { ...campos, idProvedor: nf.id_provedor },
     modelo,
   );
+
+  await registrarEventoFiscal({
+    tenantId,
+    usuarioId,
+    ordemServicoId: nf.ordem_servico_id,
+    notaFiscalId: nf.id,
+    modelo,
+    provedor: provider.id,
+    evento: eventoFiscalPorStatus(modelo, "cancelada"),
+    status: "cancelada",
+  });
 
   return {
     nf: mapNfParaRespostaApi(atualizada),

@@ -38,6 +38,7 @@ export function useOSForm(osId) {
     previsao_entrega: "",
     observacoes_veiculo: "",
     observacoes_gerais: "",
+    consumidor_final: "",
     responsavel_tecnico: "",
     status: "Aberta",
   });
@@ -78,6 +79,7 @@ export function useOSForm(osId) {
           : "",
         observacoes_veiculo: os.observacoes_veiculo || "",
         observacoes_gerais: os.observacoes_gerais || "",
+        consumidor_final: os.consumidor_final === true ? "true" : os.consumidor_final === false ? "false" : "",
         responsavel_tecnico: os.responsavel_tecnico || "",
         status: os.status || "Aberta",
       });
@@ -233,6 +235,12 @@ export function useOSForm(osId) {
     try {
       const dados = {
         ...formData,
+        consumidor_final:
+          formData.consumidor_final === "true"
+            ? true
+            : formData.consumidor_final === "false"
+              ? false
+              : null,
         produtos: itensProdutos,
         servicos: itensServicos,
       };

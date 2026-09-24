@@ -13,7 +13,9 @@ import {
   updateOrcamentoSchema,
   orcamentoTokenParamSchema,
 } from "../schemas/comercialSchemas.js";
+import { sugerirAssistenteSchema } from "../schemas/orcamentoAssistenteSchemas.js";
 import { idParamSchema } from "../schemas/commonSchemas.js";
+import orcamentosAssistenteController from "../controllers/orcamentosAssistenteController.js";
 
 const router = express.Router();
 
@@ -48,6 +50,27 @@ router.put(
 
 const adminOnly = requireRole(ROLES.ADMIN);
 const authAdmin = [requireAuth, requireActiveSubscription, adminOnly];
+
+const assistenteLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    `${req.user?.tenantId || "sem-tenant"}:${req.user?.id || req.ip}`,
+  message: {
+    error:
+      "Muitas sugestões em pouco tempo. Você pode continuar o orçamento manualmente.",
+  },
+});
+
+router.post(
+  "/assistente/sugerir",
+  ...authAdmin,
+  assistenteLimiter,
+  validate(sugerirAssistenteSchema),
+  ah(orcamentosAssistenteController, "sugerir"),
+);
 
 router.get("/", ...authAdmin, paginate, ah(orcamentosController, "listar"));
 router.get(

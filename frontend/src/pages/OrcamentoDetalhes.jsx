@@ -277,8 +277,17 @@ export default function OrcamentoDetalhes() {
               Veículo
             </h3>
             <p className="dark:text-gray-300">
-              <strong>Modelo:</strong> {orcamento.veiculo_modelo}
+              <strong>Modelo:</strong>{" "}
+              {[orcamento.veiculo_marca, orcamento.veiculo_modelo, orcamento.veiculo_versao]
+                .filter(Boolean)
+                .join(" ") || "—"}
             </p>
+            {(orcamento.veiculo_motor || orcamento.veiculo_combustivel) && (
+              <p className="dark:text-gray-300">
+                <strong>Motor:</strong>{" "}
+                {[orcamento.veiculo_motor, orcamento.veiculo_combustivel].filter(Boolean).join(" • ")}
+              </p>
+            )}
             <p className="dark:text-gray-300">
               <strong>Placa:</strong> {orcamento.veiculo_placa}
             </p>

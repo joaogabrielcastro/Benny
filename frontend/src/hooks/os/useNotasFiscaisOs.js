@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../../services/api";
-import { feedbackNotaFiscal, nfseValorIncompleto } from "../../features/os/fiscalUtils";
+import { feedbackNotaFiscal, mensagemConfigFiscalIncompleta, mensagemDestinatarioIncompleto, mensagemOperacaoFiscalIncompleta, mensagemProdutosSemNcm, nfseValorIncompleto } from "../../features/os/fiscalUtils";
 
 /**
  * Emissão, sincronização e CEP para NFS-e/NF-e de uma OS.
@@ -17,6 +17,8 @@ export function useNotasFiscaisOs({
   carregarOS,
   nfeHabilitada = false,
   nfseIncluirPecas = false,
+  onCadastroClienteIncompleto,
+  onOperacaoFiscalIncompleta,
 }) {
   const [showNFModal, setShowNFModal] = useState(null);
   const [gerandoNfse, setGerandoNfse] = useState(false);
@@ -152,11 +154,21 @@ export function useNotasFiscaisOs({
       feedbackNotaFiscal(toast, message, nf);
       await carregarOS();
     } catch (error) {
+      const data = error.response?.data;
+      const destinatario = mensagemDestinatarioIncompleto(data);
+      const operacao = mensagemOperacaoFiscalIncompleta(data);
+      if (destinatario) onCadastroClienteIncompleto?.();
+      if (data?.code === "NFE_OPERACAO_FISCAL_INCOMPLETA") onOperacaoFiscalIncompleta?.();
       toast.error(
-        error.response?.data?.erro ||
-          error.response?.data?.error ||
-          error.response?.data?.message ||
+        destinatario ||
+          operacao ||
+          mensagemConfigFiscalIncompleta(data) ||
+          mensagemProdutosSemNcm(data) ||
+          data?.erro ||
+          data?.error ||
+          data?.message ||
           "Erro ao processar nota fiscal",
+        { duration: 8000 },
       );
     } finally {
       setGerando(false);

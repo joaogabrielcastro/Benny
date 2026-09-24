@@ -40,4 +40,8 @@ Billing Stripe (Checkout, Portal, webhooks) e limites por plano: `docs/SAAS_STRI
 | Numeração ORC/OS | `src/domain/numeracao.js` + sequences PostgreSQL |
 | Notas fiscais | `src/services/notasFiscais/` (emitir, sincronizar, cancelar) |
 | RBAC | `src/config/roles.js` + `requireRole` |
+
+## Fiscal — etapas obrigatórias ainda abertas
+
+- **AUDITORIA RTC 2026 — IBS/CBS.** A NF-e de 2026 já tem a Reforma Tributária do Consumo (IBS, CBS, IS, cClassTrib). Essa auditoria é obrigatória antes de considerar o módulo fiscal concluído. Não está implementada.
 | Assinatura ativa | `src/middleware/requireActiveSubscription.js` |

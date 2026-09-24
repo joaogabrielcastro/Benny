@@ -245,7 +245,9 @@ const listar = async (
   const dataResult = await pool.query(
     `SELECT o.*,
             c.nome as cliente_nome, c.telefone as cliente_telefone,
-            v.modelo as veiculo_modelo, v.placa as veiculo_placa
+            v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+            v.ano as veiculo_ano, v.versao as veiculo_versao, v.motor as veiculo_motor,
+            v.combustivel as veiculo_combustivel
      ${fromJoin}
      ${where}
      ORDER BY o.id DESC
@@ -261,7 +263,9 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
     pool.query(
       `SELECT o.*,
               c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
-              v.modelo as veiculo_modelo, v.placa as veiculo_placa, v.cor as veiculo_cor
+              v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+              v.cor as veiculo_cor, v.ano as veiculo_ano, v.versao as veiculo_versao,
+              v.motor as veiculo_motor, v.combustivel as veiculo_combustivel
        FROM orcamentos o
        LEFT JOIN clientes c ON o.cliente_id = c.id
        LEFT JOIN veiculos v ON o.veiculo_id = v.id
@@ -283,7 +287,9 @@ const buscarPorToken = async (token) => {
   const orc = await pool.query(
     `SELECT o.*,
             c.nome as cliente_nome, c.telefone as cliente_telefone, c.cpf_cnpj as cliente_cpf_cnpj,
-            v.modelo as veiculo_modelo, v.placa as veiculo_placa, v.cor as veiculo_cor
+            v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
+            v.cor as veiculo_cor, v.ano as veiculo_ano, v.versao as veiculo_versao,
+            v.motor as veiculo_motor, v.combustivel as veiculo_combustivel
      FROM orcamentos o
      LEFT JOIN clientes c ON o.cliente_id = c.id
      LEFT JOIN veiculos v ON o.veiculo_id = v.id

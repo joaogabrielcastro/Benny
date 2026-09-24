@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -16,6 +16,7 @@ import OSDetalhesAcoes from "../features/os/OSDetalhesAcoes";
 import { useAuth } from "../contexts/AuthContext";
 import ClienteEnderecoNfseBlock from "../features/os/ClienteEnderecoNfseBlock";
 import NotaFiscalModal from "../features/os/NotaFiscalModal";
+import AuditoriaFiscalOs from "../features/os/AuditoriaFiscalOs";
 import ClienteFormModal from "../components/ClienteFormModal";
 import { nfErroEnderecoTomador } from "../features/os/fiscalUtils";
 import { mascaraCEP } from "../utils/masks";
@@ -27,6 +28,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 export default function OSDetalhes() {
   const { isAdmin } = useAuth();
   const { id } = useParams();
+  const navigate = useNavigate();
   const [editarClienteAberto, setEditarClienteAberto] = useState(false);
   const [showImpressaoModal, setShowImpressaoModal] = useState(false);
   const [textosImpressao, setTextosImpressao] = useState(() =>
@@ -54,6 +56,8 @@ export default function OSDetalhes() {
     carregarOS,
     nfeHabilitada,
     nfseIncluirPecas,
+    onCadastroClienteIncompleto: () => setEditarClienteAberto(true),
+    onOperacaoFiscalIncompleta: () => navigate(`/ordens-servico/${id}/editar`),
   });
 
   const componentRef = useRef();
@@ -243,9 +247,21 @@ export default function OSDetalhes() {
                 Modelo:
               </span>
               <p className="text-lg text-gray-800 dark:text-gray-200">
-                {os.veiculo_modelo}
+                {[os.veiculo_marca, os.veiculo_modelo, os.veiculo_versao]
+                  .filter(Boolean)
+                  .join(" ") || os.veiculo_modelo}
               </p>
             </div>
+            {(os.veiculo_motor || os.veiculo_combustivel) && (
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
+                  Motor:
+                </span>
+                <p className="text-lg text-gray-800 dark:text-gray-200">
+                  {[os.veiculo_motor, os.veiculo_combustivel].filter(Boolean).join(" • ")}
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
@@ -442,6 +458,8 @@ export default function OSDetalhes() {
           </span>
         </div>
       </div>
+
+      {isAdmin && <AuditoriaFiscalOs osId={os.id} osNumero={os.numero} />}
 
       {os.observacoes_gerais && (
         <div className="pro-card p-6">

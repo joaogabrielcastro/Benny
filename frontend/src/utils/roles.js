@@ -56,6 +56,7 @@ export const NAV_ITEMS = [
   { to: "/clientes", label: "Clientes", roles: [ROLES.ADMIN] },
   { to: "/usuarios", label: "Usuários", roles: [ROLES.ADMIN] },
   { to: "/assinatura", label: "Assinatura", roles: [ROLES.ADMIN] },
+  { to: "/configuracao-fiscal", label: "Configuração fiscal", roles: [ROLES.ADMIN] },
 ];
 
 export function navItemsForRole(role, { hasFeature } = {}) {

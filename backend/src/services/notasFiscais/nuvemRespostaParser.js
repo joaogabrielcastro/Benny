@@ -178,9 +178,11 @@ export function resolverStatusNuvem(data) {
   return { interno, bruto };
 }
 
-function mensagemPadraoPorStatus(status, msgApi, modelo = "NFSE") {
+function mensagemPadraoPorStatus(status, msgApi, modelo = "NFSE", provedorLabel) {
   const label = modelo === "NFE" ? "NF-e" : "NFS-e";
-  const provedor = PROVEDOR_FISCAL_LABEL;
+  const provedor =
+    provedorLabel ||
+    (modelo === "NFE" ? "Brasil NFe" : PROVEDOR_FISCAL_LABEL);
   if (msgApi) return msgApi;
   if (status === "autorizada") return `${label} autorizada na ${provedor}.`;
   if (status === "rejeitada")
@@ -285,16 +287,28 @@ export function extrairDetalheRejeicaoNuvem(data) {
   return null;
 }
 
-export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE") {
+export function camposFromRespostaNuvem(
+  data,
+  valorTotalOs = 0,
+  modelo = "NFSE",
+  provedorLabel,
+) {
   const { interno: status, bruto: statusBruto } = resolverStatusNuvem(data);
   const msgApi = resumoMensagensApi(data);
   const detalheRejeicao =
     status === "rejeitada" ? extrairDetalheRejeicaoNuvem(data) : null;
-  let mensagem = mensagemPadraoPorStatus(status, msgApi || detalheRejeicao, modelo);
+  let mensagem = mensagemPadraoPorStatus(
+    status,
+    msgApi || detalheRejeicao,
+    modelo,
+    provedorLabel,
+  );
+  const rotulo =
+    provedorLabel || (modelo === "NFE" ? "Brasil NFe" : PROVEDOR_FISCAL_LABEL);
   if (statusBruto) {
-    mensagem += ` (${PROVEDOR_FISCAL_LABEL}: ${statusBruto})`;
+    mensagem += ` (${rotulo}: ${statusBruto})`;
   } else if (status === "processamento") {
-    mensagem += ` (sem status final na ${PROVEDOR_FISCAL_LABEL} ainda)`;
+    mensagem += ` (sem status final na ${rotulo} ainda)`;
   }
 
   const emittedRaw =
@@ -354,5 +368,16 @@ export function camposFromRespostaNuvem(data, valorTotalOs = 0, modelo = "NFSE")
     detalheRejeicao,
     dadosResposta: data,
     tributos,
+    serie:
+      data?.serie != null && String(data.serie).trim() !== ""
+        ? String(data.serie).trim()
+        : data?.Serie != null
+          ? String(data.Serie).trim()
+          : null,
+    protocolo:
+      data?.numeroProtocolo ||
+      data?.NumeroProtocolo ||
+      data?.protocolo ||
+      null,
   };
 }

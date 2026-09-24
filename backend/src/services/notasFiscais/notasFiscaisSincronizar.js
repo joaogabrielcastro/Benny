@@ -1,12 +1,13 @@
 ﻿import {
-  isNuvemFiscalConfigured,
   isNfeEmissaoHabilitada,
   mensagemNfeDesabilitada,
 } from "../../config/nuvemFiscal.js";
+import { resolveFiscalProvider } from "../fiscal/providers/index.js";
+import { FISCAL_PROVIDERS } from "../fiscal/constants.js";
 import {
-  consultarNfe,
-  consultarNfse,
-} from "../nuvemFiscalClient.js";
+  eventoFiscalPorStatus,
+  registrarEventoFiscal,
+} from "../fiscal/fiscalAuditoria.js";
 import { camposFromRespostaNuvem } from "./nuvemRespostaParser.js";
 import { mapNfParaRespostaApi } from "./notasFiscaisMapper.js";
 import {
@@ -41,9 +42,10 @@ export const sincronizarPorOs = async (
   tenantId = SINGLE_TENANT_ID,
   osId,
   modeloDocumento = "NFSE",
+  { usuarioId = null } = {},
 ) => {
   try {
-    return await sincronizarPorOsInterno(tenantId, osId, modeloDocumento);
+    return await sincronizarPorOsInterno(tenantId, osId, modeloDocumento, usuarioId);
   } catch (e) {
     const msg = e?.message || String(e);
     return {
@@ -56,6 +58,7 @@ async function sincronizarPorOsInterno(
   tenantId = SINGLE_TENANT_ID,
   osId,
   modeloDocumento = "NFSE",
+  usuarioId = null,
 ) {
   const modelo = modeloDocumento === "NFE" ? "NFE" : "NFSE";
   if (modelo === "NFE" && !isNfeEmissaoHabilitada()) {
@@ -68,13 +71,27 @@ async function sincronizarPorOsInterno(
     };
   }
   const valorOs = Number(nf.valor_total) || 0;
-  const consultarFn = modelo === "NFE" ? consultarNfe : consultarNfse;
+  const provider = await resolveFiscalProvider({
+    modeloDocumento: modelo,
+    provedor: nf.provedor,
+    tenantId,
+  });
   const label = modelo === "NFE" ? "NF-e" : "NFS-e";
 
-  if (nf.status === "autorizada" && nf.id_provedor && isNuvemFiscalConfigured()) {
-    const consulta = await consultarFn(nf.id_provedor);
+  if (
+    provider.id === FISCAL_PROVIDERS.NOTAAS &&
+    nf.status === "autorizada" &&
+    nf.id_provedor &&
+    provider.isConfigured()
+  ) {
+    const consulta = await provider.consultar(nf.id_provedor);
     if (consulta.ok) {
-      const campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
+      const campos = camposFromRespostaNuvem(
+        consulta.data,
+        valorOs,
+        modelo,
+        provider.rotulo,
+      );
       const atualizada = await persistirAtualizacaoNf(
         nf.id,
         tenantId,
@@ -84,7 +101,7 @@ async function sincronizarPorOsInterno(
       );
       return {
         nf: mapNfParaRespostaApi(atualizada),
-        message: `${label}: tributos atualizados na Notaas.`,
+        message: `${label}: tributos atualizados.`,
       };
     }
     const orfa = await tratarNotaOrfaAmbiente(
@@ -103,19 +120,27 @@ async function sincronizarPorOsInterno(
       message: `${label} já está autorizada.`,
     };
   }
-  if (!isNuvemFiscalConfigured()) {
+  if (!provider.isConfigured()) {
     return {
       nf: mapNfParaRespostaApi(nf),
-      message: nf.mensagem_status || "Notaas não configurada no servidor (NOTAAS_API_KEY).",
+      message: nf.mensagem_status || provider.mensagemNaoConfigurado(),
     };
   }
   if (!nf.id_provedor) {
     return {
-      erro: `Esta ${label} ainda não tem ID na Notaas. Use o botão Gerar.`,
+      erro: `Esta ${label} ainda não tem ID na ${provider.rotulo}. Use o botão Gerar.`,
     };
   }
 
-  let consulta = await consultarFn(nf.id_provedor);
+  if (provider.id === FISCAL_PROVIDERS.BRASIL_NFE) {
+    return {
+      nf: mapNfParaRespostaApi(nf),
+      message:
+        "Status local da NF-e. Consulta remota na Brasil NFe ainda não está implementada.",
+    };
+  }
+
+  let consulta = await provider.consultar(nf.id_provedor);
   if (!consulta.ok) {
     const orfa = await tratarNotaOrfaAmbiente(
       nf,
@@ -126,11 +151,16 @@ async function sincronizarPorOsInterno(
     );
     if (orfa) return orfa;
     return {
-      erro: consulta.mensagem || `Falha ao consultar ${label} na Notaas`,
+      erro: consulta.mensagem || `Falha ao consultar ${label}.`,
     };
   }
 
-  let campos = camposFromRespostaNuvem(consulta.data, valorOs, modelo);
+  let campos = camposFromRespostaNuvem(
+    consulta.data,
+    valorOs,
+    modelo,
+    provider.rotulo,
+  );
 
   if (campos.status === "processamento") {
     campos.mensagem = mensagemNuvemFilaProcessamento();
@@ -143,6 +173,19 @@ async function sincronizarPorOsInterno(
     { ...campos, idProvedor: campos.idProvedor || nf.id_provedor },
     modelo,
   );
+
+  if (campos.status === "autorizada" || campos.status === "rejeitada") {
+    await registrarEventoFiscal({
+      tenantId,
+      usuarioId,
+      ordemServicoId: osId,
+      notaFiscalId: nf.id,
+      modelo,
+      provedor: provider.id,
+      evento: eventoFiscalPorStatus(modelo, campos.status),
+      status: campos.status,
+    });
+  }
 
   return {
     nf: mapNfParaRespostaApi(atualizada),

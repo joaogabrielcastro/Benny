@@ -213,7 +213,12 @@ export default function OrcamentoPublico() {
               <div className="space-y-2 text-gray-900">
                 <p>
                   <span className="font-semibold text-gray-700">Modelo:</span>{" "}
-                  {[orcamento.veiculo_marca, orcamento.veiculo_modelo]
+                  {[
+                    orcamento.veiculo_marca,
+                    orcamento.veiculo_modelo,
+                    orcamento.veiculo_versao,
+                    orcamento.veiculo_motor,
+                  ]
                     .filter(Boolean)
                     .join(" ") || "—"}
                 </p>

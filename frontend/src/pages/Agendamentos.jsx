@@ -13,6 +13,7 @@ import Badge from "../components/Badge";
 import Modal from "../components/Modal";
 import Input from "../components/Input";
 import Select from "../components/Select";
+import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import { formatarData } from "../utils/formatters";
 import {
@@ -248,11 +249,17 @@ export default function Agendamentos() {
                         {agendamento.hora_fim && ` - ${agendamento.hora_fim}`}
                       </span>
                     </div>
-                    {agendamento.veiculo_modelo && (
+                    {(agendamento.veiculo_modelo || agendamento.veiculo_placa) && (
                       <div>
-                        <strong>Veículo:</strong> {agendamento.veiculo_modelo}{" "}
-                        {agendamento.veiculo_placa &&
-                          `(${agendamento.veiculo_placa})`}
+                        <strong>Veículo:</strong>{" "}
+                        {rotuloVeiculo({
+                          marca: agendamento.veiculo_marca,
+                          modelo: agendamento.veiculo_modelo,
+                          versao: agendamento.veiculo_versao,
+                          motor: agendamento.veiculo_motor,
+                          ano: agendamento.veiculo_ano,
+                          placa: agendamento.veiculo_placa,
+                        })}
                       </div>
                     )}
                   </div>
@@ -434,7 +441,7 @@ function AgendamentoModal({ agendamento, onClose, onSalvar }) {
             <option value="">Selecione um veículo</option>
             {veiculos.map((veiculo) => (
               <option key={veiculo.id} value={veiculo.id}>
-                {veiculo.modelo} - {veiculo.placa}
+                {rotuloVeiculo(veiculo)}
               </option>
             ))}
           </Select>

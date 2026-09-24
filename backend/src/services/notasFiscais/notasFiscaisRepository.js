@@ -71,21 +71,25 @@ async function persistirAtualizacaoNfQuery(
        dados_resposta = COALESCE($7::jsonb, dados_resposta),
        data_emissao = COALESCE($8, data_emissao),
        tributos = COALESCE($9::jsonb, tributos),
+       serie = COALESCE($12, serie),
+       protocolo = COALESCE($13, protocolo),
        atualizado_em = NOW()
      WHERE id = $10 AND tenant_id = $11
      RETURNING *`,
     [
       campos.status,
-      campos.idProvedor,
-      campos.numeroNf,
-      campos.chaveAcesso,
-      campos.linkPdf,
+      campos.idProvedor || null,
+      campos.numeroNf || null,
+      campos.chaveAcesso || null,
+      campos.linkPdf || null,
       campos.mensagem,
       campos.dadosResposta ? JSON.stringify(campos.dadosResposta) : null,
       campos.dataEmissao,
       campos.tributos ? JSON.stringify(campos.tributos) : null,
       nfId,
       tenantId,
+      campos.serie || null,
+      campos.protocolo || null,
     ],
   );
   if (r.rows[0]) {

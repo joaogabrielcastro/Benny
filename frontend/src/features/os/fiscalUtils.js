@@ -98,18 +98,87 @@ export function nfseValorIncompleto(os, nota, nfseIncluirPecas) {
   return esperado > 0 && emitido + 0.009 < esperado;
 }
 
+function rotuloNota(nf) {
+  if (nf?.provedor === "brasil_nfe" || nf?.modelo_documento === "NFE") {
+    return "Brasil NFe";
+  }
+  return "Notaas";
+}
+
+export function mensagemProdutosSemNcm(data) {
+  const code = data?.code;
+  if (code !== "NFE_PRODUTO_SEM_NCM" && code !== "NFE_PRODUTO_SEM_CADASTRO_FISCAL") {
+    return null;
+  }
+  const nomes = (Array.isArray(data.produtos) ? data.produtos : [])
+    .map((p) => p?.descricao || p?.codigo)
+    .filter(Boolean);
+  const lista = nomes.length ? `\n\n${nomes.map((n) => `• ${n}`).join("\n")}` : "";
+  if (code === "NFE_PRODUTO_SEM_CADASTRO_FISCAL") {
+    return `Não foi possível emitir a NF-e.\n\nAlgumas peças não estão ligadas a um produto do catálogo:${lista}\n\nVincule o produto e informe o NCM. Depois tente novamente.`;
+  }
+  return `Não foi possível emitir a NF-e.\n\nAlguns produtos estão sem NCM:${lista}\n\nProdutos → editar produto → informar NCM. Depois tente novamente.`;
+}
+
+const ROTULO_CAMPO_DEST = {
+  nome: "Nome",
+  cpf_cnpj: "CPF/CNPJ",
+  endereco: "Logradouro",
+  numero: "Número",
+  bairro: "Bairro",
+  cep: "CEP",
+  cidade: "Município",
+  estado: "UF",
+  codigo_ibge: "Município",
+  situacao_icms: "Situação perante o ICMS",
+  inscricao_estadual: "Inscrição Estadual",
+};
+
+export function mensagemDestinatarioIncompleto(data) {
+  if (data?.code !== "NFE_DESTINATARIO_INCOMPLETO") return null;
+  const vistos = new Set();
+  const linhas = [];
+  for (const item of Array.isArray(data.campos) ? data.campos : []) {
+    const rotulo = ROTULO_CAMPO_DEST[item?.campo] || item?.campo;
+    if (!rotulo || vistos.has(rotulo)) continue;
+    vistos.add(rotulo);
+    linhas.push(`• ${rotulo}`);
+  }
+  const lista = linhas.length ? `\n\n${linhas.join("\n")}` : "";
+  return `Não foi possível emitir a NF-e.\n\nO cadastro do cliente está incompleto:${lista}\n\nEdite o cadastro do cliente e tente novamente.`;
+}
+
+export function mensagemOperacaoFiscalIncompleta(data) {
+  if (data?.code === "NFE_OPERACAO_FISCAL_INCOMPLETA") {
+    return "Não foi possível emitir a NF-e.\n\nInforme se esta operação é destinada a consumidor final.\n\nEdite a OS e escolha Sim ou Não.";
+  }
+  if (data?.code === "NFE_ICMS_UF_DESTINO_NAO_CONFIGURADO") {
+    return data.message || data.error;
+  }
+  return null;
+}
+
+export function mensagemConfigFiscalIncompleta(data) {
+  if (data?.code !== "NFE_CONFIGURACAO_FISCAL_INCOMPLETA") return null;
+  const linhas = (Array.isArray(data.campos) ? data.campos : [])
+    .map((item) => item?.motivo)
+    .filter(Boolean);
+  const detalhe = linhas.length ? linhas.map((l) => `• ${l}`).join("\n") : "• Regime tributário ou situação de ICMS";
+  return `Não foi possível emitir a NF-e.\n\nA configuração fiscal da empresa está incompleta:\n\n${detalhe}\n\nConfiguração fiscal → informe o regime e a situação tributária e tente novamente.`;
+}
+
 export function feedbackNotaFiscal(toast, message, nf) {
   const st = nf?.status_nf;
+  const quem = rotuloNota(nf);
   if (st === "autorizada") {
-    toast.success(message || "Nota fiscal autorizada na Notaas.");
+    toast.success(message || `Nota fiscal autorizada na ${quem}.`);
   } else if (st === "configuracao_pendente") {
     toast.error(
-      message ||
-        "Notaas não configurada neste servidor. Defina NOTAAS_API_KEY no ambiente de produção.",
+      message || `Provedor fiscal não configurado neste servidor (${quem}).`,
       { duration: 8000 },
     );
   } else if (st === "erro_autenticacao" || st === "rejeitada") {
-    toast.error(message || "Falha na nota fiscal na Notaas.");
+    toast.error(message || `Falha na nota fiscal na ${quem}.`);
   } else if (st === "processamento") {
     toast(message || "Nota em processamento. Aguarde ou atualize o status.", {
       icon: "⏳",

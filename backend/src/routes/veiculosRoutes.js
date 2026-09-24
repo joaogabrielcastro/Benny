@@ -5,7 +5,8 @@ import { ROLES } from "../config/roles.js";
 import { paginate } from "../middleware/paginate.js";
 import { validate } from "../lib/validate.js";
 import { ah } from "../lib/routeUtils.js";
-import { createVeiculoSchema } from "../schemas/veiculoSchemas.js";
+import { createVeiculoSchema, updateVeiculoSchema } from "../schemas/veiculoSchemas.js";
+import { idParamSchema } from "../schemas/commonSchemas.js";
 
 const router = express.Router();
 
@@ -23,6 +24,13 @@ router.post(
   requireRole(ROLES.ADMIN),
   validate(createVeiculoSchema),
   ah(veiculosController, "criar"),
+);
+router.put(
+  "/:id",
+  requireRole(ROLES.ADMIN),
+  validate(idParamSchema, "params"),
+  validate(updateVeiculoSchema),
+  ah(veiculosController, "atualizar"),
 );
 
 export default router;

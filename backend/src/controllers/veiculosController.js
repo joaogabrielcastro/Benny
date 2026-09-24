@@ -1,7 +1,7 @@
 import { resolveTenantId } from "../config/singleTenant.js";
 import veiculosService from "../services/veiculosService.js";
 import { consultarVeiculoPorPlaca } from "../services/placaLookupService.js";
-import { AppError, badRequest } from "../lib/AppError.js";
+import { badRequest, notFound } from "../lib/AppError.js";
 import { sendPaginated } from "../lib/paginationResponse.js";
 
 class VeiculosController {
@@ -29,6 +29,17 @@ class VeiculosController {
     res
       .status(201)
       .json({ id: veiculo.id, message: "Veículo criado com sucesso" });
+  }
+
+  async atualizar(req, res) {
+    const body = req.validated?.body ?? req.body;
+    const veiculo = await veiculosService.atualizar(
+      resolveTenantId(req),
+      req.params.id,
+      body,
+    );
+    if (!veiculo) throw notFound("Veículo não encontrado");
+    res.json(veiculo);
   }
 
   async consultarPlaca(req, res) {

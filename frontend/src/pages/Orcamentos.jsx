@@ -12,6 +12,7 @@ import PageHeader from "../components/layout/PageHeader";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -157,7 +158,14 @@ export default function Orcamentos() {
                   <td className="px-6 py-4 text-sm font-medium">{orc.numero}</td>
                   <td className="px-6 py-4 text-sm">{orc.cliente_nome}</td>
                   <td className="px-6 py-4 text-sm">
-                    {orc.veiculo_modelo} - {orc.veiculo_placa}
+                    {rotuloVeiculo({
+                      marca: orc.veiculo_marca,
+                      modelo: orc.veiculo_modelo,
+                      versao: orc.veiculo_versao,
+                      motor: orc.veiculo_motor,
+                      ano: orc.veiculo_ano,
+                      placa: orc.veiculo_placa,
+                    })}
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold">
                     {formatarMoeda(orc.valor_total)}

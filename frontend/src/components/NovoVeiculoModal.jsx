@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import Input from "./Input";
 import Button from "./Button";
@@ -8,20 +8,46 @@ import { mascaraPlaca } from "../utils/masks";
 import { showSuccess, showError } from "../utils/toast.jsx";
 import api from "../services/api";
 import BuscaPlacaVeiculoButton from "./BuscaPlacaVeiculoButton";
+import { COMBUSTIVEIS } from "../features/veiculos/rotuloVeiculo";
 
-const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
+const vazio = {
+  modelo: "",
+  marca: "",
+  ano: "",
+  placa: "",
+  cor: "",
+  chassi: "",
+  versao: "",
+  motor: "",
+  combustivel: "",
+};
+
+function preencher(origem) {
+  return {
+    modelo: origem?.modelo || "",
+    marca: origem?.marca || "",
+    ano: origem?.ano != null ? String(origem.ano) : "",
+    placa: origem?.placa || "",
+    cor: origem?.cor || "",
+    chassi: origem?.chassi || "",
+    versao: origem?.versao || "",
+    motor: origem?.motor || "",
+    combustivel: origem?.combustivel || "",
+  };
+}
+
+const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo = null }) => {
+  const editando = Boolean(veiculo?.id);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    modelo: "",
-    marca: "",
-    ano: "",
-    placa: "",
-    cor: "",
-    chassi: "",
-  });
+  const [formData, setFormData] = useState(vazio);
 
   const anoAtual = new Date().getFullYear();
   const anosDisponiveis = Array.from({ length: 30 }, (_, i) => anoAtual - i);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData(veiculo?.id ? preencher(veiculo) : vazio);
+  }, [isOpen, veiculo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,8 +67,10 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
 
     setLoading(true);
     try {
-      const response = await api.post("/veiculos", dadosLimpos);
-      showSuccess("Veículo cadastrado com sucesso!");
+      const response = editando
+        ? await api.put(`/veiculos/${veiculo.id}`, dadosLimpos)
+        : await api.post("/veiculos", dadosLimpos);
+      showSuccess(editando ? "Veículo atualizado com sucesso!" : "Veículo cadastrado com sucesso!");
       onVeiculoCriado(response.data);
       handleClose();
     } catch (error) {
@@ -54,14 +82,7 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
   };
 
   const handleClose = () => {
-    setFormData({
-      modelo: "",
-      marca: "",
-      ano: "",
-      placa: "",
-      cor: "",
-      chassi: "",
-    });
+    setFormData(vazio);
     onClose();
   };
 
@@ -69,7 +90,7 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Novo Veículo"
+      title={editando ? "Editar Veículo" : "Novo Veículo"}
       size="lg"
       footer={
         <>
@@ -87,7 +108,7 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
             loading={loading}
             className="w-full sm:w-auto"
           >
-            Cadastrar Veículo
+            {editando ? "Salvar" : "Cadastrar Veículo"}
           </Button>
         </>
       }
@@ -174,13 +195,17 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Versão"
+            value={formData.versao}
+            onChange={(e) => setFormData({ ...formData, versao: e.target.value })}
+            placeholder="Ex: Comfortline, Highline"
+          />
           <Select
             label="Ano"
             value={formData.ano}
-            onChange={(e) =>
-              setFormData({ ...formData, ano: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
             options={[
               { value: "", label: "Selecione o ano" },
               ...anosDisponiveis.map((ano) => ({
@@ -190,16 +215,32 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado }) => {
             ]}
             required
           />
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Cor"
-            value={formData.cor}
-            onChange={(e) =>
-              setFormData({ ...formData, cor: e.target.value })
-            }
-            placeholder="Ex: Prata, Preto, Branco"
+            label="Motor"
+            value={formData.motor}
+            onChange={(e) => setFormData({ ...formData, motor: e.target.value })}
+            placeholder="Ex: 2.0 TSI, 1.6 MSI"
+          />
+          <Select
+            label="Combustível"
+            value={formData.combustivel}
+            onChange={(e) => setFormData({ ...formData, combustivel: e.target.value })}
+            options={[
+              { value: "", label: "Não informado" },
+              ...COMBUSTIVEIS.map((item) => ({ value: item, label: item })),
+            ]}
           />
         </div>
+
+        <Input
+          label="Cor"
+          value={formData.cor}
+          onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+          placeholder="Ex: Prata, Preto, Branco"
+        />
       </form>
     </Modal>
   );

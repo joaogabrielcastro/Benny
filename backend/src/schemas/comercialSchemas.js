@@ -91,7 +91,9 @@ export const updateOrcamentoSchema = z.object({
   servicos: z.array(linhaServicoSchema).default([]),
 });
 
-export const createOrdemServicoSchema = comercialBaseSchema;
+export const createOrdemServicoSchema = comercialBaseSchema.extend({
+  consumidor_final: z.boolean().nullable().optional(),
+});
 
 export const updateOrdemServicoSchema = z.object({
   status: z
@@ -102,6 +104,7 @@ export const updateOrdemServicoSchema = z.object({
   previsao_entrega: z.string().optional().nullable(),
   observacoes_veiculo: z.string().optional().nullable(),
   observacoes_gerais: z.string().optional().nullable(),
+  consumidor_final: z.boolean().nullable().optional(),
   /** Enviados pelo formulário; ignorados pelo service até suportar edição de itens */
   produtos: z.array(linhaProdutoSchema).optional(),
   servicos: z.array(linhaServicoSchema).optional(),

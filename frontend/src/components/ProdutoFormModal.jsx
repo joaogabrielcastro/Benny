@@ -39,6 +39,7 @@ export default function ProdutoFormModal({
     valor_custo: 0,
     valor_venda: 0,
     estoque_minimo: 5,
+    ncm: "",
   };
 
   const [formData, setFormData] = useState(() =>
@@ -51,6 +52,7 @@ export default function ProdutoFormModal({
           valor_custo: produto.valor_custo ?? 0,
           valor_venda: produto.valor_venda ?? 0,
           estoque_minimo: produto.estoque_minimo ?? 5,
+          ncm: produto.ncm ?? "",
         }
       : { ...emptyForm },
   );
@@ -65,7 +67,8 @@ export default function ProdutoFormModal({
         quantidade: produto.quantidade ?? 0,
         valor_custo: produto.valor_custo ?? 0,
         valor_venda: produto.valor_venda ?? 0,
-        estoque_minimo: produto.estoque_minimo ?? 5,
+          estoque_minimo: produto.estoque_minimo ?? 5,
+          ncm: produto.ncm ?? "",
       });
     } else {
       setFormData({ ...emptyForm });
@@ -109,13 +112,21 @@ export default function ProdutoFormModal({
       }
     }
 
+    const ncmInformado = String(formData.ncm ?? "").trim();
+    const ncmDigits = ncmInformado.replace(/[.\-\s]/g, "");
+    if (ncmInformado && !/^\d{8}$/.test(ncmDigits)) {
+      toast.error("NCM deve ter exatamente 8 dígitos.");
+      return;
+    }
+    const payloadBase = { ...formData, ncm: ncmInformado ? ncmDigits : null };
+
     try {
       let res;
       if (produto && produto.id) {
-        res = await api.put(`/produtos/${produto.id}`, formData);
+        res = await api.put(`/produtos/${produto.id}`, payloadBase);
         toast.success("Produto atualizado com sucesso!");
       } else {
-        const payload = { ...formData };
+        const payload = { ...payloadBase };
         const c = String(payload.codigo ?? "").trim();
         if (!c) delete payload.codigo;
         res = await api.post("/produtos", payload);
@@ -152,10 +163,11 @@ export default function ProdutoFormModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="produto-nome">
               Nome *
             </label>
             <input
+              id="produto-nome"
               type="text"
               name="nome"
               value={formData.nome}
@@ -237,6 +249,25 @@ export default function ProdutoFormModal({
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="produto-ncm">
+            NCM
+          </label>
+          <input
+            id="produto-ncm"
+            type="text"
+            name="ncm"
+            value={formData.ncm}
+            onChange={handleChange}
+            placeholder="Ex.: 87083090"
+            inputMode="numeric"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Necessário para emissão de NF-e.
+          </p>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">

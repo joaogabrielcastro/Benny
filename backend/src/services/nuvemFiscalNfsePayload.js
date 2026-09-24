@@ -78,13 +78,12 @@ function competenciaAtual(d = new Date()) {
   return `${y}-${m}`;
 }
 
-/** Referência única por tentativa. Máx. 50 caracteres. */
-export function gerarReferenciaFiscal(osId, modelo, nfRegistroId = null) {
+/** Referência estável. Máx. 50 caracteres. Sem timestamp. */
+export function gerarReferenciaFiscal(osId, modelo, nfRegistroId = null, tenantId = 0) {
   const tag = modelo === "NFE" ? "nfe" : "nfse";
-  const sufixo = Date.now().toString(36);
   const base = nfRegistroId
-    ? `benny-os-${osId}-${tag}-nf${nfRegistroId}-${sufixo}`
-    : `benny-os-${osId}-${tag}-${sufixo}`;
+    ? `b-${tenantId}-os${osId}-${tag}-nf${nfRegistroId}`
+    : `b-${tenantId}-os${osId}-${tag}`;
   return trunc(base, 50);
 }
 

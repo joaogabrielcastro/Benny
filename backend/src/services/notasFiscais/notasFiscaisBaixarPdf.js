@@ -1,47 +1,52 @@
-﻿import {
-  baixarPdfNfe,
-  baixarPdfNfse,
-  consultarNfe,
-  consultarNfse,
-} from "../nuvemFiscalClient.js";
+﻿import { resolveFiscalProvider } from "../fiscal/providers/index.js";
 import { resolverStatusNuvem } from "./nuvemRespostaParser.js";
 import { buscarPorId } from "./notasFiscaisRepository.js";
 
 export const baixarPdf = async (tenantId, nfId) => {
   const nf = await buscarPorId(tenantId, nfId);
   if (!nf) return { erro: "Nota fiscal não encontrada" };
+
+  const provider = await resolveFiscalProvider({
+    modeloDocumento: nf.modelo_documento,
+    provedor: nf.provedor,
+    tenantId,
+  });
+
   if (!nf.id_provedor) {
-    return { erro: "Nota sem vínculo na Notaas. Sincronize o status antes." };
+    return { erro: `Nota sem vínculo na ${provider.rotulo}.` };
+  }
+  if (nf.status !== "autorizada" && nf.status !== "cancelada") {
+    return {
+      erro: "Nota ainda não autorizada. Aguarde ou use Atualizar status.",
+    };
+  }
+  if (!provider.isConfigured()) {
+    return { erro: provider.mensagemNaoConfigurado() };
   }
 
-  const consulta =
-    nf.modelo_documento === "NFE"
-      ? await consultarNfe(nf.id_provedor)
-      : await consultarNfse(nf.id_provedor);
-
-  if (consulta.ok) {
+  const consulta = await provider.consultar(nf.id_provedor);
+  if (consulta.confirmadoExternamente && consulta.ok) {
     const { interno, bruto } = resolverStatusNuvem(consulta.data);
     if (interno === "rejeitada") {
       return {
-        erro: `Nota rejeitada na Notaas (${bruto || "sem detalhe"}). PDF não disponível — corrija e reemita.`,
+        erro: `Nota rejeitada na ${provider.rotulo} (${bruto || "sem detalhe"}). PDF não disponível.`,
       };
     }
     if (interno !== "autorizada" && interno !== "cancelada") {
       return {
-        erro: `Nota ainda não autorizada na Notaas (${bruto || interno}). Aguarde ou use Atualizar status.`,
+        erro: `Nota ainda não autorizada na ${provider.rotulo} (${bruto || interno}).`,
       };
     }
   }
 
-  const fn = nf.modelo_documento === "NFE" ? baixarPdfNfe : baixarPdfNfse;
-  const api = await fn(nf.id_provedor);
+  const api = await provider.baixarPdf(nf.id_provedor);
   if (!api.ok) {
     const extra =
       api.statusCode === 404
-        ? " Nota não encontrada ou PDF indisponível (rejeitada/cancelada?)."
+        ? " Arquivo não encontrado no provedor."
         : "";
     return {
-      erro: (api.mensagem || "Falha ao baixar PDF na Notaas.") + extra,
+      erro: (api.mensagem || `Falha ao baixar PDF na ${provider.rotulo}.`) + extra,
     };
   }
 

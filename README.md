@@ -35,7 +35,7 @@ Sistema de gestão para oficinas mecânicas: OS, orçamentos, estoque, agenda, f
 - **Relatórios** — faturamento, OS, estoque (gráficos)
 - **Fechamento mensal** — totais NFS-e/NF-e do mês, tributos e **export ZIP** (CSV/JSON + PDF + XML) para o contador
 - **NFS-e** — emissão via Notaas a partir de OS finalizada (serviços; peças na mesma nota enquanto NF-e estiver off)
-- **NF-e** — emissão via Notaas (`POST /nfe/emitir`); ligue `NOTAAS_NFE_ENABLED=true` para testar (padrão: desligada)
+- **NF-e** — emissão de peças via **Brasil NFe** (`BRASILNFE_TOKEN`); NFS-e de serviço continua na Notaas
 
 ### SaaS
 - Multi-tenant por `tenant_id`
@@ -114,7 +114,7 @@ Resumo:
 1. Postgres no Coolify → `DATABASE_URL` no backend  
 2. Backend: base `/backend`, porta **3011**, healthcheck `GET /api/health`  
 3. Frontend: build Vite com `VITE_API_URL=https://api-benny.seudominio.com.br`  
-4. Variáveis críticas: `JWT_SECRET`, `FRONTEND_URL`, `SINGLE_TENANT_MODE`, `NOTAAS_*`, Stripe se SaaS  
+4. Variáveis críticas: `JWT_SECRET`, `FRONTEND_URL`, `SINGLE_TENANT_MODE`, `NOTAAS_*`, Stripe se SaaS. Assistente de orçamento (opcional): `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT_MS` — ver `backend/.env.example`  
 5. Após deploy: migrations rodam no start (`npm start` → `migrate` + `server.js`)
 
 ---
@@ -124,7 +124,7 @@ Resumo:
 | Documento | Status |
 |-----------|--------|
 | NFS-e | Integrada (emitir, status, PDF, XML, cancelar) |
-| NF-e | Integrada; desligada por padrão (`NOTAAS_NFE_ENABLED=false`) — ligue para testar |
+| NF-e | Integrada via Brasil NFe (`BRASILNFE_TOKEN`); desligada sem o token |
 
 Documentação: [`docs/MIGRACAO_NOTAAS.md`](docs/MIGRACAO_NOTAAS.md)
 

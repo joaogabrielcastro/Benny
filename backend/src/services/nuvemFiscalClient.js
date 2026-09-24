@@ -60,11 +60,19 @@ function formatarErroApi(err) {
  * Requisição JSON autenticada à Notaas.
  * @returns {Promise<{ ok: true, data: object, statusCode: number } | { ok: false, mensagem: string, statusCode?: number, detalhe?: unknown, authError?: boolean }>}
  */
-async function requestNotaas(method, path, body) {
-  if (!isNuvemFiscalConfigured()) {
+function sessaoNotaas(creds) {
+  const cfg = getNuvemFiscalConfig();
+  const apiKey = creds?.apiKey || cfg.apiKey;
+  const apiBaseUrl = creds?.apiBaseUrl || cfg.apiBaseUrl;
+  return { apiKey, apiBaseUrl };
+}
+
+async function requestNotaas(method, path, body, creds) {
+  const sessao = sessaoNotaas(creds);
+  if (!sessao.apiKey || !String(sessao.apiKey).startsWith("ntaas_")) {
     return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
   }
-  const cfg = getNuvemFiscalConfig();
+  const cfg = sessao;
   const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
   try {
@@ -82,6 +90,7 @@ async function requestNotaas(method, path, body) {
       ok: false,
       mensagem: formatarErroApi(err),
       statusCode: err.response?.status,
+      code: err.code,
       detalhe: err.response?.data,
       authError:
         err.response?.status === 401 || err.response?.status === 403,
@@ -103,16 +112,16 @@ async function requestNotaasBinary(
   path,
   redirectUrl = null,
   hops = 0,
-  { accept = "application/pdf", kind = "pdf" } = {},
+  { accept = "application/pdf", kind = "pdf", creds } = {},
 ) {
-  if (!isNuvemFiscalConfigured()) {
+  const sessao = sessaoNotaas(creds);
+  if (!sessao.apiKey || !String(sessao.apiKey).startsWith("ntaas_")) {
     return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
   }
   if (hops > 6) {
     return { ok: false, mensagem: "Muitos redirects ao baixar PDF na Notaas." };
   }
-  const cfg = getNuvemFiscalConfig();
-  const base = String(cfg.apiBaseUrl || "").replace(/\/+$/, "");
+  const base = String(sessao.apiBaseUrl || "").replace(/\/+$/, "");
   const url =
     redirectUrl ||
     `${base}${path.startsWith("/") ? path : `/${path}`}`;
@@ -124,7 +133,7 @@ async function requestNotaasBinary(
       maxRedirects: 0,
       validateStatus: (s) => s === 200 || s === 302 || s === 307,
       headers: {
-        "x-api-key": cfg.apiKey,
+        "x-api-key": sessao.apiKey,
         Accept: accept,
       },
       timeout: 120_000,
@@ -143,7 +152,7 @@ async function requestNotaasBinary(
         loc.startsWith("http://") || loc.startsWith("https://")
           ? loc
           : `${base}${loc.startsWith("/") ? loc : `/${loc}`}`;
-      return requestNotaasBinary(path, next, hops + 1, { accept, kind });
+      return requestNotaasBinary(path, next, hops + 1, { accept, kind, creds });
     }
 
     const buffer = Buffer.from(response.data);
@@ -242,13 +251,15 @@ export async function obterAccessToken() {
   return getNuvemFiscalConfig().apiKey;
 }
 
-export async function baixarPdfNfse(idProvedor) {
+export async function baixarPdfNfse(idProvedor, creds) {
   const id = String(idProvedor || "").trim();
   if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
-  return requestNotaasBinary(`/invoices/${encodeURIComponent(id)}/pdf`);
+  return requestNotaasBinary(`/invoices/${encodeURIComponent(id)}/pdf`, null, 0, {
+    creds,
+  });
 }
 
-export async function baixarXmlNfse(idProvedor, tipo = "emission") {
+export async function baixarXmlNfse(idProvedor, tipo = "emission", creds) {
   const id = String(idProvedor || "").trim();
   if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
   const query = tipo === "cancel" ? "?type=cancel" : "";
@@ -256,35 +267,19 @@ export async function baixarXmlNfse(idProvedor, tipo = "emission") {
     `/invoices/${encodeURIComponent(id)}/xml${query}`,
     null,
     0,
-    { accept: "application/xml", kind: "xml" },
-  );
-}
-
-export async function baixarPdfNfe(idProvedor) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
-  return requestNotaasBinary(`/nfe/invoices/${encodeURIComponent(id)}/danfe`);
-}
-
-export async function baixarXmlNfe(idProvedor, tipo = "emission") {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
-  const query = tipo === "cancel" ? "?type=cancel" : "";
-  return requestNotaasBinary(
-    `/nfe/invoices/${encodeURIComponent(id)}/xml${query}`,
-    null,
-    0,
-    { accept: "application/xml", kind: "xml" },
+    { accept: "application/xml", kind: "xml", creds },
   );
 }
 
 /** GET /invoices/{id}/status */
-export async function consultarNfse(idProvedor) {
+export async function consultarNfse(idProvedor, creds) {
   const id = String(idProvedor || "").trim();
   if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
   const res = await requestNotaas(
     "GET",
     `/invoices/${encodeURIComponent(id)}/status`,
+    undefined,
+    creds,
   );
   if (res.ok && res.data && typeof res.data === "object") {
     // Garante invoiceId no objeto para o parser gravar id_provedor
@@ -302,59 +297,24 @@ export async function sincronizarNfseNaPrefeitura(idProvedor) {
  * Emite NFS-e via POST /emitir (nome legado emitirNfseDps).
  * Body no formato Notaas (tomador/servico/valores).
  */
-export async function emitirNfseDps(body) {
-  if (!isNuvemFiscalConfigured()) {
-    return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
-  }
-  return requestNotaas("POST", "/emitir", body);
-}
-
-/** GET /nfe/invoices/{id}/status */
-export async function consultarNfe(idProvedor) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
-  const res = await requestNotaas(
-    "GET",
-    `/nfe/invoices/${encodeURIComponent(id)}/status`,
-  );
-  if (res.ok && res.data && typeof res.data === "object") {
-    if (!res.data.invoiceId) res.data.invoiceId = id;
-  }
-  return res;
-}
-
-export async function sincronizarNfeNaSefaz(idProvedor) {
-  return consultarNfe(idProvedor);
-}
-
-/** POST /nfe/emitir — NF-e modelo 55 */
-export async function emitirNfe(body) {
-  if (!isNuvemFiscalConfigured()) {
-    return { ok: false, mensagem: "Notaas não configurada (NOTAAS_API_KEY)" };
-  }
-  return requestNotaas("POST", "/nfe/emitir", body);
+export async function emitirNfseDps(body, creds) {
+  return requestNotaas("POST", "/emitir", body, creds);
 }
 
 /** POST /cancelar { invoiceId, motivo } */
-export async function cancelarNfse(idProvedor, body = {}) {
+export async function cancelarNfse(idProvedor, body = {}, creds) {
   const id = String(idProvedor || "").trim();
   if (!id) return { ok: false, mensagem: "ID da NFS-e na Notaas ausente" };
-  return requestNotaas("POST", "/cancelar", {
-    invoiceId: id,
-    motivo: String(body.motivo || body.justificativa || "")
-      .trim()
-      .slice(0, 255),
-  });
+  return requestNotaas(
+    "POST",
+    "/cancelar",
+    {
+      invoiceId: id,
+      motivo: String(body.motivo || body.justificativa || "")
+        .trim()
+        .slice(0, 255),
+    },
+    creds,
+  );
 }
 
-/** POST /nfe/cancelar { invoiceId, motivo } */
-export async function cancelarNfe(idProvedor, body = {}) {
-  const id = String(idProvedor || "").trim();
-  if (!id) return { ok: false, mensagem: "ID da NF-e na Notaas ausente" };
-  return requestNotaas("POST", "/nfe/cancelar", {
-    invoiceId: id,
-    motivo: String(body.motivo || body.justificativa || "")
-      .trim()
-      .slice(0, 255),
-  });
-}
