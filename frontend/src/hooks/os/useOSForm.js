@@ -8,6 +8,7 @@ const emptyProduto = () => ({
   produto_id: "",
   codigo: "",
   descricao: "",
+  ncm: "",
   quantidade: 1,
   valor_unitario: 0,
   valor_total: 0,
@@ -89,9 +90,11 @@ export function useOSForm(osId) {
       if (os.produtos?.length) {
         setItensProdutos(
           os.produtos.map((p) => ({
+            id: p.id,
             produto_id: p.produto_id || "",
             codigo: p.codigo,
             descricao: p.descricao,
+            ncm: p.ncm || p.produto_ncm || "",
             quantidade: p.quantidade,
             valor_unitario: p.valor_unitario,
             valor_total: p.valor_total,
@@ -149,6 +152,7 @@ export function useOSForm(osId) {
         novos[index].codigo = produto.codigo;
         novos[index].descricao = produto.nome;
         novos[index].valor_unitario = produto.valor_venda;
+        if (produto.ncm) novos[index].ncm = produto.ncm;
         if (produto.quantidade < novos[index].quantidade) {
           toast.error(
             `${produto.nome}: estoque ${produto.quantidade} un.`,

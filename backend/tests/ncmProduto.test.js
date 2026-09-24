@@ -78,6 +78,27 @@ describe("NCM na NF-e", () => {
     assert.equal(result.body.Produtos[0].NCM, "87083090");
   });
 
+  it("aceita NCM na linha mesmo sem produto de catálogo", () => {
+    const result = montarCorpoEmissaoNfe(
+      { id: 2, numero: "OS-101" },
+      clienteOk,
+      [
+        {
+          produto_id: null,
+          codigo: "",
+          descricao: "Óleo do motor",
+          quantidade: 1,
+          valor_unitario: 40,
+          valor_total: 40,
+          ncm: "27101932",
+        },
+      ],
+      { nNF: 2, referencia: "b-1-os2-nfe", configFiscal: { icms: { tipo: "CSOSN", codigo: "102" }, cfopResolvido: "5102" }, consumidorFinal: true },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.body.Produtos[0].NCM, "27101932");
+  });
+
   it("não usa NOTAAS_NFE_NCM e não monta corpo para a Brasil NFe", () => {
     process.env.NOTAAS_NFE_NCM = "87089990";
     const result = montarCorpoEmissaoNfe(

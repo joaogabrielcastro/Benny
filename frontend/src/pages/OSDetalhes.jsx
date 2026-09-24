@@ -62,6 +62,40 @@ export default function OSDetalhes() {
 
   const componentRef = useRef();
 
+  const salvarNcmProduto = async (produto, digitos) => {
+    if (digitos && digitos.length !== 8) {
+      toast.error("NCM precisa ter 8 dígitos");
+      return;
+    }
+    const gravado = String(produto.ncm || "").replace(/\D/g, "");
+    if (digitos === gravado) return;
+    try {
+      await api.put(`/ordens-servico/${id}`, {
+        status: os.status,
+        responsavel_tecnico: os.responsavel_tecnico,
+        km: os.km ?? null,
+        previsao_entrega: os.previsao_entrega,
+        observacoes_veiculo: os.observacoes_veiculo,
+        observacoes_gerais: os.observacoes_gerais,
+        consumidor_final: os.consumidor_final,
+        produtos: os.produtos.map((p) => ({
+          id: p.id,
+          produto_id: p.produto_id || null,
+          codigo: p.codigo || "",
+          descricao: p.descricao,
+          quantidade: p.quantidade,
+          valor_unitario: p.valor_unitario,
+          valor_total: p.valor_total,
+          ncm: p.id === produto.id ? digitos : p.ncm || "",
+        })),
+      });
+      toast.success("NCM salvo");
+      carregarOS();
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Não foi possível salvar o NCM");
+    }
+  };
+
   const handleAtualizarStatus = async (novoStatus) => {
     try {
       await api.put(`/ordens-servico/${id}`, {
@@ -329,6 +363,9 @@ export default function OSDetalhes() {
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Descrição
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    NCM
+                  </th>
                   <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Qtd
                   </th>
@@ -352,6 +389,23 @@ export default function OSDetalhes() {
                     <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
                       {produto.descricao}
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        defaultValue={produto.ncm || produto.produto_ncm || ""}
+                        key={`${produto.id}-${produto.ncm || produto.produto_ncm || ""}`}
+                        onBlur={(e) =>
+                          salvarNcmProduto(
+                            produto,
+                            e.target.value.replace(/\D/g, "").slice(0, 8),
+                          )
+                        }
+                        placeholder="8 dígitos"
+                        title="Obrigatório para a NF-e autorizar"
+                        className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm text-center text-gray-800 dark:text-gray-200">
                       {produto.quantidade}
                     </td>
@@ -367,7 +421,7 @@ export default function OSDetalhes() {
               <tfoot>
                 <tr className="bg-blue-50 dark:bg-gray-700 font-semibold">
                   <td
-                    colSpan="4"
+                    colSpan="5"
                     className="px-4 py-3 text-right text-gray-800 dark:text-gray-200"
                   >
                     Subtotal Produtos:

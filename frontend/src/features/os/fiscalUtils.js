@@ -117,7 +117,7 @@ export function mensagemProdutosSemNcm(data) {
   if (code === "NFE_PRODUTO_SEM_CADASTRO_FISCAL") {
     return `Não foi possível emitir a NF-e.\n\nAlgumas peças não estão ligadas a um produto do catálogo:${lista}\n\nVincule o produto e informe o NCM. Depois tente novamente.`;
   }
-  return `Não foi possível emitir a NF-e.\n\nAlguns produtos estão sem NCM:${lista}\n\nProdutos → editar produto → informar NCM. Depois tente novamente.`;
+  return `Não foi possível emitir a NF-e.\n\nAlguns produtos estão sem NCM:${lista}\n\nNa peça, informar NCM de 8 dígitos e salvar. Depois tente novamente.`;
 }
 
 const ROTULO_CAMPO_DEST = {

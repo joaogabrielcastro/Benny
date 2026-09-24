@@ -31,19 +31,18 @@ export function avaliarNcmItensNfe(produtos) {
       Object.prototype.hasOwnProperty.call(p, "produto_do_tenant") &&
       p.produto_id != null &&
       p.produto_do_tenant == null;
+    const norm = normalizarNcmInformado(p.ncm || p.produto_ncm);
+    if (norm.ncm) continue;
     if (p.produto_id == null || outroTenant) {
       ruins.push({
         produto_id: null,
         codigo: p.codigo ?? null,
         descricao: p.descricao ?? null,
-        motivo: "NFE_PRODUTO_SEM_CADASTRO_FISCAL",
+        motivo: "NFE_PRODUTO_SEM_NCM",
       });
       continue;
     }
-    const norm = normalizarNcmInformado(p.ncm || p.produto_ncm);
-    if (!norm.ncm) {
-      ruins.push({ ...itemFiscal(p), motivo: "NFE_PRODUTO_SEM_NCM" });
-    }
+    ruins.push({ ...itemFiscal(p), motivo: "NFE_PRODUTO_SEM_NCM" });
   }
   if (!ruins.length) return null;
   const soCadastro = ruins.every(

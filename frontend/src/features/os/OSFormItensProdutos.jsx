@@ -33,7 +33,7 @@ export default function OSFormItensProdutos({
                 estoqueInsuficiente ? "bg-red-50 dark:bg-red-900/20" : ""
               }`}
             >
-              <div className="col-span-3">
+              <div className="col-span-2 min-w-0">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Produto
                 </label>
@@ -52,7 +52,7 @@ export default function OSFormItensProdutos({
                   ))}
                 </select>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 min-w-0">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Código
                 </label>
@@ -63,6 +63,22 @@ export default function OSFormItensProdutos({
                     onAtualizar(index, "codigo", e.target.value)
                   }
                   className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded"
+                />
+              </div>
+              <div className="col-span-2 min-w-0">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  NCM
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={item.ncm || ""}
+                  onChange={(e) =>
+                    onAtualizar(index, "ncm", e.target.value.replace(/[^\d]/g, "").slice(0, 8))
+                  }
+                  placeholder="8 dígitos"
+                  title="Obrigatório para a NF-e autorizar"
+                  className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded"
                 />
               </div>
               <div className="col-span-2">

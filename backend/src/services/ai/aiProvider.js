@@ -4,6 +4,7 @@ import logger from "../../config/logger.js";
 const MENSAGEM_FALHA =
   "Não foi possível gerar sugestões agora. Você pode continuar criando o orçamento manualmente.";
 
+
 export function lerConfigAi(env = process.env) {
   const provider = String(env.AI_PROVIDER || "").trim().toLowerCase();
   const model = String(env.AI_MODEL || "").trim();
@@ -66,8 +67,14 @@ async function chamarOpenAiCompativel(cfg, { systemPrompt, input }) {
     });
 
     if (!response.ok) {
+      const detalhe = (await response.text()).replaceAll(cfg.apiKey, "").slice(0, 300);
+      logger.warn("Assistente: provedor recusou a chamada", {
+        status: response.status,
+        model: cfg.model,
+        detalhe,
+      });
       const falhaRede = response.status >= 500 || response.status === 429;
-      const err = new AppError(falhaRede ? 502 : 502, MENSAGEM_FALHA);
+      const err = new AppError(502, MENSAGEM_FALHA);
       err.retryable = falhaRede;
       throw err;
     }
@@ -131,6 +138,14 @@ export async function generateStructured({ systemPrompt, input, schema, env = pr
   if (schema) {
     const parsed = schema.safeParse(resultado.data);
     if (!parsed.success) {
+      logger.warn("Assistente: JSON fora do formato esperado", {
+        model: cfg.model,
+        detalhe: parsed.error.issues
+          .slice(0, 6)
+          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+          .join("; "),
+        amostra: JSON.stringify(resultado.data).slice(0, 800),
+      });
       throw new AppError(502, MENSAGEM_FALHA);
     }
     resultado.data = parsed.data;

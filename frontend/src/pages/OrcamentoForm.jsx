@@ -15,6 +15,16 @@ import AssistenteOrcamento from "../features/orcamentos/AssistenteOrcamento";
 import { aplicarSugestoesNoOrcamento } from "../features/orcamentos/aplicarSugestoes";
 import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
+function precoDigitado(valor) {
+  const texto = String(valor ?? "").trim().replace(/\s/g, "");
+  if (!texto || texto === "," || texto === ".") return 0;
+  const normalizado = texto.includes(",")
+    ? texto.replace(/\./g, "").replace(",", ".")
+    : texto;
+  const n = Number(normalizado);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default function OrcamentoForm() {
   const navigate = useNavigate();
   const { id: orcamentoId } = useParams();
@@ -147,6 +157,7 @@ export default function OrcamentoForm() {
         produto_id: "",
         codigo: "",
         descricao: "",
+        ncm: "",
         quantidade: 1,
         valor_unitario: 0,
         valor_total: 0,
@@ -190,6 +201,7 @@ export default function OrcamentoForm() {
           novosProdutos[index].codigo = produto.codigo;
           novosProdutos[index].descricao = produto.nome;
           novosProdutos[index].valor_unitario = produto.valor_venda;
+          if (produto.ncm) novosProdutos[index].ncm = produto.ncm;
         }
       }
     }
@@ -200,8 +212,8 @@ export default function OrcamentoForm() {
       (campo === "produto_id" && valor && valor !== "__add_new__");
     if (recalcularTotalLinhaProduto) {
       const q = Number(novosProdutos[index].quantidade) || 0;
-      const vu = Number(novosProdutos[index].valor_unitario) || 0;
-      novosProdutos[index].valor_total = q * vu;
+      const vu = precoDigitado(novosProdutos[index].valor_unitario);
+      novosProdutos[index].valor_total = Math.round(q * vu * 100) / 100;
     }
 
     setItensProdutos(novosProdutos);
@@ -230,8 +242,8 @@ export default function OrcamentoForm() {
 
     if (campo === "quantidade" || campo === "valor_unitario") {
       const q = Number(novosServicos[index].quantidade) || 0;
-      const vu = Number(novosServicos[index].valor_unitario) || 0;
-      novosServicos[index].valor_total = q * vu;
+      const vu = precoDigitado(novosServicos[index].valor_unitario);
+      novosServicos[index].valor_total = Math.round(q * vu * 100) / 100;
     }
 
     setItensServicos(novosServicos);
@@ -533,55 +545,113 @@ export default function OrcamentoForm() {
             {itensProdutos.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
+                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3 min-w-0"
               >
-                <div className="col-span-3">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Produto
-                  </label>
-                  <select
-                    value={item.produto_id}
-                    onChange={(e) =>
-                      atualizarProduto(index, "produto_id", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="__add_new__">+ Novo Produto</option>
-                    {produtos.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Código
-                  </label>
-                  <input
-                    type="text"
-                    value={item.codigo}
-                    onChange={(e) =>
-                      atualizarProduto(index, "codigo", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Descrição
-                  </label>
-                  <input
-                    type="text"
-                    value={item.descricao}
-                    onChange={(e) =>
-                      atualizarProduto(index, "descricao", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-1">
+                {item.origemSugestao && !item.produto_id ? (
+                  <>
+                    <div className="col-span-5 min-w-0">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Item
+                      </label>
+                      <input
+                        type="text"
+                        value={item.descricao}
+                        onChange={(e) =>
+                          atualizarProduto(index, "descricao", e.target.value)
+                        }
+                        title={item.descricao || ""}
+                        className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        NCM
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.ncm || ""}
+                        onChange={(e) =>
+                          atualizarProduto(index, "ncm", e.target.value.replace(/[^\d]/g, "").slice(0, 8))
+                        }
+                        placeholder="8 dígitos"
+                        title="Obrigatório para a NF-e autorizar"
+                        className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="col-span-2 min-w-0">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Produto
+                      </label>
+                      <select
+                        value={item.produto_id}
+                        onChange={(e) =>
+                          atualizarProduto(index, "produto_id", e.target.value)
+                        }
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="__add_new__">+ Novo Produto</option>
+                        {produtos.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-1 min-w-0">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Código
+                      </label>
+                      <input
+                        type="text"
+                        value={item.codigo}
+                        onChange={(e) =>
+                          atualizarProduto(index, "codigo", e.target.value)
+                        }
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        NCM
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.ncm || ""}
+                        onChange={(e) =>
+                          atualizarProduto(
+                            index,
+                            "ncm",
+                            e.target.value.replace(/[^\d]/g, "").slice(0, 8),
+                          )
+                        }
+                        placeholder="8 dígitos"
+                        title="Obrigatório para a NF-e autorizar"
+                        className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Descrição
+                      </label>
+                      <input
+                        type="text"
+                        value={item.descricao}
+                        onChange={(e) =>
+                          atualizarProduto(index, "descricao", e.target.value)
+                        }
+                        title={item.descricao || ""}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
+                <div className="col-span-1 min-w-0 overflow-hidden">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Qtd
                   </label>
@@ -597,38 +667,34 @@ export default function OrcamentoForm() {
                     }
                     min="0"
                     step="1"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0 overflow-hidden">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Valor Unit.
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={item.valor_unitario}
                     onChange={(e) =>
                       atualizarProduto(
                         index,
                         "valor_unitario",
-                        parseFloat(e.target.value) || 0,
+                        e.target.value.replace(/[^\d,.]/g, ""),
                       )
                     }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-1 min-w-0 overflow-hidden">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Total
                   </label>
-                  <input
-                    type="text"
-                    value={`R$ ${item.valor_total.toFixed(2)}`}
-                    readOnly
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 dark:text-gray-300"
-                  />
+                  <p className="truncate px-1 py-1 text-sm text-gray-800 dark:text-gray-200">
+                    {`R$ ${Number(item.valor_total || 0).toFixed(2)}`}
+                  </p>
                 </div>
                 <div className="col-span-1">
                   <button
@@ -663,34 +729,47 @@ export default function OrcamentoForm() {
             {itensServicos.map((item, index) => (
               <div
                 key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3"
+                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3 min-w-0"
               >
-                <div className="col-span-4">
+                <div className={`${item.origemSugestao && !item.servico_id ? "col-span-6" : "col-span-4"} min-w-0`}>
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Descrição
                   </label>
-                  <select
-                    value={item.servico_id || ""}
-                    onChange={(e) => handleServicoSelect(index, e.target.value)}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Selecionar serviço --</option>
-                    <option value="__add_new__">+ Novo Serviço</option>
-                    {item.servico_id &&
-                      !servicos.some(
-                        (s) => Number(s.id) === Number(item.servico_id),
-                      ) && (
-                        <option value={item.servico_id}>
-                          {item.descricao || `Serviço #${item.servico_id}`}
+                  {item.origemSugestao && !item.servico_id ? (
+                    <input
+                      type="text"
+                      value={item.descricao || ""}
+                      onChange={(e) =>
+                        atualizarServico(index, "descricao", e.target.value)
+                      }
+                      title={item.descricao || ""}
+                      className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <select
+                      value={item.servico_id || ""}
+                      onChange={(e) => handleServicoSelect(index, e.target.value)}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Selecionar serviço --</option>
+                      <option value="__add_new__">+ Novo Serviço</option>
+                      {item.servico_id &&
+                        !servicos.some(
+                          (s) => Number(s.id) === Number(item.servico_id),
+                        ) && (
+                          <option value={item.servico_id}>
+                            {item.descricao || `Serviço #${item.servico_id}`}
+                          </option>
+                        )}
+                      {servicos.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.nome}
                         </option>
-                      )}
-                    {servicos.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nome}
-                      </option>
-                    ))}
-                  </select>
+                      ))}
+                    </select>
+                  )}
                 </div>
+                {!(item.origemSugestao && !item.servico_id) && (
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Código
@@ -704,7 +783,8 @@ export default function OrcamentoForm() {
                     className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="col-span-2">
+                )}
+                <div className="col-span-2 min-w-0 overflow-hidden">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Qtd/Horas
                   </label>
@@ -720,38 +800,34 @@ export default function OrcamentoForm() {
                     }
                     min="0"
                     step="0.5"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 min-w-0 overflow-hidden">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Valor Unit.
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={item.valor_unitario}
                     onChange={(e) =>
                       atualizarServico(
                         index,
                         "valor_unitario",
-                        parseFloat(e.target.value) || 0,
+                        e.target.value.replace(/[^\d,.]/g, ""),
                       )
                     }
-                    min="0"
-                    step="0.01"
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-1 min-w-0 overflow-hidden">
                   <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Total
                   </label>
-                  <input
-                    type="text"
-                    value={`R$ ${item.valor_total.toFixed(2)}`}
-                    readOnly
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-800 dark:text-gray-300"
-                  />
+                  <p className="truncate px-1 py-1 text-sm text-gray-800 dark:text-gray-200">
+                    {`R$ ${Number(item.valor_total || 0).toFixed(2)}`}
+                  </p>
                 </div>
                 <div className="col-span-1">
                   <button

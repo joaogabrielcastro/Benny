@@ -42,4 +42,18 @@ describe("aplicarSugestoesNoOrcamento", () => {
     expect(r.itensServicos).toHaveLength(1);
     expect(r.avisos.length).toBe(2);
   });
+
+  it("item não encontrado entra com descrição e preço zerado", () => {
+    const r = aplicarSugestoesNoOrcamento({
+      itensProdutos: [],
+      itensServicos: [],
+      selecionados: [
+        { tipo: "servico", descricao: "Troca de óleo do motor", quantidade_sugerida: 1, match: "NAO_ENCONTRADO" },
+        { tipo: "produto", descricao: "Filtro de óleo", quantidade_sugerida: 1, match: "NAO_ENCONTRADO" },
+      ],
+    });
+    expect(r.itensServicos[0]).toMatchObject({ descricao: "Troca de óleo do motor", valor_unitario: 0, valor_total: 0 });
+    expect(r.itensProdutos[0]).toMatchObject({ descricao: "Filtro de óleo", produto_id: "", valor_unitario: 0 });
+    expect(r.avisos.length).toBe(2);
+  });
 });

@@ -27,7 +27,7 @@ describe("ProdutoFormModal NCM", () => {
       <ProdutoFormModal isOpen onClose={() => {}} onSaved={() => {}} />,
     );
     expect(screen.getByLabelText("NCM")).toBeTruthy();
-    expect(screen.getByText("Necessário para emissão de NF-e.")).toBeTruthy();
+    expect(screen.getByText(/Necessário para emissão de NF-e/)).toBeTruthy();
   });
 
   it("normaliza NCM válido antes de salvar", async () => {
@@ -39,6 +39,18 @@ describe("ProdutoFormModal NCM", () => {
     await user.type(screen.getByLabelText("NCM"), "8708.30.90");
     await user.click(screen.getByRole("button", { name: "Salvar" }));
     expect(api.post).toHaveBeenCalled();
+    expect(api.post.mock.calls[0][1].ncm).toBe("87083090");
+  });
+
+  it("grava o NCM escolhido na busca", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProdutoFormModal isOpen onClose={() => {}} onSaved={() => {}} />,
+    );
+    await user.type(screen.getByRole("textbox", { name: "Nome *" }), "Pastilha");
+    await user.type(screen.getByLabelText("Buscar NCM pela peça"), "pastilha");
+    await user.click(screen.getByRole("button", { name: /87083090/ }));
+    await user.click(screen.getByRole("button", { name: "Salvar" }));
     expect(api.post.mock.calls[0][1].ncm).toBe("87083090");
   });
 

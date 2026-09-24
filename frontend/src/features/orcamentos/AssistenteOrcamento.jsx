@@ -103,7 +103,7 @@ export default function AssistenteOrcamento({
       const produto = item.ambiguo
         ? item.candidatos?.[escolhas[chave]]?.produto
         : item.produto;
-      if (marcados[chave] && item.match !== "NAO_ENCONTRADO" && produto) {
+      if (marcados[chave] && (produto || item.match === "NAO_ENCONTRADO")) {
         selecionados.push({ ...item, produto });
       }
     });
@@ -112,17 +112,21 @@ export default function AssistenteOrcamento({
       const servico = item.ambiguo
         ? item.candidatos?.[escolhas[chave]]?.servico
         : item.servico;
-      if (marcados[chave] && item.match !== "NAO_ENCONTRADO" && servico) {
+      if (marcados[chave] && (servico || item.match === "NAO_ENCONTRADO")) {
         selecionados.push({ ...item, servico });
       }
     });
     (resultado.itens_condicionais || []).forEach((item, index) => {
       const chave = chaveItem("cond", item, index);
-      if (marcados[chave] && item.produto) {
+      if (marcados[chave] && (item.produto || item.match === "NAO_ENCONTRADO")) {
         selecionados.push({ ...item, tipo: "produto" });
       }
     });
 
+    if (!selecionados.length) {
+      setAvisos(["Marque pelo menos um item para enviar ao orçamento."]);
+      return;
+    }
     const aplicado = onAplicar({
       itensProdutos,
       itensServicos,
@@ -299,7 +303,7 @@ export default function AssistenteOrcamento({
                           type="checkbox"
                           className="mt-1"
                           checked={Boolean(marcados[chave])}
-                          disabled={!item.produto}
+                          disabled={item.match !== "NAO_ENCONTRADO" && !item.produto}
                           onChange={() => alternar(chave)}
                         />
                         <span>
@@ -390,7 +394,7 @@ function ListaRevisao({ titulo, itens = [], prefixo, marcados, escolhas, onAlter
           const cadastro = item.ambiguo
             ? candidato?.produto || candidato?.servico
             : item.produto || item.servico;
-          const podeMarcar = item.match !== "NAO_ENCONTRADO" && Boolean(cadastro);
+          const podeMarcar = item.match === "NAO_ENCONTRADO" || Boolean(cadastro);
           return (
             <li
               key={chave}

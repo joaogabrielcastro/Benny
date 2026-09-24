@@ -30,8 +30,8 @@ async function inserirItens(
 ) {
   for (const p of produtos) {
     await client.query(
-      `INSERT INTO orcamento_produtos (orcamento_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO orcamento_produtos (orcamento_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, ncm)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         orcamento_id,
         p.produto_id,
@@ -40,6 +40,7 @@ async function inserirItens(
         p.quantidade,
         p.valor_unitario,
         p.valor_total,
+        p.ncm || null,
       ],
     );
   }
@@ -160,8 +161,8 @@ async function converterEmOSInterno(
 
   for (const p of produtosOrc.rows) {
     await client.query(
-      `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
+      `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque, ncm)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)`,
       [
         os_id,
         p.produto_id,
@@ -170,6 +171,7 @@ async function converterEmOSInterno(
         p.quantidade,
         p.valor_unitario,
         p.valor_total,
+        p.ncm || null,
       ],
     );
   }

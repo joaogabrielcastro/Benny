@@ -37,6 +37,31 @@ export function aplicarSugestoesNoOrcamento({
   const avisos = [];
 
   for (const item of selecionados) {
+    if (item.tipo === "produto" && !item.produto?.id) {
+      const descricao = String(item.descricao || "").trim();
+      if (!descricao) continue;
+      const jaExiste = produtos.some(
+        (p) => String(p.descricao || "").trim().toLowerCase() === descricao.toLowerCase(),
+      );
+      if (jaExiste) {
+        avisos.push(`${descricao} já está no orçamento.`);
+        continue;
+      }
+      const qtd = Number(item.quantidade_sugerida) > 0 ? Number(item.quantidade_sugerida) : 1;
+      produtos.push({
+        produto_id: "",
+        codigo: "",
+        descricao,
+        quantidade: qtd,
+        valor_unitario: 0,
+        valor_total: 0,
+        ncm: "",
+        origemSugestao: true,
+      });
+      avisos.push(`${descricao} entrou sem preço do cadastro. Preencha o valor e o NCM na linha.`);
+      continue;
+    }
+
     if (item.tipo === "produto" && item.produto?.id) {
       const idx = produtos.findIndex(
         (p) => String(p.produto_id) === String(item.produto.id),
@@ -46,6 +71,29 @@ export function aplicarSugestoesNoOrcamento({
         continue;
       }
       produtos.push(linhaProduto(item.produto, item.quantidade_sugerida));
+      continue;
+    }
+
+    if (item.tipo === "servico" && !item.servico) {
+      const descricao = String(item.descricao || "").trim();
+      if (!descricao) continue;
+      const jaExiste = servicos.some(
+        (s) => String(s.descricao || "").trim().toLowerCase() === descricao.toLowerCase(),
+      );
+      if (jaExiste) {
+        avisos.push(`${descricao} já está no orçamento.`);
+        continue;
+      }
+      const qtd = Number(item.quantidade_sugerida) > 0 ? Number(item.quantidade_sugerida) : 1;
+      servicos.push({
+        codigo: "",
+        descricao,
+        quantidade: qtd,
+        valor_unitario: 0,
+        valor_total: 0,
+        origemSugestao: true,
+      });
+      avisos.push(`${descricao} entrou sem preço do cadastro. Preencha o valor na linha.`);
       continue;
     }
 

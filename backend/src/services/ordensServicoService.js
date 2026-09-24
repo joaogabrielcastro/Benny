@@ -216,8 +216,8 @@ const criar = async (
 
     for (const p of produtos) {
       await client.query(
-        `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
+        `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque, ncm)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)`,
         [
           os_id,
           p.produto_id,
@@ -226,6 +226,7 @@ const criar = async (
           p.quantidade,
           p.valor_unitario,
           p.valor_total,
+          p.ncm || null,
         ],
       );
     }
@@ -269,6 +270,7 @@ const atualizar = async (
     observacoes_veiculo,
     observacoes_gerais,
     consumidor_final,
+    produtos,
   },
 ) => {
   const client = await pool.connect();
@@ -359,6 +361,16 @@ const atualizar = async (
       "sistema",
       client,
     );
+
+    if (Array.isArray(produtos)) {
+      for (const p of produtos) {
+        if (!p?.id) continue;
+        await client.query(
+          `UPDATE os_produtos SET ncm = $1 WHERE id = $2 AND os_id = $3`,
+          [p.ncm || null, p.id, id],
+        );
+      }
+    }
 
     // Estoque já é baixado na criação da OS (ou na aprovação do orçamento).
     // Finalizar NÃO deve baixar de novo — evita dedução dupla.

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import Modal from "./Modal";
+import { buscarNcmAutomotivo, rotuloNcm } from "../features/produtos/ncmAutomotivo";
 
 const getProdutoSaveErrorMessage = (error) => {
   const status = error?.response?.status;
@@ -42,6 +43,7 @@ export default function ProdutoFormModal({
     ncm: "",
   };
 
+  const [buscaNcm, setBuscaNcm] = useState("");
   const [formData, setFormData] = useState(() =>
     produto?.id
       ? {
@@ -59,6 +61,7 @@ export default function ProdutoFormModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    setBuscaNcm("");
     if (produto?.id) {
       setFormData({
         codigo: produto.codigo ?? "",
@@ -252,7 +255,37 @@ export default function ProdutoFormModal({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="produto-ncm">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="busca-ncm">
+            Buscar NCM pela peça
+          </label>
+          <input
+            id="busca-ncm"
+            type="text"
+            value={buscaNcm}
+            onChange={(e) => setBuscaNcm(e.target.value)}
+            placeholder="Ex.: pastilha, filtro, óleo"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {buscarNcmAutomotivo(buscaNcm).length > 0 && (
+            <ul className="mt-2 border border-gray-200 dark:border-gray-600 rounded-md divide-y divide-gray-200 dark:divide-gray-600">
+              {buscarNcmAutomotivo(buscaNcm).map((item) => (
+                <li key={item.ncm}>
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, ncm: item.ncm }));
+                      setBuscaNcm("");
+                    }}
+                  >
+                    <span className="font-medium">{item.ncm}</span>
+                    <span className="text-gray-500 dark:text-gray-400"> — {item.descricao}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 mt-3" htmlFor="produto-ncm">
             NCM
           </label>
           <input
@@ -266,7 +299,7 @@ export default function ProdutoFormModal({
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Necessário para emissão de NF-e.
+            {rotuloNcm(formData.ncm)?.descricao || "Necessário para emissão de NF-e. A busca preenche o código; você confirma ao salvar."}
           </p>
         </div>
 

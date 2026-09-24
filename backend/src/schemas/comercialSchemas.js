@@ -34,12 +34,27 @@ const kmSchema = z.preprocess(
 );
 
 const linhaProdutoSchema = z.object({
+  id: z.preprocess(
+    (v) => (v == null || v === "" ? null : preprocessInteiroBR(v)),
+    z.number().int().positive().nullable().optional(),
+  ),
   produto_id: z.preprocess(
     (v) => (v == null || v === "" ? null : preprocessInteiroBR(v)),
     z.number().int().positive().optional().nullable(),
   ),
   codigo: z.string().optional().nullable(),
   descricao: z.string().min(1, "Descrição do produto é obrigatória"),
+  ncm: z.preprocess(
+    (v) => {
+      if (v == null || String(v).trim() === "") return null;
+      return String(v).replace(/\D/g, "");
+    },
+    z
+      .string()
+      .regex(/^\d{8}$/, "NCM deve ter 8 dígitos")
+      .nullable()
+      .optional(),
+  ),
   quantidade: inteiroBR.pipe(
     z.number().int().positive("Quantidade do produto deve ser inteira e maior que zero"),
   ),
