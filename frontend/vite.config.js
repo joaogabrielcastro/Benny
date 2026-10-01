@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: "autoUpdate",
-        includeAssets: ["logo.svg"],
+        includeAssets: ["logo.svg", "bennys-logo.jpg"],
         manifest: {
           name: "Benny's Centro Automotivo",
           short_name: "Benny's",
