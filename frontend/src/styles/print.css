@@ -1,5 +1,16 @@
 /* Estilos para impressão */
 @media print {
+  /* Preservar cores da logo e fundos no PDF (Chrome / Edge / Safari) */
+  html,
+  body,
+  .os-impressao,
+  .orcamento-impressao,
+  .logo-impressao {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   /* Ocultar elementos desnecessários */
   header,
   nav,
@@ -23,7 +34,7 @@
     text-shadow: none !important;
   }
 
-  /* Forçar cores de texto legíveis */
+  /* Forçar cores de texto legíveis — não aplicar em imagens/SVG da marca */
   h1,
   h2,
   h3,
@@ -34,6 +45,14 @@
   span,
   div {
     color: black !important;
+  }
+
+  img.logo-impressao,
+  .logo-impressao {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    filter: none !important;
   }
 
   /* Tabelas — permitir quebra entre linhas (listas longas de peças/serviços).

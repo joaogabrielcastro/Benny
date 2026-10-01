@@ -4,6 +4,7 @@ import {
   carregarDefaultsImpressao,
 } from "../utils/impressaoDefaults";
 import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
+import LogoImpressao from "./LogoImpressao";
 
 const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
   const formatarData = (data) => {
@@ -65,17 +66,29 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
               line-height: 1.35;
               color: #000;
               background: white;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
             
             .os-impressao,
             .os-impressao * {
               visibility: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+
+            .os-impressao .logo-impressao {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
             
             .os-header { 
               margin-bottom: 6px; 
               padding-bottom: 5px; 
-              border-bottom: 3px solid #3b4e9e;
+              border-bottom: 3px solid #1e4bb8;
               page-break-inside: avoid;
               break-inside: avoid;
             }
@@ -195,71 +208,7 @@ const OSImpressao = forwardRef(({ os, textosImpressao }, ref) => {
               <td
                 style={{ border: "none", width: "15%", verticalAlign: "top" }}
               >
-                <svg
-                  width="90"
-                  height="50"
-                  viewBox="0 0 120 60"
-                  xmlns="http://www.w3.org/2000/svg"
-                  style={{ display: "block" }}
-                >
-                  <rect width="120" height="60" fill="#3b4e9e" rx="4" />
-                  <rect
-                    x="5"
-                    y="5"
-                    width="3"
-                    height="50"
-                    fill="#ffffff"
-                    opacity="0.3"
-                  />
-                  <rect
-                    x="12"
-                    y="5"
-                    width="2"
-                    height="50"
-                    fill="#ffffff"
-                    opacity="0.2"
-                  />
-                  <rect
-                    x="105"
-                    y="5"
-                    width="3"
-                    height="50"
-                    fill="#ffffff"
-                    opacity="0.3"
-                  />
-                  <rect
-                    x="112"
-                    y="5"
-                    width="3"
-                    height="50"
-                    fill="#ffffff"
-                    opacity="0.2"
-                  />
-                  <text
-                    x="60"
-                    y="28"
-                    fontFamily="Arial, sans-serif"
-                    fontSize="18"
-                    fontWeight="bold"
-                    fill="#ffffff"
-                    textAnchor="middle"
-                    letterSpacing="1"
-                  >
-                    BENNY'S
-                  </text>
-                  <text
-                    x="60"
-                    y="45"
-                    fontFamily="Arial, sans-serif"
-                    fontSize="10"
-                    fontWeight="600"
-                    fill="#ffffff"
-                    textAnchor="middle"
-                    letterSpacing="2"
-                  >
-                    MOTORSPORT
-                  </text>
-                </svg>
+                <LogoImpressao width={90} height={90} />
               </td>
               <td
                 style={{
