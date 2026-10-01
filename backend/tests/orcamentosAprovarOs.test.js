@@ -266,4 +266,8 @@ describe("fluxo orçamento → OS (integração DB)", { skip: !hasDb }, () => {
     ]);
     await pool.query("DELETE FROM orcamentos WHERE id = $1", [orcId]);
   });
+
+  after(async () => {
+    await pool.end().catch(() => {});
+  });
 });

@@ -47,9 +47,13 @@ export default function DashboardCharts({ relatorio }) {
     produtosMaisVendidos: relatorio.produtosMaisVendidos ?? [],
   };
 
-  const handleExportPDF = () => {
-    exportDashboardToPDF(stats, chartData);
-    toast.success("PDF gerado com sucesso!");
+  const handleExportPDF = async () => {
+    try {
+      await exportDashboardToPDF(stats, chartData);
+      toast.success("PDF gerado com sucesso!");
+    } catch {
+      toast.error("Não foi possível gerar o PDF.");
+    }
   };
 
   return (

@@ -4,6 +4,7 @@ import {
   carregarDefaultsImpressao,
 } from "../utils/impressaoDefaults";
 import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
+import LogoImpressao from "./LogoImpressao";
 
 const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
   // Expor método imprimir para o componente pai
@@ -73,6 +74,9 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
             .orcamento-impressao,
             .orcamento-impressao * {
               visibility: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
             
             .orcamento-impressao {
@@ -81,12 +85,21 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
               line-height: 1.4;
               color: #000;
               background: white;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+
+            .orcamento-impressao .logo-impressao {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
             
             .orc-header { 
               margin-bottom: 6px; 
               padding-bottom: 5px; 
-              border-bottom: 3px solid #3b4e9e; 
+              border-bottom: 3px solid #1e4bb8; 
             }
             
             .orc-section { 
@@ -174,71 +187,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
               <td
                 style={{ border: "none", width: "15%", verticalAlign: "top" }}
               >
-                {/* Logo Nova - Retangular Azul com Listras */}
-                <div
-                  style={{
-                    width: "80px",
-                    height: "65px",
-                    backgroundColor: "#3b4e9e",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Listras decorativas */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #fff 0%, #fff 30%, transparent 30%, transparent 70%, #fff 70%, #fff 100%)",
-                    }}
-                  />
-
-                  <div
-                    style={{ textAlign: "center", color: "white", zIndex: 1 }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "18px",
-                        fontWeight: "bold",
-                        lineHeight: "1",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      BENNY'S
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "8px",
-                        marginTop: "3px",
-                        letterSpacing: "2px",
-                        borderTop: "1px solid white",
-                        borderBottom: "1px solid white",
-                        padding: "2px 0",
-                      }}
-                    >
-                      MOTORSPORT
-                    </div>
-                  </div>
-                </div>
+                <LogoImpressao width={80} height={80} />
               </td>
               <td
                 style={{
@@ -290,7 +239,7 @@ const OrcamentoImpressao = forwardRef(({ orcamento, textosImpressao }, ref) => {
                 </p>
                 <div
                   style={{
-                    border: "2px solid #3b4e9e",
+                    border: "2px solid #1e4bb8",
                     padding: "5px",
                     marginTop: "3px",
                     backgroundColor: "#f5f5f5",

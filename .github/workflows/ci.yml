@@ -31,7 +31,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://benny:benny@localhost:5432/benny_test?sslmode=disable
       JWT_SECRET: ci-jwt-secret-minimum-32-characters-long
-      SKIP_DB_INIT_DDL: "false"
+      # Schema sobe 1x no step "Aguardar schema"; testes não devem reexecutar DDL
+      # em paralelo (node --test workers) — evita corrida e falha de IPC do runner.
+      SKIP_DB_INIT_DDL: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +43,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - name: Aguardar schema (database.js no boot dos testes)
-        run: node -e "import pool from './database.js'; await new Promise(r=>setTimeout(r,8000)); await pool.end();"
+      - name: Inicializar schema (DDL de boot)
+        run: node --input-type=module -e "import { initDatabase } from './database.js'; await initDatabase();"
       - name: Aplicar migrations
         run: npm run migrate
       - run: npm test

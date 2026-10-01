@@ -70,6 +70,13 @@ async function initDatabase() {
       VALUES (1, 'default', 'Tenant Padrão', 'admin@local.test', 'active', 'basic')
       ON CONFLICT (id) DO NOTHING
     `);
+    // INSERT com id explícito não avança a sequence — evita tenants_pkey no próximo INSERT
+    await client.query(`
+      SELECT setval(
+        pg_get_serial_sequence('tenants', 'id'),
+        GREATEST(1, (SELECT COALESCE(MAX(id), 1) FROM tenants))
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
@@ -540,10 +547,6 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_veiculos_cliente_id ON veiculos(cliente_id)
     `);
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_veiculos_tenant_marca_modelo
-      ON veiculos (tenant_id, lower(trim(marca)), lower(trim(modelo)))
-    `);
-    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_movimentacoes_os_id ON movimentacoes_estoque(os_id)
     `);
     await client.query(`
@@ -553,10 +556,6 @@ async function initDatabase() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_ordens_servico_criado_em
       ON ordens_servico(criado_em DESC)
-    `);
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_ordens_servico_tenant_veiculo
-      ON ordens_servico (tenant_id, veiculo_id, criado_em DESC)
     `);
 
     // ── Notas fiscais (integração Nuvem Fiscal / NFS-e) ───────────────────────
@@ -651,6 +650,16 @@ async function initDatabase() {
         `CREATE INDEX IF NOT EXISTS idx_${tabela}_tenant ON ${tabela}(tenant_id)`,
       );
     }
+
+    // Índices compostos com tenant_id — só após a coluna existir (CREATE TABLE legado não a inclui)
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_veiculos_tenant_marca_modelo
+      ON veiculos (tenant_id, lower(trim(marca)), lower(trim(modelo)))
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ordens_servico_tenant_veiculo
+      ON ordens_servico (tenant_id, veiculo_id, criado_em DESC)
+    `);
 
     // Recriar unique indexes como compostos com tenant_id
     await client.query(`

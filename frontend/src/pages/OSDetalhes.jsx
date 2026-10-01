@@ -116,6 +116,22 @@ export default function OSDetalhes() {
   const handleImprimir = useReactToPrint({
     contentRef: componentRef,
     documentTitle: `OS_${os?.numero}`,
+    pageStyle: `
+      @page { size: A4; margin: 0.8cm; }
+      @media print {
+        html, body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+        img.logo-impressao, .logo-impressao {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          filter: none !important;
+        }
+      }
+    `,
   });
 
   const handleAbrirImpressao = () => {

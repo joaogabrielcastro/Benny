@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import api from "../services/api";
 import OrcamentoImpressao from "../components/OrcamentoImpressao";
+import Logo from "../components/Logo";
 
 export default function OrcamentoPublico() {
   const { id } = useParams(); // id aqui é o token
@@ -125,6 +126,9 @@ export default function OrcamentoPublico() {
         {/* Header */}
         <div className="bg-white rounded-t-2xl shadow-xl p-6 sm:p-8 border-b-4 border-blue-600">
           <div className="text-center mb-6">
+            <div className="flex justify-center mb-3">
+              <Logo size="lg" />
+            </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-blue-700 mb-2">
               BENNY'S MOTORSPORT
             </h1>

@@ -58,16 +58,40 @@ async function maybeBootstrapBaseline(client) {
   `);
   if (!rows[0]?.has_clientes) return;
 
+  // Só marca como aplicada se o artefato da migration já existir no DDL de boot.
+  // Evita pular 004 (cria notas_fiscais) quando o init ainda não criou a tabela.
+  const artifactByMigration = {
+    "004_notas_fiscais_nuvem_fiscal.sql": "notas_fiscais",
+  };
+
   const files = listMigrationFiles();
   const baseline = files.filter((f) => f < "009_cliente_codigo_ibge.sql");
+  let marked = 0;
   for (const file of baseline) {
+    const artifact = artifactByMigration[file];
+    if (artifact) {
+      const check = await client.query(
+        `SELECT EXISTS (
+           SELECT 1 FROM information_schema.tables
+           WHERE table_schema = 'public' AND table_name = $1
+         ) AS ok`,
+        [artifact],
+      );
+      if (!check.rows[0]?.ok) {
+        console.log(
+          `⊘ Baseline: pulando ${file} (tabela ${artifact} ainda não existe; será aplicada).`,
+        );
+        continue;
+      }
+    }
     await client.query(
       "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING",
       [file],
     );
+    marked++;
   }
   console.log(
-    `⊘ Baseline: banco já existia (DDL); ${baseline.length} migration(s) antigas marcadas como aplicadas.`,
+    `⊘ Baseline: banco já existia (DDL); ${marked} migration(s) antigas marcadas como aplicadas.`,
   );
 }
 
