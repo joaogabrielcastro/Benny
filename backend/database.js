@@ -70,6 +70,13 @@ async function initDatabase() {
       VALUES (1, 'default', 'Tenant Padrão', 'admin@local.test', 'active', 'basic')
       ON CONFLICT (id) DO NOTHING
     `);
+    // INSERT com id explícito não avança a sequence — evita tenants_pkey no próximo INSERT
+    await client.query(`
+      SELECT setval(
+        pg_get_serial_sequence('tenants', 'id'),
+        GREATEST(1, (SELECT COALESCE(MAX(id), 1) FROM tenants))
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
