@@ -1,21 +1,71 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export function exportOSListToPDF(ordensServico) {
+const LOGO_URL = "/bennys-logo.jpg";
+const LOGO_SIZE_MM = 18;
+
+let logoDataUrlPromise = null;
+
+function carregarLogoDataUrl() {
+  if (!logoDataUrlPromise) {
+    logoDataUrlPromise = fetch(LOGO_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Falha ao carregar logo (${res.status})`);
+        return res.blob();
+      })
+      .then(
+        (blob) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          }),
+      )
+      .catch((err) => {
+        logoDataUrlPromise = null;
+        throw err;
+      });
+  }
+  return logoDataUrlPromise;
+}
+
+async function adicionarCabecalho(doc, titulo) {
+  let yTexto = 20;
+  try {
+    const dataUrl = await carregarLogoDataUrl();
+    doc.addImage(dataUrl, "JPEG", 14, 10, LOGO_SIZE_MM, LOGO_SIZE_MM);
+    yTexto = 14;
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Benny's Motorsport", 14 + LOGO_SIZE_MM + 4, yTexto + 6);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(titulo, 14 + LOGO_SIZE_MM + 4, yTexto + 13);
+    doc.setFontSize(10);
+    doc.text(
+      `Data: ${new Date().toLocaleDateString("pt-BR")}`,
+      14 + LOGO_SIZE_MM + 4,
+      yTexto + 19,
+    );
+    return 10 + LOGO_SIZE_MM + 8;
+  } catch {
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Benny's Motorsport", 14, 20);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(titulo, 14, 28);
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 34);
+    return 40;
+  }
+}
+
+export async function exportOSListToPDF(ordensServico) {
   const doc = new jsPDF();
+  const startY = await adicionarCabecalho(doc, "Relatório de Ordens de Serviço");
 
-  // Logo/Título
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text("Benny's Motorsport", 14, 20);
-
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "normal");
-  doc.text("Relatório de Ordens de Serviço", 14, 28);
-  doc.setFontSize(10);
-  doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 34);
-
-  // Tabela
   const tableData = ordensServico.map((os) => [
     os.numero,
     os.cliente_nome || "-",
@@ -26,18 +76,17 @@ export function exportOSListToPDF(ordensServico) {
   ]);
 
   autoTable(doc, {
-    startY: 40,
+    startY,
     head: [["Número", "Cliente", "Veículo", "Data", "Status", "Valor"]],
     body: tableData,
     theme: "grid",
     styles: { fontSize: 9 },
-    headStyles: { fillColor: [37, 99, 235] },
+    headStyles: { fillColor: [30, 75, 184] },
   });
 
-  // Total
   const total = ordensServico.reduce(
     (sum, os) => sum + parseFloat(os.valor_total),
-    0
+    0,
   );
   const finalY = doc.previousAutoTable.finalY + 10;
   doc.setFontSize(12);
@@ -47,18 +96,9 @@ export function exportOSListToPDF(ordensServico) {
   doc.save(`ordens-servico-${new Date().getTime()}.pdf`);
 }
 
-export function exportOrcamentosListToPDF(orcamentos) {
+export async function exportOrcamentosListToPDF(orcamentos) {
   const doc = new jsPDF();
-
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text("Benny's Motorsport", 14, 20);
-
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "normal");
-  doc.text("Relatório de Orçamentos", 14, 28);
-  doc.setFontSize(10);
-  doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 34);
+  const startY = await adicionarCabecalho(doc, "Relatório de Orçamentos");
 
   const tableData = orcamentos.map((orc) => [
     orc.numero,
@@ -70,17 +110,17 @@ export function exportOrcamentosListToPDF(orcamentos) {
   ]);
 
   autoTable(doc, {
-    startY: 40,
+    startY,
     head: [["Número", "Cliente", "Veículo", "Data", "Status", "Valor"]],
     body: tableData,
     theme: "grid",
     styles: { fontSize: 9 },
-    headStyles: { fillColor: [37, 99, 235] },
+    headStyles: { fillColor: [30, 75, 184] },
   });
 
   const total = orcamentos.reduce(
     (sum, orc) => sum + parseFloat(orc.valor_total),
-    0
+    0,
   );
   const finalY = doc.previousAutoTable.finalY + 10;
   doc.setFontSize(12);
@@ -90,36 +130,30 @@ export function exportOrcamentosListToPDF(orcamentos) {
   doc.save(`orcamentos-${new Date().getTime()}.pdf`);
 }
 
-export function exportDashboardToPDF(stats, chartData) {
+export async function exportDashboardToPDF(stats, chartData) {
   const doc = new jsPDF();
+  const startY = await adicionarCabecalho(doc, "Relatório de Dashboard");
 
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text("Benny's Motorsport", 14, 20);
-
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "normal");
-  doc.text("Relatório de Dashboard", 14, 28);
-  doc.setFontSize(10);
-  doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 34);
-
-  // Estatísticas
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.text("Estatísticas Gerais", 14, 45);
+  doc.text("Estatísticas Gerais", 14, startY);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`OS Abertas: ${stats.osAbertas} de ${stats.totalOS}`, 14, 52);
-  doc.text(`Faturamento do Mês: R$ ${stats.faturamentoMes.toFixed(2)}`, 14, 59);
-  doc.text(`Ticket Médio: R$ ${stats.ticketMedio.toFixed(2)}`, 14, 66);
-  doc.text(`Produtos com Estoque Baixo: ${stats.estoqueBaixo}`, 14, 73);
+  let y = startY + 7;
+  doc.text(`OS Abertas: ${stats.osAbertas} de ${stats.totalOS}`, 14, y);
+  y += 7;
+  doc.text(`Faturamento do Mês: R$ ${stats.faturamentoMes.toFixed(2)}`, 14, y);
+  y += 7;
+  doc.text(`Ticket Médio: R$ ${stats.ticketMedio.toFixed(2)}`, 14, y);
+  y += 7;
+  doc.text(`Produtos com Estoque Baixo: ${stats.estoqueBaixo}`, 14, y);
+  y += 12;
 
-  // Produtos Mais Vendidos
   if (chartData.produtosMaisVendidos.length > 0) {
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Produtos Mais Vendidos", 14, 85);
+    doc.text("Produtos Mais Vendidos", 14, y);
 
     const tableData = chartData.produtosMaisVendidos.map((p) => [
       p.nome,
@@ -127,12 +161,12 @@ export function exportDashboardToPDF(stats, chartData) {
     ]);
 
     autoTable(doc, {
-      startY: 90,
+      startY: y + 5,
       head: [["Produto", "Quantidade Vendida"]],
       body: tableData,
       theme: "grid",
       styles: { fontSize: 9 },
-      headStyles: { fillColor: [37, 99, 235] },
+      headStyles: { fillColor: [30, 75, 184] },
     });
   }
 
