@@ -1,54 +1,35 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../services/api";
-import { useAuth } from "../contexts/AuthContext";
+import { FiAlertTriangle } from "react-icons/fi";
+import { useSubscription } from "../hooks/useSubscription";
 
 /**
  * Banner global quando assinatura está past_due / canceled / incomplete.
  */
 export default function SubscriptionBanner() {
-  const { isAuthenticated, isAdmin } = useAuth();
-  const [status, setStatus] = useState(null);
-
-  useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
-      setStatus(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await api.get("/billing/subscription");
-        if (!cancelled) setStatus(data?.subscription_status || data?.status);
-      } catch {
-        if (!cancelled) setStatus(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, isAdmin]);
+  const { subscription } = useSubscription();
+  const status = subscription?.subscription_status || subscription?.status;
 
   if (!status) return null;
-  const ok = status === "active" || status === "trialing";
-  if (ok) return null;
+  if (status === "active" || status === "trialing") return null;
 
   const pastDue = status === "past_due";
 
   return (
     <div
-      className={`px-4 py-2.5 text-sm text-center ${
-        pastDue
-          ? "bg-amber-500 text-amber-950"
-          : "bg-rose-600 text-white"
+      role="status"
+      className={`flex items-center justify-center gap-2 px-4 py-2 text-sm ${
+        pastDue ? "bg-amber-400 text-amber-950" : "bg-red-600 text-white"
       }`}
     >
-      {pastDue
-        ? "Pagamento em atraso — regularize para continuar editando dados."
-        : "Assinatura inativa — algumas ações estão bloqueadas."}{" "}
-      <Link to="/assinatura" className="underline font-semibold">
-        Gerenciar assinatura
-      </Link>
+      <FiAlertTriangle className="h-4 w-4 shrink-0" />
+      <span>
+        {pastDue
+          ? "Pagamento em atraso — regularize para continuar editando dados."
+          : "Assinatura inativa — algumas ações estão bloqueadas."}{" "}
+        <Link to="/assinatura" className="underline font-semibold">
+          Gerenciar assinatura
+        </Link>
+      </span>
     </div>
   );
 }

@@ -1,5 +1,13 @@
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
+function pageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  if (currentPage <= 4) return [1, 2, 3, 4, 5, "…", totalPages];
+  if (currentPage >= totalPages - 3)
+    return [1, "…", ...Array.from({ length: 5 }, (_, i) => totalPages - 4 + i)];
+  return [1, "…", currentPage - 1, currentPage, currentPage + 1, "…", totalPages];
+}
+
 export default function Pagination({
   currentPage,
   totalPages,
@@ -7,125 +15,67 @@ export default function Pagination({
   itemsPerPage = 10,
   totalItems = 0,
 }) {
+  if (totalPages <= 1) return null;
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push("...");
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push("...");
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push("...");
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push("...");
-        pages.push(totalPages);
-      }
-    }
-
-    return pages;
-  };
-
-  if (totalPages <= 1) return null;
-
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 sm:px-6">
-      <div className="flex-1 flex justify-between sm:hidden">
+    <nav
+      className="flex items-center justify-between gap-3 px-4 py-3 border-t border-ink-100 dark:border-ink-800"
+      aria-label="Paginação"
+    >
+      <p className="text-xs text-ink-500 dark:text-ink-400 num">
+        <span className="hidden sm:inline">Mostrando </span>
+        <span className="font-medium text-ink-700 dark:text-ink-200">
+          {startItem}–{endItem}
+        </span>{" "}
+        de <span className="font-medium text-ink-700 dark:text-ink-200">{totalItems}</span>
+      </p>
+      <div className="flex items-center gap-1">
         <button
+          type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 
-                   text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 
-                   bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600
-                   disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-ghost btn-sm !px-2"
+          aria-label="Página anterior"
         >
-          Anterior
+          <FiChevronLeft className="h-4 w-4" />
+          <span className="sm:hidden">Anterior</span>
         </button>
+        <div className="hidden sm:flex items-center gap-1">
+          {pageNumbers(currentPage, totalPages).map((page, i) =>
+            page === "…" ? (
+              <span key={`e${i}`} className="px-1.5 text-xs text-ink-400">
+                …
+              </span>
+            ) : (
+              <button
+                key={page}
+                type="button"
+                onClick={() => onPageChange(page)}
+                aria-current={currentPage === page ? "page" : undefined}
+                className={`min-w-[2rem] h-8 rounded-md text-xs font-medium num transition-colors ${
+                  currentPage === page
+                    ? "bg-ink-900 text-white dark:bg-white dark:text-ink-900"
+                    : "text-ink-600 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-800"
+                }`}
+              >
+                {page}
+              </button>
+            ),
+          )}
+        </div>
         <button
+          type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 
-                   text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 
-                   bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600
-                   disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-ghost btn-sm !px-2"
+          aria-label="Próxima página"
         >
-          Próxima
+          <span className="sm:hidden">Próxima</span>
+          <FiChevronRight className="h-4 w-4" />
         </button>
       </div>
-
-      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            Mostrando <span className="font-medium">{startItem}</span> a{" "}
-            <span className="font-medium">{endItem}</span> de{" "}
-            <span className="font-medium">{totalItems}</span> resultados
-          </p>
-        </div>
-        <div>
-          <nav
-            className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-            aria-label="Pagination"
-          >
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 
-                       bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 
-                       hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FiChevronLeft className="h-5 w-5" />
-            </button>
-
-            {getPageNumbers().map((page, index) =>
-              page === "..." ? (
-                <span
-                  key={`ellipsis-${index}`}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 
-                           bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  ...
-                </span>
-              ) : (
-                <button
-                  key={page}
-                  onClick={() => onPageChange(page)}
-                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium
-                    ${
-                      currentPage === page
-                        ? "z-10 bg-blue-50 dark:bg-blue-900 border-blue-500 dark:border-blue-600 text-blue-600 dark:text-blue-300"
-                        : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600"
-                    }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
-
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 
-                       bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 
-                       hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FiChevronRight className="h-5 w-5" />
-            </button>
-          </nav>
-        </div>
-      </div>
-    </div>
+    </nav>
   );
 }

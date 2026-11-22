@@ -1,3 +1,4 @@
+import { FiAlertTriangle, FiHelpCircle } from "react-icons/fi";
 import Modal from "./Modal";
 
 /**
@@ -15,37 +16,50 @@ export default function ConfirmDialog({
   onCancel,
   onClose,
   variant = "danger",
+  loading = false,
 }) {
   const visible = open ?? isOpen ?? false;
   const handleCancel = onCancel ?? onClose;
 
   if (!visible) return null;
 
-  const confirmClass =
-    variant === "danger"
-      ? "bg-red-600 hover:bg-red-700 text-white"
-      : "bg-blue-600 hover:bg-blue-700 text-white";
+  const danger = variant === "danger";
+  const Icon = danger ? FiAlertTriangle : FiHelpCircle;
 
   return (
-    <Modal isOpen onClose={handleCancel} title={title}>
-      <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line mb-6">
-        {message}
-      </p>
-      <div className="flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+    <Modal
+      isOpen
+      onClose={handleCancel}
+      title={title}
+      size="sm"
+      footer={
+        <>
+          <button type="button" onClick={handleCancel} className="btn-secondary">
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className={danger ? "btn-danger" : "btn-brand"}
+            autoFocus
+          >
+            {confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <div className="flex gap-3">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+            danger
+              ? "bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400"
+              : "bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-300"
+          }`}
         >
-          {cancelLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className={`px-4 py-2 rounded-lg ${confirmClass}`}
-        >
-          {confirmLabel}
-        </button>
+          <Icon className="h-4 w-4" />
+        </span>
+        <p className="text-sm text-ink-600 dark:text-ink-300 whitespace-pre-line pt-1.5">{message}</p>
       </div>
     </Modal>
   );

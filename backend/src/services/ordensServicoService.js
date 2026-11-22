@@ -174,9 +174,12 @@ const listar = async (
     params.push(status);
   }
   if (busca) {
-    where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
-    params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`);
-    i += 3;
+    const placaNorm = String(busca).replace(/[^a-z0-9]/gi, "");
+    where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2}
+      OR ($${i + 3} <> '' AND translate(upper(v.placa), '- ', '') ILIKE '%' || $${i + 3} || '%')
+      OR v.modelo ILIKE $${i + 1})`;
+    params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`, placaNorm.toUpperCase());
+    i += 4;
   }
   if (cliente_id) {
     where += ` AND os.cliente_id = $${i++}`;
