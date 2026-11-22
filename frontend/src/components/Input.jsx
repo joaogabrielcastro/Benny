@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, forwardRef, useId } from "react";
 
 const Input = forwardRef(
   (
@@ -22,6 +22,8 @@ const Input = forwardRef(
     },
     ref
   ) => {
+    const autoId = useId();
+    const inputId = props.id || name || autoId;
     const [touched, setTouched] = useState(false);
     const [localError, setLocalError] = useState("");
 
@@ -64,7 +66,7 @@ const Input = forwardRef(
       <div className={`w-full ${className}`}>
         {label && (
           <label
-            htmlFor={name}
+            htmlFor={inputId}
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
             {label}
@@ -73,8 +75,8 @@ const Input = forwardRef(
         )}
         <input
           ref={ref}
-          id={name}
           name={name}
+          id={inputId}
           type={type}
           value={value}
           onChange={handleChange}

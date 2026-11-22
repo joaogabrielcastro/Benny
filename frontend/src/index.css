@@ -4,106 +4,216 @@
 
 @layer base {
   :root {
-    --color-brand: 37 99 235;
-    --radius-card: 0.875rem;
+    --color-brand: 38 85 220;
+    --radius-card: 0.75rem;
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
   }
 
   html {
     scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply font-sans antialiased text-slate-800 bg-slate-50;
+    @apply font-sans antialiased text-ink-800 bg-ink-50;
+    font-feature-settings: "cv11", "ss01";
   }
 
   .dark body {
-    @apply text-slate-200 bg-slate-950;
+    @apply text-ink-200 bg-ink-950;
   }
 
   ::selection {
     @apply bg-brand-500/25 text-brand-950;
   }
+
+  .dark ::selection {
+    @apply text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500/60 ring-offset-1 ring-offset-white dark:ring-offset-ink-950;
+  }
+
+  /* Campos numéricos sem setas — valores digitados em BRL/km */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
 }
 
 @layer components {
   .app-shell {
-    @apply min-h-screen bg-slate-50 dark:bg-slate-950;
+    @apply min-h-screen bg-ink-50 dark:bg-ink-950;
   }
 
+  /* ── Superfícies ─────────────────────────────────────────────────────── */
   .pro-card {
-    @apply bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-card;
+    @apply bg-white dark:bg-ink-900 rounded-xl border border-ink-200/80 dark:border-ink-800 shadow-card;
   }
 
   .pro-card-hover {
-    @apply pro-card transition-all duration-200 hover:shadow-card-hover hover:border-slate-300/80 dark:hover:border-slate-700;
+    @apply pro-card transition-all duration-150 hover:shadow-card-hover hover:border-ink-300 dark:hover:border-ink-700;
   }
 
+  .card-header {
+    @apply flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-ink-100 dark:border-ink-800;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-ink-900 dark:text-white;
+  }
+
+  .eyebrow {
+    @apply text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400;
+  }
+
+  /* ── Formulários ─────────────────────────────────────────────────────── */
   .input-pro {
-    @apply w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900
-      text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500
-      px-3.5 py-2.5 text-sm shadow-sm
-      focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500
+    @apply w-full rounded-lg border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900
+      text-ink-900 dark:text-ink-100 placeholder:text-ink-400 dark:placeholder:text-ink-500
+      px-3 py-2 text-sm shadow-sm min-h-[2.5rem]
+      focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500
+      disabled:bg-ink-50 disabled:text-ink-500 dark:disabled:bg-ink-850
       transition-colors;
   }
 
-  .btn-brand {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
-      bg-brand-600 text-white shadow-sm
-      hover:bg-brand-700 active:bg-brand-800
-      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900
+  .label-pro {
+    @apply block text-xs font-medium text-ink-600 dark:text-ink-300 mb-1.5;
+  }
+
+  .help-pro {
+    @apply mt-1 text-xs text-ink-500 dark:text-ink-400;
+  }
+
+  /* ── Botões ──────────────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold
+      min-h-[2.5rem] whitespace-nowrap select-none
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-ink-950
       disabled:opacity-50 disabled:pointer-events-none transition-colors;
   }
 
+  .btn-brand {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800 focus-visible:ring-brand-500;
+  }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium
-      bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200
-      border border-slate-200 dark:border-slate-700 shadow-sm
-      hover:bg-slate-50 dark:hover:bg-slate-700
-      focus:outline-none focus:ring-2 focus:ring-slate-400/30
-      disabled:opacity-50 transition-colors;
+    @apply btn font-medium bg-white dark:bg-ink-850 text-ink-700 dark:text-ink-200
+      border border-ink-200 dark:border-ink-700 shadow-sm
+      hover:bg-ink-50 dark:hover:bg-ink-800 focus-visible:ring-ink-400;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
-      text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors;
+    @apply btn font-medium px-2.5 text-ink-600 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-800 hover:text-ink-900 dark:hover:text-white;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
-      bg-red-600 text-white hover:bg-red-700 focus:ring-2 focus:ring-red-500/40 transition-colors;
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500;
+  }
+
+  .btn-danger-soft {
+    @apply btn font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/70 border border-red-200/70 dark:border-red-900/60;
   }
 
   .btn-success {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
-      bg-emerald-600 text-white hover:bg-emerald-700 transition-colors;
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500;
   }
 
+  .btn-warning {
+    @apply btn bg-amber-500 text-white hover:bg-amber-600 focus-visible:ring-amber-500;
+  }
+
+  .btn-sm {
+    @apply min-h-[2rem] px-2.5 py-1 text-xs rounded-md;
+  }
+
+  .btn-icon {
+    @apply btn px-2 min-w-[2.5rem];
+  }
+
+  .link-pro {
+    @apply font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 hover:underline underline-offset-2;
+  }
+
+  /* ── Tabelas ─────────────────────────────────────────────────────────── */
   .table-pro {
     @apply w-full text-sm text-left;
   }
 
-  .table-pro thead {
-    @apply bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider;
+  .table-pro :where(thead) {
+    @apply bg-ink-50/80 dark:bg-ink-850/80 text-ink-500 dark:text-ink-400 text-2xs uppercase tracking-[0.06em];
   }
 
-  .table-pro th {
-    @apply px-4 py-3 font-semibold;
+  .table-pro :where(th) {
+    @apply px-4 py-2.5 font-semibold whitespace-nowrap;
   }
 
-  .table-pro td {
-    @apply px-4 py-3.5 border-t border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300;
+  .table-pro :where(td) {
+    @apply px-4 py-3 border-t border-ink-100 dark:border-ink-800 text-ink-700 dark:text-ink-300 align-middle;
   }
 
-  .table-pro tbody tr {
-    @apply hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors;
+  .table-pro :where(tbody tr) {
+    @apply hover:bg-ink-50/70 dark:hover:bg-ink-850/60 transition-colors;
   }
 
+  .table-pro :where(tfoot td) {
+    @apply px-4 py-3 border-t border-ink-200 dark:border-ink-700 font-semibold;
+  }
+
+  .row-link {
+    @apply cursor-pointer;
+  }
+
+  /* ── Indicadores ─────────────────────────────────────────────────────── */
   .badge-status {
-    @apply inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset whitespace-nowrap;
+  }
+
+  .num {
+    @apply tabular-nums;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors
+      border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 text-ink-600 dark:text-ink-300
+      hover:border-ink-300 dark:hover:border-ink-600 hover:text-ink-900 dark:hover:text-white;
+  }
+
+  .chip-active {
+    @apply border-ink-900 bg-ink-900 text-white hover:text-white hover:border-ink-900
+      dark:border-white dark:bg-white dark:text-ink-900 dark:hover:text-ink-900;
+  }
+
+  .kbd {
+    @apply inline-flex items-center rounded border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-850 px-1.5 text-2xs font-medium text-ink-500 dark:text-ink-400;
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-md bg-ink-100 dark:bg-ink-800;
   }
 
   .page-enter {
     @apply animate-fade-in;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
@@ -123,5 +233,19 @@
   }
   .no-print {
     display: none !important;
+  }
+}
+
+@layer utilities {
+  /* Tabelas largas rolam dentro do próprio cartão em telas estreitas,
+     sem gerar rolagem horizontal na página. Especificidade maior que
+     .overflow-hidden de propósito. */
+  .pro-card:has(> .table-pro),
+  .pro-card:has(> div > .table-pro) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  main {
+    min-width: 0;
   }
 }

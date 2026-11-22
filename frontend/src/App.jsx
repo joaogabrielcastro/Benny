@@ -12,11 +12,9 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ErrorBoundary from "./components/ErrorBoundary";
-import NotificacoesWidget from "./components/NotificacoesWidget";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppSidebar from "./components/layout/AppSidebar";
 import SubscriptionBanner from "./components/SubscriptionBanner";
-import { useAuth } from "./contexts/AuthContext";
 
 const Login = lazy(() => import("./pages/Login"));
 const Estoque = lazy(() => import("./pages/Estoque"));
@@ -37,6 +35,10 @@ const Planos = lazy(() => import("./pages/Planos"));
 const Assinatura = lazy(() => import("./pages/Assinatura"));
 const ConfiguracaoFiscal = lazy(() => import("./pages/ConfiguracaoFiscal"));
 const BillingSucesso = lazy(() => import("./pages/BillingSucesso"));
+const ClienteDetalhes = lazy(() => import("./pages/ClienteDetalhes"));
+const Veiculos = lazy(() => import("./pages/Veiculos"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
+const NotasFiscais = lazy(() => import("./pages/NotasFiscais"));
 
 function App() {
   return (
@@ -45,24 +47,24 @@ function App() {
         <AuthProvider>
           <Router>
             <Toaster
-              position="top-right"
+              position="top-center"
               toastOptions={{
-                duration: 3000,
+                duration: 3200,
                 className: "!text-sm !font-medium",
                 style: {
-                  background: "#0f172a",
-                  color: "#f8fafc",
-                  borderRadius: "0.75rem",
-                  padding: "12px 16px",
+                  background: "#15181d",
+                  color: "#f7f8fa",
+                  borderRadius: "0.625rem",
+                  padding: "10px 14px",
                   boxShadow:
-                    "0 10px 15px -3px rgb(15 23 42 / 0.2), 0 4px 6px -4px rgb(15 23 42 / 0.1)",
+                    "0 16px 40px -12px rgb(13 15 19 / 0.35), 0 4px 12px -4px rgb(13 15 19 / 0.2)",
                 },
                 success: {
-                  iconTheme: { primary: "#10b981", secondary: "#f8fafc" },
+                  iconTheme: { primary: "#10b981", secondary: "#f7f8fa" },
                 },
                 error: {
-                  duration: 4000,
-                  iconTheme: { primary: "#ef4444", secondary: "#f8fafc" },
+                  duration: 5000,
+                  iconTheme: { primary: "#ef4444", secondary: "#f7f8fa" },
                 },
               }}
             />
@@ -76,34 +78,25 @@ function App() {
 
 function AppShell() {
   const location = useLocation();
-  const { isAdmin } = useAuth();
   const isBare =
-    location.pathname.startsWith("/v") ||
+    location.pathname.startsWith("/v/") ||
     location.pathname === "/login" ||
     location.pathname === "/planos" ||
     location.pathname.startsWith("/billing");
-  const wideListLayout =
-    location.pathname === "/ordens-servico" ||
-    location.pathname === "/orcamentos" ||
-    location.pathname === "/estoque" ||
-    location.pathname === "/servicos" ||
-    location.pathname === "/clientes";
 
   return (
     <div className="app-shell">
-      {!isBare && <SubscriptionBanner />}
       {!isBare && <AppSidebar />}
-      <main className={isBare ? "" : "lg:pl-64"}>
+      <main className={isBare ? "" : "lg:pl-60"}>
+        {!isBare && <SubscriptionBanner />}
         <div
           className={
             isBare
               ? ""
-              : wideListLayout
-                ? "w-full max-w-none mx-auto px-4 py-6 sm:px-5 lg:px-6 xl:px-8 lg:py-8"
-                : "max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+              : "w-full max-w-[1400px] mx-auto px-4 pt-5 pb-24 sm:px-6 lg:px-8 lg:pt-7 lg:pb-10"
           }
         >
-          <Suspense fallback={<LoadingSpinner size="xl" />}>
+          <Suspense fallback={<LoadingSpinner size="lg" />}>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/planos" element={<Planos />} />
@@ -203,6 +196,38 @@ function AppShell() {
                 }
               />
               <Route
+                path="/clientes/:id"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <ClienteDetalhes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/veiculos"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <Veiculos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/financeiro"
+                element={
+                  <ProtectedRoute roles={["admin"]}>
+                    <Financeiro />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notas-fiscais"
+                element={
+                  <ProtectedRoute roles={["admin"]} planFeature="nfse">
+                    <NotasFiscais />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/agendamentos"
                 element={
                   <ProtectedRoute planFeature="agenda">
@@ -258,11 +283,22 @@ function AppShell() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="*" element={<NaoEncontrado />} />
             </Routes>
           </Suspense>
         </div>
       </main>
-      {!isBare && isAdmin && <NotificacoesWidget />}
+    </div>
+  );
+}
+
+function NaoEncontrado() {
+  return (
+    <div className="py-20 text-center">
+      <p className="eyebrow">404</p>
+      <h1 className="mt-2 text-xl font-semibold text-ink-900 dark:text-white">Página não encontrada</h1>
+      <p className="mt-1 text-sm text-ink-500">O endereço acessado não existe ou foi movido.</p>
+      <a href="/" className="btn-secondary mt-5 inline-flex">Voltar ao início</a>
     </div>
   );
 }

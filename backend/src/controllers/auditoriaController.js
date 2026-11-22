@@ -36,8 +36,8 @@ async function buscarAuditoriaEscopada(req, res, tabela, label) {
     tabela === "ordens_servico"
       ? `OR (
            a.tabela = 'notas_fiscais'
-           AND COALESCE(NULLIF(a.dados_novos->>'ordem_servico_id', ''), '') = $1::text
-           AND COALESCE(NULLIF(a.dados_novos->>'tenant_id', ''), '') = $2::text
+           AND COALESCE(NULLIF(a.dados_novos->>'ordem_servico_id', ''), '') = $4
+           AND COALESCE(NULLIF(a.dados_novos->>'tenant_id', ''), '') = $5
          )`
       : "";
 
@@ -61,7 +61,9 @@ async function buscarAuditoriaEscopada(req, res, tabela, label) {
         ) = $2
       )
     ORDER BY a.criado_em DESC`,
-    [id, tenantId, tabela],
+    tabela === "ordens_servico"
+      ? [id, tenantId, tabela, String(id), String(tenantId)]
+      : [id, tenantId, tabela],
   );
 
   if (result.rows.length > 0) {

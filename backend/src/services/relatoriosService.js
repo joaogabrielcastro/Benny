@@ -16,25 +16,25 @@ const dashboard = async (tenantId = SINGLE_TENANT_ID) => {
       `SELECT COALESCE(SUM(valor_total), 0) as faturamento
        FROM ordens_servico
        WHERE status = 'Finalizada' AND tenant_id = $1
-         AND DATE_TRUNC('month', criado_em) = DATE_TRUNC('month', CURRENT_DATE)`,
+         AND DATE_TRUNC('month', COALESCE(finalizado_em, criado_em)) = DATE_TRUNC('month', CURRENT_DATE)`,
       [tenantId],
     ),
     pool.query(
       `SELECT COALESCE(AVG(valor_total), 0) as ticket_medio
        FROM ordens_servico
        WHERE status = 'Finalizada' AND tenant_id = $1
-         AND DATE_TRUNC('month', criado_em) = DATE_TRUNC('month', CURRENT_DATE)`,
+         AND DATE_TRUNC('month', COALESCE(finalizado_em, criado_em)) = DATE_TRUNC('month', CURRENT_DATE)`,
       [tenantId],
     ),
     pool.query(
       `SELECT
-         TO_CHAR(DATE_TRUNC('month', criado_em), 'Mon/YY') as mes,
+         TO_CHAR(DATE_TRUNC('month', COALESCE(finalizado_em, criado_em)), 'Mon/YY') as mes,
          COALESCE(SUM(valor_total), 0) as valor
        FROM ordens_servico
        WHERE status = 'Finalizada' AND tenant_id = $1
-         AND criado_em >= CURRENT_DATE - INTERVAL '6 months'
-       GROUP BY DATE_TRUNC('month', criado_em)
-       ORDER BY DATE_TRUNC('month', criado_em)`,
+         AND COALESCE(finalizado_em, criado_em) >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months'
+       GROUP BY DATE_TRUNC('month', COALESCE(finalizado_em, criado_em))
+       ORDER BY DATE_TRUNC('month', COALESCE(finalizado_em, criado_em))`,
       [tenantId],
     ),
     pool.query(
@@ -43,7 +43,7 @@ const dashboard = async (tenantId = SINGLE_TENANT_ID) => {
        LEFT JOIN os_produtos op ON p.id = op.produto_id
        LEFT JOIN ordens_servico os ON op.os_id = os.id
        WHERE os.status = 'Finalizada' AND os.tenant_id = $1
-         AND os.criado_em >= CURRENT_DATE - INTERVAL '3 months'
+         AND COALESCE(os.finalizado_em, os.criado_em) >= CURRENT_DATE - INTERVAL '3 months'
        GROUP BY p.id, p.nome
        HAVING SUM(op.quantidade) > 0
        ORDER BY quantidade DESC

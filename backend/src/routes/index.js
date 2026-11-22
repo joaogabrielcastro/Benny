@@ -26,6 +26,9 @@ import notasFiscaisRoutes from "./notasFiscaisRoutes.js";
 import usuariosRoutes from "./usuariosRoutes.js";
 import billingRoutes from "./billingRoutes.js";
 import configFiscalRoutes from "./configFiscalRoutes.js";
+import financeiroRoutes from "./financeiroRoutes.js";
+import pool from "../../database.js";
+import { resolveTenantId } from "../config/singleTenant.js";
 import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 import { requirePlanFeature } from "../middleware/requirePlanFeature.js";
 
@@ -57,6 +60,20 @@ router.use("/relatorios", adminOnly, requirePlanFeature("relatorios"), relatorio
 router.use("/auditoria", adminOnly, auditoriaRoutes);
 router.use("/backup", requirePlanFeature("backup"), backupRoutes);
 router.use("/notas-fiscais", adminOnly, requirePlanFeature("nfse"), notasFiscaisRoutes);
+// Lista mínima de usuários ativos para atribuir responsável na OS (admin e mecânico)
+router.get("/responsaveis", osTeam, async (req, res, next) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, nome, role FROM usuarios
+       WHERE tenant_id = $1 AND COALESCE(ativo, TRUE) = TRUE ORDER BY nome`,
+      [resolveTenantId(req)],
+    );
+    res.json(r.rows);
+  } catch (e) {
+    next(e);
+  }
+});
+router.use("/financeiro", adminOnly, financeiroRoutes);
 router.use("/usuarios", adminOnly, usuariosRoutes);
 router.use("/configuracao-fiscal", adminOnly, configFiscalRoutes);
 

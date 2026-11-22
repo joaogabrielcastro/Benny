@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import ProdutoFormModal from "./ProdutoFormModal";
 import api from "../services/api";
 
 vi.mock("../services/api", () => ({
-  default: { post: vi.fn(), put: vi.fn() },
+  default: { post: vi.fn(), put: vi.fn(), get: vi.fn(() => Promise.resolve({ data: [] })) },
 }));
+
+function render(ui) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 
 vi.mock("react-hot-toast", () => ({
   default: { error: vi.fn(), success: vi.fn() },

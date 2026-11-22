@@ -9,7 +9,10 @@ function onlyDigits(s) {
 
 export function normalizarBuscaCliente(busca) {
   const texto = String(busca || "").trim();
-  return { texto, digitos: onlyDigits(texto) };
+  // Termo com letras (ex.: "E2E Teste") busca por nome; só termos sem letras
+  // viram busca por dígitos de telefone/documento (evita casar qualquer "2").
+  const temLetras = /\p{L}/u.test(texto);
+  return { texto, digitos: temLetras ? "" : onlyDigits(texto) };
 }
 
 const listar = async (

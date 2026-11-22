@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import api from "../services/api";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import api from "../services/api";
 import Modal from "./Modal";
 
 const emptyForm = () => ({
@@ -8,16 +9,31 @@ const emptyForm = () => ({
   nome: "",
   descricao: "",
   valor_unitario: 0,
+  categoria: "",
+  tempo_estimado_min: "",
 });
 
-export default function ServicoFormModal({
-  servico,
-  isOpen = true,
-  onClose,
-  onSaved,
-}) {
+export function useCategorias(tipo) {
+  return useQuery({
+    queryKey: [tipo, "categorias"],
+    queryFn: async () => (await api.get(`/${tipo}/categorias/lista`)).data,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function formatarDuracao(min) {
+  const m = Number(min);
+  if (!m) return null;
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r ? `${h}h${String(r).padStart(2, "0")}` : `${h}h`;
+}
+
+export default function ServicoFormModal({ servico, isOpen = true, onClose, onSaved }) {
   const [formData, setFormData] = useState(emptyForm);
   const [salvando, setSalvando] = useState(false);
+  const { data: categorias = [] } = useCategorias("servicos");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -27,6 +43,8 @@ export default function ServicoFormModal({
         nome: servico.nome || "",
         descricao: servico.descricao || "",
         valor_unitario: Number(servico.valor_unitario) || 0,
+        categoria: servico.categoria || "",
+        tempo_estimado_min: servico.tempo_estimado_min ?? "",
       });
     } else {
       setFormData(emptyForm());
@@ -35,33 +53,30 @@ export default function ServicoFormModal({
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "valor_unitario" ? parseFloat(value) || 0 : value,
-    }));
-  };
+  const set = (k, v) => setFormData((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      valor_unitario: parseFloat(String(formData.valor_unitario).replace(",", ".")) || 0,
+      categoria: formData.categoria.trim() || null,
+      tempo_estimado_min: formData.tempo_estimado_min === "" ? null : Number(formData.tempo_estimado_min),
+    };
     try {
       setSalvando(true);
       let res;
       if (servico && servico.id) {
-        res = await api.put(`/servicos/${servico.id}`, formData);
-        toast.success("Serviço atualizado com sucesso!");
+        res = await api.put(`/servicos/${servico.id}`, payload);
+        toast.success("Serviço atualizado.");
       } else {
-        res = await api.post("/servicos", formData);
-        toast.success("Serviço criado com sucesso!");
+        res = await api.post("/servicos", payload);
+        toast.success("Serviço cadastrado.");
       }
       onSaved && onSaved(res.data.servico || res.data);
       onClose && onClose();
     } catch (error) {
-      toast.error(
-        "Erro ao salvar serviço: " +
-          (error.response?.data?.error || error.message),
-      );
+      toast.error("Erro ao salvar serviço: " + (error.response?.data?.error || error.message));
     } finally {
       setSalvando(false);
     }
@@ -71,84 +86,50 @@ export default function ServicoFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={servico ? "Editar Serviço" : "Novo Serviço"}
+      title={servico ? "Editar serviço" : "Novo serviço"}
+      description="Serviços do catálogo entram em orçamentos e OS com preço e tempo padrão."
       size="lg"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Código *
-            </label>
-            <input
-              type="text"
-              name="codigo"
-              value={formData.codigo}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nome *
-            </label>
-            <input
-              type="text"
-              name="nome"
-              value={formData.nome}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Descrição
-          </label>
-          <textarea
-            name="descricao"
-            value={formData.descricao}
-            onChange={handleChange}
-            rows="2"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Valor Unit.
-          </label>
-          <input
-            type="number"
-            name="valor_unitario"
-            value={formData.valor_unitario}
-            onChange={handleChange}
-            step="0.01"
-            min="0"
-            className="w-full sm:w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={salvando}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="btn-secondary">
             Cancelar
           </button>
-          <button
-            type="submit"
-            disabled={salvando}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            {salvando ? "Salvando..." : "Salvar"}
+          <button type="submit" form="form-servico" className="btn-brand" disabled={salvando}>
+            {salvando ? "Salvando…" : servico ? "Salvar alterações" : "Cadastrar serviço"}
           </button>
+        </>
+      }
+    >
+      <form id="form-servico" onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+        <div className="sm:col-span-4">
+          <label className="label-pro" htmlFor="sv-nome">Nome *</label>
+          <input id="sv-nome" className="input-pro" value={formData.nome} onChange={(e) => set("nome", e.target.value)} required autoFocus placeholder="Ex.: Troca de óleo e filtro" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label-pro" htmlFor="sv-codigo">Código</label>
+          <input id="sv-codigo" className="input-pro font-mono" value={formData.codigo} onChange={(e) => set("codigo", e.target.value)} placeholder="Automático" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label-pro" htmlFor="sv-cat">Categoria</label>
+          <input id="sv-cat" className="input-pro" list="sv-categorias" value={formData.categoria} onChange={(e) => set("categoria", e.target.value)} placeholder="Ex.: Freios" />
+          <datalist id="sv-categorias">
+            {categorias.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label-pro" htmlFor="sv-valor">Preço (R$) *</label>
+          <input id="sv-valor" type="number" min="0" step="0.01" inputMode="decimal" className="input-pro num" value={formData.valor_unitario} onChange={(e) => set("valor_unitario", e.target.value)} required />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label-pro" htmlFor="sv-tempo">Tempo estimado (min)</label>
+          <input id="sv-tempo" type="number" min="0" step="5" inputMode="numeric" className="input-pro num" value={formData.tempo_estimado_min} onChange={(e) => set("tempo_estimado_min", e.target.value)} placeholder="Ex.: 60" />
+          {formatarDuracao(formData.tempo_estimado_min) && <p className="help-pro">≈ {formatarDuracao(formData.tempo_estimado_min)}</p>}
+        </div>
+        <div className="sm:col-span-6">
+          <label className="label-pro" htmlFor="sv-desc">Descrição</label>
+          <textarea id="sv-desc" rows={3} className="input-pro" value={formData.descricao} onChange={(e) => set("descricao", e.target.value)} placeholder="O que está incluído no serviço" />
         </div>
       </form>
     </Modal>

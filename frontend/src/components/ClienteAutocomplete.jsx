@@ -14,6 +14,8 @@ export default function ClienteAutocomplete({
   const [loading, setLoading] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
   const wrapperRef = useRef(null);
+  // Evita abrir sugestões quando o texto foi preenchido pelo sistema (cliente já selecionado)
+  const preenchidoPeloSistema = useRef(false);
 
   // Fechar sugestões ao clicar fora
   useEffect(() => {
@@ -28,6 +30,10 @@ export default function ClienteAutocomplete({
 
   // Buscar clientes com debounce
   useEffect(() => {
+    if (preenchidoPeloSistema.current) {
+      preenchidoPeloSistema.current = false;
+      return undefined;
+    }
     const timer = setTimeout(() => {
       if (busca.length >= 2) {
         buscarClientes();
@@ -50,6 +56,7 @@ export default function ClienteAutocomplete({
     try {
       const response = await api.get(`/clientes/${clienteId}`);
       setClienteSelecionado(response.data);
+      preenchidoPeloSistema.current = true;
       setBusca(response.data.nome);
     } catch (error) {
       console.error("Erro ao carregar cliente:", error);
@@ -83,6 +90,7 @@ export default function ClienteAutocomplete({
 
   const handleSelecionarCliente = (cliente) => {
     setClienteSelecionado(cliente);
+    preenchidoPeloSistema.current = true;
     setBusca(cliente.nome);
     setMostrarSugestoes(false);
     onChange(cliente.id);
@@ -116,7 +124,7 @@ export default function ClienteAutocomplete({
           }}
           placeholder="Digite para buscar cliente..."
           required={required && !clienteSelecionado}
-          className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          className="input-pro !pr-16"
         />
         {loading && (
           <div className="absolute right-10 top-2.5">

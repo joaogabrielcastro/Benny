@@ -12,34 +12,36 @@ export async function ensureNumeracaoSequences(clientOrPool) {
     const q = queryable(clientOrPool);
     ensurePromise = (async () => {
       await q.query("CREATE SEQUENCE IF NOT EXISTS seq_orcamento_numero");
+      // Só avança a sequence se a tabela estiver à frente dela (ex.: dados
+      // legados). Nunca retrocede: vários processos podem chamar isto em paralelo.
       await q.query(`
-        SELECT setval(
-          'seq_orcamento_numero',
-          GREATEST(
-            1,
+        SELECT setval('seq_orcamento_numero', alvo, false)
+        FROM (
+          SELECT
             COALESCE(
               (SELECT MAX(SUBSTRING(numero FROM 5)::integer)
                FROM orcamentos WHERE numero ~ '^ORC-[0-9]+$'),
               0
-            ) + 1
-          ),
-          false
-        )
+            ) + 1 AS alvo,
+            (SELECT CASE WHEN is_called THEN last_value + 1 ELSE last_value END FROM seq_orcamento_numero) AS proximo
+        ) s
+        WHERE alvo > proximo
       `);
       await q.query("CREATE SEQUENCE IF NOT EXISTS seq_os_numero");
+      // Só avança a sequence se a tabela estiver à frente dela (ex.: dados
+      // legados). Nunca retrocede: vários processos podem chamar isto em paralelo.
       await q.query(`
-        SELECT setval(
-          'seq_os_numero',
-          GREATEST(
-            1,
+        SELECT setval('seq_os_numero', alvo, false)
+        FROM (
+          SELECT
             COALESCE(
               (SELECT MAX(SUBSTRING(numero FROM 4)::integer)
                FROM ordens_servico WHERE numero ~ '^OS-[0-9]+$'),
               0
-            ) + 1
-          ),
-          false
-        )
+            ) + 1 AS alvo,
+            (SELECT CASE WHEN is_called THEN last_value + 1 ELSE last_value END FROM seq_os_numero) AS proximo
+        ) s
+        WHERE alvo > proximo
       `);
     })().catch((err) => {
       ensurePromise = null;

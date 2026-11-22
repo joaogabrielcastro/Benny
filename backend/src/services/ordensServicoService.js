@@ -7,6 +7,87 @@ import { registrarAuditoria } from "../utils/auditoria.js";
 import { produtosTemColunaNcm } from "../lib/schemaCache.js";
 import { AppError } from "../lib/AppError.js";
 import { baixarEstoqueProduto } from "./estoqueMovimentacao.js";
+import { calcularDeltasEstoque } from "../domain/estoqueOs.js";
+import { assertNaoExcedeTotal } from "./pagamentosOsService.js";
+
+const STATUS_EDITAVEIS = new Set(["Aberta", "Em andamento"]);
+const MOTIVO_AJUSTE_SAIDA = "Ajuste na OS (edição)";
+const MOTIVO_AJUSTE_ENTRADA = "Ajuste na OS (edição) - devolução";
+
+/**
+ * Substitui itens da OS ajustando o estoque pela diferença de quantidades.
+ * Executa dentro da transação do chamador.
+ */
+async function substituirItensOs(client, tenantId, osId, { produtos, servicos }) {
+  const atuais = await client.query(
+    "SELECT * FROM os_produtos WHERE os_id = $1",
+    [osId],
+  );
+  const deltas = calcularDeltasEstoque(atuais.rows, produtos);
+  for (const { produto_id, delta } of deltas) {
+    if (delta > 0) {
+      await baixarEstoqueProduto(client, {
+        tenantId,
+        produtoId: produto_id,
+        quantidade: delta,
+        motivo: MOTIVO_AJUSTE_SAIDA,
+        osId,
+      });
+    } else {
+      const upd = await client.query(
+        `UPDATE produtos SET quantidade = quantidade + $1, atualizado_em = CURRENT_TIMESTAMP
+         WHERE id = $2 AND tenant_id = $3 RETURNING id`,
+        [-delta, produto_id, tenantId],
+      );
+      if (upd.rows.length) {
+        await client.query(
+          `INSERT INTO movimentacoes_estoque (produto_id, tipo, quantidade, motivo, os_id, tenant_id)
+           VALUES ($1,'ENTRADA',$2,$3,$4,$5)`,
+          [produto_id, -delta, MOTIVO_AJUSTE_ENTRADA, osId, tenantId],
+        );
+      }
+    }
+  }
+
+  await client.query("DELETE FROM os_produtos WHERE os_id = $1", [osId]);
+  for (const p of produtos) {
+    await client.query(
+      `INSERT INTO os_produtos (os_id, produto_id, codigo, descricao, quantidade, valor_unitario, valor_total, baixa_estoque, ncm)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8)`,
+      [
+        osId,
+        p.produto_id || null,
+        p.codigo || "",
+        p.descricao,
+        p.quantidade,
+        p.valor_unitario,
+        p.valor_total,
+        p.ncm || null,
+      ],
+    );
+  }
+
+  await client.query("DELETE FROM os_servicos WHERE os_id = $1", [osId]);
+  for (const sv of servicos) {
+    await client.query(
+      `INSERT INTO os_servicos (os_id, codigo, descricao, quantidade, valor_unitario, valor_total)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [osId, sv.codigo || "", sv.descricao, sv.quantidade, sv.valor_unitario, sv.valor_total],
+    );
+  }
+
+  const totais = calcularTotais(produtos, servicos);
+  const pagamentos = await client.query(
+    "SELECT valor FROM os_pagamentos WHERE os_id = $1 AND tenant_id = $2",
+    [osId, tenantId],
+  );
+  assertNaoExcedeTotal(totais.valor_total, pagamentos.rows);
+  await client.query(
+    `UPDATE ordens_servico SET valor_produtos=$1, valor_servicos=$2, valor_total=$3,
+       atualizado_em=CURRENT_TIMESTAMP WHERE id=$4 AND tenant_id=$5`,
+    [totais.valor_produtos, totais.valor_servicos, totais.valor_total, osId, tenantId],
+  );
+}
 
 async function queryProdutosOs(osId, tenantId) {
   const temNcm = await produtosTemColunaNcm(pool);
@@ -75,6 +156,7 @@ const listar = async (
     status,
     busca,
     cliente_id,
+    veiculo_id,
     data_inicio,
     data_fim,
     ordenar = "criado_em",
@@ -92,13 +174,20 @@ const listar = async (
     params.push(status);
   }
   if (busca) {
-    where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2})`;
-    params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`);
-    i += 3;
+    const placaNorm = String(busca).replace(/[^a-z0-9]/gi, "");
+    where += ` AND (os.numero ILIKE $${i} OR c.nome ILIKE $${i + 1} OR v.placa ILIKE $${i + 2}
+      OR ($${i + 3} <> '' AND translate(upper(v.placa), '- ', '') ILIKE '%' || $${i + 3} || '%')
+      OR v.modelo ILIKE $${i + 1})`;
+    params.push(`%${busca}%`, `%${busca}%`, `%${busca}%`, placaNorm.toUpperCase());
+    i += 4;
   }
   if (cliente_id) {
     where += ` AND os.cliente_id = $${i++}`;
     params.push(cliente_id);
+  }
+  if (veiculo_id) {
+    where += ` AND os.veiculo_id = $${i++}`;
+    params.push(veiculo_id);
   }
   if (data_inicio) {
     where += ` AND os.criado_em >= $${i++}::date`;
@@ -131,7 +220,10 @@ const listar = async (
             c.nome as cliente_nome, c.telefone as cliente_telefone,
             v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
             v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi,
-            v.versao as veiculo_versao, v.motor as veiculo_motor, v.combustivel as veiculo_combustivel
+            v.versao as veiculo_versao, v.motor as veiculo_motor, v.combustivel as veiculo_combustivel,
+            COALESCE((SELECT SUM(pg.valor) FROM os_pagamentos pg
+                      WHERE pg.os_id = os.id AND pg.tenant_id = os.tenant_id AND pg.status = 'Recebido'), 0)
+              AS valor_recebido
      ${fromJoin}
      ${where}
      ORDER BY ${sortCol} ${sortDir}
@@ -153,7 +245,10 @@ const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
               c.codigo_ibge as cliente_codigo_ibge,
               v.marca as veiculo_marca, v.modelo as veiculo_modelo, v.placa as veiculo_placa,
               v.cor as veiculo_cor, v.ano as veiculo_ano, v.chassi as veiculo_chassi,
-              v.versao as veiculo_versao, v.motor as veiculo_motor, v.combustivel as veiculo_combustivel
+              v.versao as veiculo_versao, v.motor as veiculo_motor, v.combustivel as veiculo_combustivel,
+              COALESCE((SELECT SUM(pg.valor) FROM os_pagamentos pg
+                        WHERE pg.os_id = os.id AND pg.tenant_id = os.tenant_id AND pg.status = 'Recebido'), 0)
+                AS valor_recebido
        FROM ordens_servico os
        LEFT JOIN clientes c ON os.cliente_id = c.id
        LEFT JOIN veiculos v ON os.veiculo_id = v.id
@@ -271,6 +366,11 @@ const atualizar = async (
     observacoes_gerais,
     consumidor_final,
     produtos,
+    servicos,
+    editar_itens = false,
+    cliente_id,
+    veiculo_id,
+    responsavel_usuario_id,
   },
 ) => {
   const client = await pool.connect();
@@ -303,6 +403,54 @@ const atualizar = async (
     }
 
     const prevRow = prev.rows[0];
+
+    if (editar_itens) {
+      if (!STATUS_EDITAVEIS.has(statusAnterior)) {
+        throw new AppError(
+          400,
+          `Itens só podem ser editados em OS Aberta ou Em andamento (atual: ${statusAnterior}).`,
+        );
+      }
+      if (statusFinal === "Cancelada") {
+        throw new AppError(400, "Não é possível editar itens e cancelar a OS na mesma operação.");
+      }
+    }
+
+    let clienteFinal = prevRow.cliente_id;
+    let veiculoFinal = prevRow.veiculo_id;
+    const trocaCliente = cliente_id != null && Number(cliente_id) !== prevRow.cliente_id;
+    const trocaVeiculo = veiculo_id != null && Number(veiculo_id) !== prevRow.veiculo_id;
+    if (trocaCliente || trocaVeiculo) {
+      if (!STATUS_EDITAVEIS.has(statusAnterior)) {
+        throw new AppError(400, "Cliente e veículo só podem ser trocados em OS Aberta ou Em andamento.");
+      }
+      clienteFinal = Number(cliente_id ?? prevRow.cliente_id);
+      veiculoFinal = Number(veiculo_id ?? prevRow.veiculo_id);
+      const v = await client.query(
+        "SELECT id FROM veiculos WHERE id = $1 AND cliente_id = $2 AND tenant_id = $3",
+        [veiculoFinal, clienteFinal, tenantId],
+      );
+      if (!v.rows[0]) {
+        throw new AppError(400, "Veículo não pertence ao cliente informado.");
+      }
+    }
+
+    let respUsuarioFinal = prevRow.responsavel_usuario_id ?? null;
+    let respTecnicoDoUsuario;
+    if (responsavel_usuario_id !== undefined) {
+      if (responsavel_usuario_id === null || responsavel_usuario_id === "") {
+        respUsuarioFinal = null;
+      } else {
+        const u = await client.query(
+          "SELECT id, nome FROM usuarios WHERE id = $1 AND tenant_id = $2",
+          [responsavel_usuario_id, tenantId],
+        );
+        if (!u.rows[0]) throw new AppError(400, "Responsável informado não encontrado.");
+        respUsuarioFinal = u.rows[0].id;
+        respTecnicoDoUsuario = u.rows[0].nome;
+      }
+    }
+
     const kmFinal =
       km !== undefined && km !== null && km !== "" ? km : prevRow.km;
     const previsaoFinal =
@@ -318,9 +466,11 @@ const atualizar = async (
         ? observacoes_gerais
         : prevRow.observacoes_gerais;
     const respTecnicoFinal =
-      responsavel_tecnico !== undefined
-        ? responsavel_tecnico
-        : prevRow.responsavel_tecnico;
+      respTecnicoDoUsuario !== undefined
+        ? respTecnicoDoUsuario
+        : responsavel_tecnico !== undefined
+          ? responsavel_tecnico
+          : prevRow.responsavel_tecnico;
     const consumidorFinal =
       consumidor_final === true || consumidor_final === false
         ? consumidor_final
@@ -332,7 +482,8 @@ const atualizar = async (
       `UPDATE ordens_servico
        SET status=$1::varchar, responsavel_tecnico=$2::varchar, km=$3, previsao_entrega=$4,
            observacoes_veiculo=$5, observacoes_gerais=$6, consumidor_final=$7,
-           finalizado_em = CASE WHEN $1::varchar = 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END,
+           finalizado_em = CASE WHEN $1::varchar = 'Finalizada' AND $12::varchar <> 'Finalizada' THEN CURRENT_TIMESTAMP ELSE finalizado_em END,
+           cliente_id=$10, veiculo_id=$11, responsavel_usuario_id=$13,
            atualizado_em = CURRENT_TIMESTAMP
        WHERE id=$8 AND tenant_id=$9`,
       [
@@ -345,8 +496,19 @@ const atualizar = async (
         consumidorFinal,
         id,
         tenantId,
+        clienteFinal,
+        veiculoFinal,
+        statusAnterior,
+        respUsuarioFinal,
       ],
     );
+
+    if (editar_itens) {
+      await substituirItensOs(client, tenantId, id, {
+        produtos: Array.isArray(produtos) ? produtos : [],
+        servicos: Array.isArray(servicos) ? servicos : [],
+      });
+    }
 
     const curr = await client.query(
       "SELECT * FROM ordens_servico WHERE id = $1 AND tenant_id = $2",
@@ -362,7 +524,7 @@ const atualizar = async (
       client,
     );
 
-    if (Array.isArray(produtos)) {
+    if (!editar_itens && Array.isArray(produtos)) {
       for (const p of produtos) {
         if (!p?.id) continue;
         await client.query(

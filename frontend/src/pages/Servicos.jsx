@@ -5,20 +5,25 @@ import api from "../services/api";
 import { formatarMoeda } from "../utils/formatters";
 import { useDebounce } from "../hooks/useDebounce";
 import { useServicosPaginated } from "../hooks/queries/useServicosList";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { FiPlus, FiEdit2, FiTrash2, FiClipboard } from "react-icons/fi";
+import FilterChips from "../components/ui/FilterChips";
+import EmptyState from "../components/ui/EmptyState";
+import { SkeletonRows } from "../components/ui/Skeleton";
 import PageHeader from "../components/layout/PageHeader";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
-import ServicoFormModal from "../components/ServicoFormModal";
+import ServicoFormModal, { useCategorias, formatarDuracao } from "../components/ServicoFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 
 export default function Servicos() {
   const queryClient = useQueryClient();
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebounce(busca);
   const [currentPage, setCurrentPage] = useState(1);
+  const [categoria, setCategoria] = useState("");
+  const { data: categorias = [] } = useCategorias("servicos");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [servicoEditando, setServicoEditando] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -28,13 +33,14 @@ export default function Servicos() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [buscaDebounced]);
+  }, [buscaDebounced, categoria]);
 
   const listParams = useMemo(() => {
     const p = { page: currentPage, limit: ITEMS_PER_PAGE };
     if (buscaDebounced) p.busca = buscaDebounced;
+    if (categoria) p.categoria = categoria;
     return p;
-  }, [currentPage, buscaDebounced]);
+  }, [currentPage, buscaDebounced, categoria]);
 
   const { data, isLoading, isError, refetch } = useServicosPaginated(listParams);
 
@@ -76,7 +82,6 @@ export default function Servicos() {
     setMostrarForm(false);
     setServicoEditando(null);
     queryClient.invalidateQueries({ queryKey: ["servicos"] });
-    refetch();
   };
 
   const mensagemListaVazia =
@@ -84,7 +89,7 @@ export default function Servicos() {
       ? "Nenhum serviço cadastrado."
       : "Nenhum serviço corresponde à busca.";
 
-  if (isLoading && !data) return <LoadingSpinner size="xl" />;
+  const chips = [{ value: "", label: "Todas" }, ...categorias.map((c) => ({ value: c, label: c }))];
 
   return (
     <div className="page-enter">
@@ -92,192 +97,112 @@ export default function Servicos() {
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ isOpen: false, servicoId: null })}
         onConfirm={() => handleDeletar(confirmDialog.servicoId)}
-        title="Confirmar exclusão"
-        message="Deseja realmente excluir este serviço? Esta ação não pode ser desfeita."
+        title="Excluir serviço"
+        message="Deseja realmente excluir este serviço do catálogo? Orçamentos e OS já lançados não são alterados."
         confirmLabel="Excluir"
         cancelLabel="Cancelar"
       />
 
       <PageHeader
         title="Serviços"
-        subtitle="Catálogo de mão de obra e serviços usados em orçamentos e OS."
+        subtitle="Catálogo de mão de obra com preço e tempo padrão, usado em orçamentos e OS."
         actions={
-          <button
-            type="button"
-            onClick={handleNovo}
-            className="btn-brand w-full sm:w-auto"
-          >
+          <button type="button" onClick={handleNovo} className="btn-brand">
+            <FiPlus className="h-4 w-4" />
             Novo serviço
           </button>
         }
       />
 
-      <div className="pro-card p-4 sm:p-6 mb-6">
-        <SearchBar
-          onSearch={setBusca}
-          placeholder="Buscar por nome, código ou descrição..."
-        />
+      <div className="space-y-3 mb-4">
+        {categorias.length > 0 && (
+          <FilterChips options={chips} value={categoria} onChange={setCategoria} ariaLabel="Filtrar por categoria" />
+        )}
+        <SearchBar onSearch={setBusca} placeholder="Buscar por nome, código ou descrição…" />
       </div>
 
-      <div className="pro-card overflow-hidden relative">
-        {isLoading && (
-          <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center">
-            <LoadingSpinner />
-          </div>
-        )}
-
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-100 dark:bg-gray-700">
+      <div className="pro-card overflow-hidden">
+        {isLoading && !data ? (
+          <SkeletonRows rows={6} cols={4} />
+        ) : servicos.length === 0 ? (
+          <EmptyState
+            icon={FiClipboard}
+            title={mensagemListaVazia}
+            action={
+              !buscaDebounced && !categoria && (
+                <button type="button" onClick={handleNovo} className="btn-brand">
+                  <FiPlus className="h-4 w-4" /> Novo serviço
+                </button>
+              )
+            }
+          />
+        ) : (
+          <table className="table-pro">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Código
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Nome
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Descrição
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Valor unit.
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                  Ações
-                </th>
+                <th>Serviço</th>
+                <th className="hidden md:table-cell">Categoria</th>
+                <th className="hidden sm:table-cell text-right">Tempo</th>
+                <th className="text-right">Preço</th>
+                <th className="text-right"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
               {servicos.map((servico) => (
                 <tr key={servico.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    {servico.codigo}
+                  <td className="max-w-[28rem]">
+                    <p className="font-medium text-ink-900 dark:text-white">{servico.nome}</p>
+                    <p className="text-xs text-ink-500 truncate">
+                      <span className="font-mono">{servico.codigo}</span>
+                      {servico.descricao ? ` · ${servico.descricao}` : ""}
+                    </p>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                    {servico.nome}
+                  <td className="hidden md:table-cell">
+                    {servico.categoria ? (
+                      <span className="inline-flex rounded-md bg-ink-100 dark:bg-ink-800 px-2 py-0.5 text-xs text-ink-700 dark:text-ink-300">
+                        {servico.categoria}
+                      </span>
+                    ) : (
+                      <span className="text-ink-400">—</span>
+                    )}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
-                    {servico.descricao || "—"}
+                  <td className="hidden sm:table-cell text-right num text-ink-600 dark:text-ink-300">
+                    {formatarDuracao(servico.tempo_estimado_min) || <span className="text-ink-400">—</span>}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                  <td className="text-right font-semibold num text-ink-900 dark:text-ink-100 whitespace-nowrap">
                     {formatarMoeda(servico.valor_unitario)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      type="button"
-                      onClick={() => handleEditar(servico)}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 font-medium"
-                    >
-                      Editar
+                  <td className="text-right whitespace-nowrap">
+                    <button type="button" onClick={() => handleEditar(servico)} className="btn-ghost btn-sm">
+                      <FiEdit2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Editar</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        setConfirmDialog({
-                          isOpen: true,
-                          servicoId: servico.id,
-                        })
-                      }
-                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium"
+                      onClick={() => setConfirmDialog({ isOpen: true, servicoId: servico.id })}
+                      className="btn-ghost btn-sm !px-1.5 text-ink-400 hover:!text-red-600"
+                      aria-label={`Excluir ${servico.nome}`}
+                      title="Excluir"
                     >
-                      Excluir
+                      <FiTrash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
               ))}
-              {servicos.length === 0 && (
-                <tr>
-                  <td
-                    colSpan="5"
-                    className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
-                  >
-                    {mensagemListaVazia}
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
-        </div>
-
-        <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
-          {servicos.map((servico) => (
-            <div key={servico.id} className="p-4 space-y-2">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Código</p>
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {servico.codigo}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Nome</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">
-                  {servico.nome}
-                </p>
-              </div>
-              {servico.descricao ? (
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Descrição
-                  </p>
-                  <p className="text-sm text-gray-800 dark:text-gray-200">
-                    {servico.descricao}
-                  </p>
-                </div>
-              ) : null}
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Valor unit.
-                </p>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {formatarMoeda(servico.valor_unitario)}
-                </p>
-              </div>
-              <div className="pt-1 flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleEditar(servico)}
-                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setConfirmDialog({
-                      isOpen: true,
-                      servicoId: servico.id,
-                    })
-                  }
-                  className="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
-          ))}
-          {servicos.length === 0 && (
-            <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-              {mensagemListaVazia}
-            </div>
-          )}
-        </div>
+        )}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={ITEMS_PER_PAGE}
+          totalItems={totalItems}
+        />
       </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        itemsPerPage={ITEMS_PER_PAGE}
-        totalItems={totalItems}
-      />
-
       {mostrarForm && (
-        <ServicoFormModal
-          servico={servicoEditando}
-          isOpen={mostrarForm}
-          onClose={handleFecharForm}
-          onSaved={handleFecharForm}
-        />
+        <ServicoFormModal servico={servicoEditando} isOpen={mostrarForm} onClose={handleFecharForm} onSaved={() => queryClient.invalidateQueries({ queryKey: ["servicos"] })} />
       )}
     </div>
   );

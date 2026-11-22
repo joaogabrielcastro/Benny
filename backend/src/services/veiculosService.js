@@ -10,21 +10,38 @@ function textoCadastro(valor, max) {
 
 const listar = async (
   tenantId = SINGLE_TENANT_ID,
-  { limit = 20, offset = 0 } = {},
+  { limit = 20, offset = 0, busca } = {},
 ) => {
+  const params = [tenantId];
+  let where = "WHERE v.tenant_id = $1";
+  const termo = textoCadastro(busca, 80);
+  if (termo) {
+    params.push(`%${termo}%`, `%${termo.replace(/[^a-z0-9]/gi, "")}%`);
+    const a = `$${params.length - 1}`;
+    const b = `$${params.length}`;
+    where += ` AND (translate(upper(v.placa), '- ', '') ILIKE ${b}
+      OR v.modelo ILIKE ${a} OR COALESCE(v.marca, '') ILIKE ${a}
+      OR COALESCE(c.nome, '') ILIKE ${a} OR COALESCE(v.chassi, '') ILIKE ${a})`;
+  }
+  const from =
+    "FROM veiculos v LEFT JOIN clientes c ON v.cliente_id = c.id AND c.tenant_id = v.tenant_id";
   const countResult = await pool.query(
-    "SELECT COUNT(*)::int AS total FROM veiculos WHERE tenant_id = $1",
-    [tenantId],
+    `SELECT COUNT(*)::int AS total ${from} ${where}`,
+    params,
   );
   const total = countResult.rows[0]?.total ?? 0;
   const result = await pool.query(
-    `SELECT v.*, c.nome as cliente_nome
-     FROM veiculos v
-     LEFT JOIN clientes c ON v.cliente_id = c.id
-     WHERE v.tenant_id = $1
-     ORDER BY v.modelo
-     LIMIT $2 OFFSET $3`,
-    [tenantId, limit, offset],
+    `SELECT v.*, c.nome as cliente_nome, c.telefone as cliente_telefone,
+            os_stats.total_os, os_stats.ultima_os_em, os_stats.ultimo_km
+     ${from}
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*)::int AS total_os, MAX(os.criado_em) AS ultima_os_em, MAX(os.km) AS ultimo_km
+       FROM ordens_servico os WHERE os.veiculo_id = v.id AND os.tenant_id = v.tenant_id
+     ) os_stats ON TRUE
+     ${where}
+     ORDER BY v.modelo, v.id
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset],
   );
   return { rows: result.rows, total };
 };

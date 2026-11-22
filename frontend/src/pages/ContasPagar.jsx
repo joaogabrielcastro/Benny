@@ -2,10 +2,17 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import api from "../services/api";
 import { unwrapListResponse } from "../utils/apiList";
-import LoadingSpinner from "../components/LoadingSpinner";
-import Card from "../components/Card";
+import { useSearchParams } from "react-router-dom";
+import PageHeader from "../components/layout/PageHeader";
+import StatCard from "../components/ui/StatCard";
+import StatusBadge from "../components/ui/StatusBadge";
+import FilterChips from "../components/ui/FilterChips";
+import EmptyState from "../components/ui/EmptyState";
+import { SkeletonRows } from "../components/ui/Skeleton";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
+import { statusContaPagar } from "../utils/statusColors";
 import Button from "../components/Button";
-import Badge from "../components/Badge";
 import Modal from "../components/Modal";
 import Input from "../components/Input";
 import Select from "../components/Select";
@@ -18,14 +25,17 @@ import {
   FiCheck,
   FiAlertCircle,
   FiCalendar,
+  FiRepeat,
 } from "react-icons/fi";
 
 export default function ContasPagar() {
   const [loading, setLoading] = useState(true);
   const [contas, setContas] = useState([]);
   const [alertas, setAlertas] = useState({ vencidas: [], aVencer: [] });
+  const [searchParams] = useSearchParams();
+  const { confirm: confirmar, dialogState, handleClose } = useConfirm();
   const [filtros, setFiltros] = useState({
-    status: "",
+    status: searchParams.get("status") || "",
     data_inicio: "",
     data_fim: "",
     categoria: "",
@@ -85,7 +95,12 @@ export default function ContasPagar() {
   };
 
   const handleDeletar = async (id) => {
-    if (!confirm("Tem certeza que deseja deletar esta conta?")) return;
+    const ok = await confirmar({
+      title: "Excluir conta",
+      message: "Tem certeza que deseja excluir esta conta a pagar? Esta ação não pode ser desfeita.",
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
 
     try {
       await api.delete(`/contas-pagar/${id}`);
@@ -123,329 +138,144 @@ export default function ContasPagar() {
     return { total, pagas, pendentes };
   };
 
-  const getStatusBadgeVariant = (conta) => {
-    if (conta.status === "Pago") return "success";
-    if (conta.status === "Cancelado") return "danger";
-
-    const hoje = new Date();
-    const vencimento = new Date(conta.data_vencimento);
-
-    if (vencimento < hoje) return "danger";
-    if (vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000)
-      return "warning";
-
-    return "info";
-  };
-
-  const getStatusTexto = (conta) => {
-    if (conta.status === "Pago") return "✓ Pago";
-    if (conta.status === "Cancelado") return "✕ Cancelado";
-
-    const hoje = new Date();
-    const vencimento = new Date(conta.data_vencimento);
-
-    if (vencimento < hoje) return "⚠ Vencida";
-    if (vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000)
-      return "⏰ Vence em breve";
-
-    return "○ Pendente";
-  };
-
   const totais = calcularTotais();
 
-  if (loading) return <LoadingSpinner size="xl" />;
+  const CATEGORIAS = ["Fornecedor", "Aluguel", "Energia", "Água", "Internet", "Salários", "Impostos", "Outras"];
+  const set = (k, v) => setFiltros((f) => ({ ...f, [k]: v }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Contas a Pagar
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Controle de despesas e pagamentos
-          </p>
-        </div>
-        <Button onClick={abrirModalNovo} icon={FiPlus} className="w-full sm:w-auto">
-          Nova Conta
-        </Button>
+    <div className="page-enter">
+      <PageHeader
+        title="Contas a pagar"
+        subtitle="Despesas da oficina, vencimentos e contas recorrentes."
+        actions={
+          <button type="button" onClick={abrirModalNovo} className="btn-brand">
+            <FiPlus className="h-4 w-4" />
+            Nova conta
+          </button>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <StatCard label="Total listado" value={formatarMoeda(totais.total)} icon={FiDollarSign} accent="brand" loading={loading} />
+        <StatCard label="Pagas" value={formatarMoeda(totais.pagas)} icon={FiCheck} accent="green" loading={loading} />
+        <StatCard label="Pendentes" value={formatarMoeda(totais.pendentes)} icon={FiCalendar} accent="amber" loading={loading} />
+        <StatCard
+          label="Vencidas"
+          value={alertas.vencidas.length}
+          hint={alertas.aVencer.length ? `${alertas.aVencer.length} vencem em 7 dias` : "Nenhuma a vencer em 7 dias"}
+          icon={FiAlertCircle}
+          accent={alertas.vencidas.length ? "red" : "gray"}
+          loading={loading}
+        />
       </div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                Total
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-300">
-                {formatarMoeda(totais.total)}
-              </p>
-            </div>
-            <FiDollarSign className="text-4xl text-blue-500" />
-          </div>
-        </Card>
-
-        <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                Pagas
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-green-700 dark:text-green-300">
-                {formatarMoeda(totais.pagas)}
-              </p>
-            </div>
-            <FiCheck className="text-4xl text-green-500" />
-          </div>
-        </Card>
-
-        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
-                Pendentes
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-yellow-700 dark:text-yellow-300">
-                {formatarMoeda(totais.pendentes)}
-              </p>
-            </div>
-            <FiCalendar className="text-4xl text-yellow-500" />
-          </div>
-        </Card>
-
-        <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                Vencidas
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-red-700 dark:text-red-300">
-                {alertas.vencidas.length}
-              </p>
-            </div>
-            <FiAlertCircle className="text-4xl text-red-500" />
-          </div>
-        </Card>
+      <div className="space-y-3 mb-4">
+        <FilterChips
+          options={[
+            { value: "", label: "Todas" },
+            { value: "Pendente", label: "Pendentes", dot: "bg-amber-500" },
+            { value: "Vencida", label: "Vencidas", dot: "bg-red-500" },
+            { value: "Pago", label: "Pagas", dot: "bg-emerald-500" },
+            { value: "Cancelado", label: "Canceladas", dot: "bg-ink-400" },
+          ]}
+          value={filtros.status}
+          onChange={(v) => set("status", v)}
+          ariaLabel="Status"
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <select className="input-pro" value={filtros.categoria} onChange={(e) => set("categoria", e.target.value)} aria-label="Categoria">
+            <option value="">Todas as categorias</option>
+            {CATEGORIAS.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <input type="date" className="input-pro" value={filtros.data_inicio} onChange={(e) => set("data_inicio", e.target.value)} aria-label="Vencimento a partir de" title="Vencimento a partir de" />
+          <input type="date" className="input-pro" value={filtros.data_fim} onChange={(e) => set("data_fim", e.target.value)} aria-label="Vencimento até" title="Vencimento até" />
+        </div>
       </div>
 
-      {/* Alertas */}
-      {(alertas.vencidas.length > 0 || alertas.aVencer.length > 0) && (
-        <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700">
-          <div className="flex items-start gap-3">
-            <FiAlertCircle className="text-yellow-600 dark:text-yellow-400 text-xl flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-                Atenção: Contas Pendentes
-              </h3>
-              {alertas.vencidas.length > 0 && (
-                <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-1">
-                  • {alertas.vencidas.length} conta(s) vencida(s)
-                </p>
-              )}
-              {alertas.aVencer.length > 0 && (
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  • {alertas.aVencer.length} conta(s) vencendo nos próximos 7
-                  dias
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Filtros */}
-      <Card>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Select
-            label="Status"
-            value={filtros.status}
-            onChange={(e) => setFiltros({ ...filtros, status: e.target.value })}
-          >
-            <option value="">Todos</option>
-            <option value="Pendente">Pendente</option>
-            <option value="Vencida">Vencida</option>
-            <option value="Pago">Pago</option>
-            <option value="Cancelado">Cancelado</option>
-          </Select>
-
-          <Select
-            label="Categoria"
-            value={filtros.categoria}
-            onChange={(e) =>
-              setFiltros({ ...filtros, categoria: e.target.value })
-            }
-          >
-            <option value="">Todas</option>
-            <option value="Fornecedor">Fornecedor</option>
-            <option value="Aluguel">Aluguel</option>
-            <option value="Energia">Energia</option>
-            <option value="Água">Água</option>
-            <option value="Internet">Internet</option>
-            <option value="Salários">Salários</option>
-            <option value="Impostos">Impostos</option>
-            <option value="Outras">Outras</option>
-          </Select>
-
-          <Input
-            label="Data Início"
-            type="date"
-            value={filtros.data_inicio}
-            onChange={(e) =>
-              setFiltros({ ...filtros, data_inicio: e.target.value })
+      <div className="pro-card overflow-hidden">
+        {loading ? (
+          <SkeletonRows rows={5} cols={5} />
+        ) : contas.length === 0 ? (
+          <EmptyState
+            icon={FiDollarSign}
+            title="Nenhuma conta"
+            description="Cadastre despesas para acompanhar vencimentos e o fluxo de caixa."
+            action={
+              <button type="button" onClick={abrirModalNovo} className="btn-brand">
+                <FiPlus className="h-4 w-4" /> Nova conta
+              </button>
             }
           />
-
-          <Input
-            label="Data Fim"
-            type="date"
-            value={filtros.data_fim}
-            onChange={(e) =>
-              setFiltros({ ...filtros, data_fim: e.target.value })
-            }
-          />
-        </div>
-      </Card>
-
-      {/* Lista de Contas */}
-      <div className="grid gap-4">
-        {contas.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <FiDollarSign className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                Nenhuma conta
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Comece criando uma nova conta a pagar.
-              </p>
-              <div className="mt-6">
-                <Button onClick={abrirModalNovo} icon={FiPlus}>
-                  Nova Conta
-                </Button>
-              </div>
-            </div>
-          </Card>
         ) : (
-          contas.map((conta) => {
-            const hoje = new Date();
-            const vencimento = new Date(conta.data_vencimento);
-            const estaVencida = conta.status === "Pendente" && vencimento < hoje;
-            const venceEmBreve = conta.status === "Pendente" && vencimento.getTime() - hoje.getTime() <= 3 * 24 * 60 * 60 * 1000;
-            
-            return (
-              <Card
-                key={conta.id}
-                className={`hover:shadow-lg transition-all ${
-                  estaVencida
-                    ? "border-red-400 bg-red-50/50 dark:bg-red-900/10 dark:border-red-600"
-                    : venceEmBreve
-                      ? "border-yellow-400 bg-yellow-50/30 dark:bg-yellow-900/10 dark:border-yellow-600"
-                      : ""
-                }`}
-              >
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <table className="table-pro">
+            <thead>
+              <tr>
+                <th>Conta</th>
+                <th className="hidden md:table-cell">Categoria</th>
+                <th>Vencimento</th>
+                <th className="text-right">Valor</th>
+                <th className="hidden sm:table-cell">Status</th>
+                <th className="text-right"><span className="sr-only">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {contas.map((conta) => {
+                const st = statusContaPagar(conta);
+                return (
+                  <tr key={conta.id} className={st === "Vencida" ? "!bg-red-50/50 dark:!bg-red-950/20" : ""}>
+                    <td className="max-w-[20rem]">
+                      <p className="font-medium text-ink-900 dark:text-white truncate">
                         {conta.descricao}
-                      </h3>
-                      <Badge variant={getStatusBadgeVariant(conta)}>
-                        {getStatusTexto(conta)}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600 dark:text-gray-400">
-                      <div>
-                        <strong className="text-gray-700 dark:text-gray-300">
-                          Categoria:
-                        </strong>{" "}
-                        {conta.categoria}
-                      </div>
-                      <div>
-                        <strong className="text-gray-700 dark:text-gray-300">
-                          Valor:
-                        </strong>{" "}
-                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
-                          {formatarMoeda(conta.valor)}
-                        </span>
-                      </div>
-                      <div>
-                        <strong className="text-gray-700 dark:text-gray-300">
-                          Vencimento:
-                        </strong>{" "}
-                        {formatarData(conta.data_vencimento)}
-                      </div>
-                      {conta.data_pagamento && (
-                        <div>
-                          <strong className="text-gray-700 dark:text-gray-300">
-                            Pago em:
-                          </strong>{" "}
-                          {formatarData(conta.data_pagamento)}
-                        </div>
+                        {conta.recorrente && <FiRepeat className="inline h-3 w-3 ml-1.5 text-ink-400" title="Recorrente" />}
+                      </p>
+                      <p className="text-xs text-ink-500 truncate">
+                        {[conta.fornecedor, conta.observacoes].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                      <div className="sm:hidden mt-1"><StatusBadge kind="conta" status={st} size="sm" /></div>
+                    </td>
+                    <td className="hidden md:table-cell">{conta.categoria}</td>
+                    <td className="whitespace-nowrap num">
+                      {formatarData(conta.data_vencimento)}
+                      {conta.data_pagamento && <span className="block text-2xs text-ink-500">pago {formatarData(conta.data_pagamento)}</span>}
+                    </td>
+                    <td className="text-right font-semibold num text-ink-900 dark:text-ink-100 whitespace-nowrap">{formatarMoeda(conta.valor)}</td>
+                    <td className="hidden sm:table-cell"><StatusBadge kind="conta" status={st} size="sm" /></td>
+                    <td className="text-right whitespace-nowrap">
+                      {conta.status === "Pendente" && (
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => handleMarcarPago(conta)} title="Marcar como paga hoje">
+                          <FiCheck className="h-3.5 w-3.5" />
+                          <span className="hidden lg:inline">Pagar</span>
+                        </button>
                       )}
-                    </div>
-
-                    {conta.fornecedor && (
-                      <p className="text-sm mt-2">
-                        <strong className="text-gray-700 dark:text-gray-300">
-                          Fornecedor:
-                        </strong>{" "}
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {conta.fornecedor}
-                        </span>
-                      </p>
-                    )}
-
-                    {conta.observacoes && (
-                      <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
-                        {conta.observacoes}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 w-full md:w-auto md:ml-4">
-                    {conta.status === "Pendente" && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => handleMarcarPago(conta)}
-                        icon={FiCheck}
-                        title="Marcar como Pago"
-                      />
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => abrirModalEditar(conta)}
-                      icon={FiEdit2}
-                      className="flex-1 md:flex-none"
-                    />
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDeletar(conta.id)}
-                      icon={FiTrash2}
-                      className="flex-1 md:flex-none"
-                    />
-                  </div>
-                </div>
-              </Card>
-            );
-          })
+                      <button type="button" className="btn-ghost btn-sm !px-1.5" onClick={() => abrirModalEditar(conta)} aria-label="Editar" title="Editar">
+                        <FiEdit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" className="btn-ghost btn-sm !px-1.5 text-ink-400 hover:!text-red-600" onClick={() => handleDeletar(conta.id)} aria-label="Excluir" title="Excluir">
+                        <FiTrash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {/* Modal de Criar/Editar */}
-      {modalAberto && (
-        <ContaModal
-          conta={contaEditando}
-          onClose={fecharModal}
-          onSalvar={handleSalvar}
-        />
-      )}
+      {modalAberto && <ContaModal conta={contaEditando} onClose={fecharModal} onSalvar={handleSalvar} />}
+
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel={dialogState?.cancelLabel}
+        onConfirm={() => handleClose(true)}
+        onCancel={() => handleClose(false)}
+      />
     </div>
   );
 }

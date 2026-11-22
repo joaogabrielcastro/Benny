@@ -1,75 +1,90 @@
+import { useEffect, useRef } from "react";
+import { FiX } from "react-icons/fi";
+
+const SIZES = {
+  sm: "sm:max-w-md",
+  md: "sm:max-w-lg",
+  lg: "sm:max-w-2xl",
+  xl: "sm:max-w-4xl",
+  full: "sm:max-w-6xl",
+};
+
+/**
+ * Modal padrão: folha inferior no mobile, diálogo centralizado no desktop.
+ * Fecha com Esc e (opcionalmente) clique fora.
+ */
 const Modal = ({
   isOpen,
   onClose,
   title,
+  description,
   children,
-  size = "md", // sm, md, lg, xl, full
+  size = "md",
   showCloseButton = true,
   closeOnOverlayClick = true,
   footer,
 }) => {
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  const sizes = {
-    sm: "max-w-md",
-    md: "max-w-lg",
-    lg: "max-w-2xl",
-    xl: "max-w-4xl",
-    full: "max-w-full mx-4",
-  };
-
   const handleOverlayClick = (e) => {
-    if (closeOnOverlayClick && e.target === e.currentTarget) {
-      onClose();
-    }
+    if (closeOnOverlayClick && e.target === e.currentTarget) onClose?.();
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4"
-      onClick={handleOverlayClick}
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-ink-950/50 backdrop-blur-[2px] sm:p-4 animate-fade-in"
+      onMouseDown={handleOverlayClick}
     >
       <div
-        className={`bg-white dark:bg-gray-800 rounded-t-xl sm:rounded-lg shadow-xl w-full ${sizes[size]} max-h-[95vh] sm:max-h-[90vh] flex flex-col`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === "string" ? title : undefined}
+        className={`bg-white dark:bg-ink-900 w-full ${SIZES[size] || SIZES.md} max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-2xl sm:rounded-xl shadow-pop border border-ink-200/70 dark:border-ink-800 animate-slide-up`}
       >
-        {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-            {title && (
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                {title}
-              </h3>
-            )}
+          <div className="flex items-start justify-between gap-4 px-5 pt-4 pb-3 border-b border-ink-100 dark:border-ink-800">
+            <div className="min-w-0">
+              {title && (
+                <h3 className="text-base font-semibold text-ink-900 dark:text-white">{title}</h3>
+              )}
+              {description && (
+                <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">{description}</p>
+              )}
+            </div>
             {showCloseButton && (
               <button
+                type="button"
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
+                className="btn-ghost !min-h-0 !p-1.5 -mr-1.5"
                 aria-label="Fechar modal"
               >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <FiX className="w-5 h-5" />
               </button>
             )}
           </div>
         )}
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
-        {/* Footer */}
         {footer && (
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 px-5 py-3 border-t border-ink-100 dark:border-ink-800 bg-ink-50/60 dark:bg-ink-850/50 rounded-b-xl safe-bottom">
             {footer}
           </div>
         )}

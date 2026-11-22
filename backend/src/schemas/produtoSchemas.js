@@ -27,6 +27,13 @@ export const createProdutoSchema = z.object({
   valor_custo: z.coerce.number().min(0).optional(),
   estoque_minimo: z.coerce.number().min(0).optional(),
   ncm: ncmSchema,
+  categoria: z.string().trim().max(80).nullable().optional(),
+});
+
+export const movimentacaoManualSchema = z.object({
+  tipo: z.enum(["ENTRADA", "SAIDA"]),
+  quantidade: z.coerce.number().int().positive("Quantidade deve ser maior que zero"),
+  motivo: z.string().trim().min(3, "Informe o motivo").max(255),
 });
 
 export const updateProdutoSchema = createProdutoSchema.partial();

@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 import { useParams } from "react-router-dom";
 import api from "../services/api";
 import OrcamentoImpressao from "../components/OrcamentoImpressao";
@@ -8,6 +11,7 @@ export default function OrcamentoPublico() {
   const { id } = useParams(); // id aqui é o token
   const [orcamento, setOrcamento] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { confirm: confirmar, dialogState, handleClose } = useConfirm();
   const [enviando, setEnviando] = useState(false);
   const [aprovacaoLocal, setAprovacaoLocal] = useState(null);
   const impressaoRef = useRef();
@@ -37,13 +41,18 @@ export default function OrcamentoPublico() {
       setOrcamento(response.data);
       setLoading(false);
     } catch (error) {
-      alert("Erro ao carregar orçamento");
+      toast.error("Não foi possível carregar o orçamento. Verifique o link.");
       setLoading(false);
     }
   };
 
   const handleAprovar = async () => {
-    if (!confirm("Confirma a aprovação deste orçamento?")) return;
+    const ok = await confirmar({
+      title: "Aprovar orçamento",
+      message: "Confirma a aprovação deste orçamento? A oficina será avisada para iniciar o serviço.",
+      confirmLabel: "Aprovar",
+    });
+    if (!ok) return;
 
     setEnviando(true);
     try {
@@ -53,30 +62,34 @@ export default function OrcamentoPublico() {
         status: "Aprovado",
         osNumero: os?.numero || null,
       });
-      alert(
+      toast.success(
         os
           ? `Orçamento aprovado! OS ${os.numero} gerada. Em breve entraremos em contato.`
           : "Orçamento aprovado com sucesso! Em breve entraremos em contato.",
+        { duration: 6000 },
       );
     } catch (error) {
-      alert("Erro ao aprovar orçamento. Tente novamente.");
+      toast.error("Erro ao aprovar orçamento. Tente novamente.");
     } finally {
       setEnviando(false);
     }
   };
 
   const handleReprovar = async () => {
-    if (!confirm("Confirma a reprovação deste orçamento?")) return;
+    const ok = await confirmar({
+      title: "Reprovar orçamento",
+      message: "Confirma a reprovação deste orçamento?",
+      confirmLabel: "Reprovar",
+    });
+    if (!ok) return;
 
     setEnviando(true);
     try {
       await api.put(`/orcamentos/v/${id}/reprovar`);
-      alert(
-        "Orçamento reprovado. Entraremos em contato para mais informações.",
-      );
+      toast.success("Orçamento reprovado. Entraremos em contato para mais informações.", { duration: 6000 });
       carregarOrcamento();
     } catch (error) {
-      alert("Erro ao reprovar orçamento. Tente novamente.");
+      toast.error("Erro ao reprovar orçamento. Tente novamente.");
     } finally {
       setEnviando(false);
     }
@@ -460,6 +473,16 @@ export default function OrcamentoPublico() {
 
       {/* Componente de impressão (oculto) */}
       <OrcamentoImpressao ref={impressaoRef} orcamento={orcamento} />
+      <ConfirmDialog
+        open={!!dialogState}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmLabel}
+        cancelLabel="Voltar"
+        variant="primary"
+        onConfirm={() => handleClose(true)}
+        onCancel={() => handleClose(false)}
+      />
     </div>
   );
 }

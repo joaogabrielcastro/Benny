@@ -9,13 +9,14 @@ import { useConfirm } from "../hooks/useConfirm";
 import { useAuth } from "../contexts/AuthContext";
 import Card from "../components/Card";
 import Button from "../components/Button";
-import Badge from "../components/Badge";
 import Modal from "../components/Modal";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
-import { formatarData } from "../utils/formatters";
+import { formatarData, formatarMoeda } from "../utils/formatters";
+import StatusBadge from "../components/ui/StatusBadge";
+import EmptyState from "../components/ui/EmptyState";
 import {
   FiCalendar,
   FiClock,
@@ -23,7 +24,32 @@ import {
   FiEdit2,
   FiTrash2,
   FiCheck,
+  FiPlay,
 } from "react-icons/fi";
+
+function agruparPorDia(lista) {
+  const mapa = new Map();
+  for (const a of lista) {
+    const dia = String(a.data_agendamento || "").slice(0, 10);
+    if (!mapa.has(dia)) mapa.set(dia, []);
+    mapa.get(dia).push(a);
+  }
+  return [...mapa.entries()]
+    .sort(([x], [y]) => x.localeCompare(y))
+    .map(([dia, itens]) => [dia, itens.sort((p, q) => String(p.hora_inicio).localeCompare(String(q.hora_inicio)))]);
+}
+
+function rotuloDia(diaIso) {
+  if (!diaIso) return "Sem data";
+  const d = new Date(`${diaIso}T12:00:00`);
+  const hoje = new Date();
+  const amanha = new Date();
+  amanha.setDate(hoje.getDate() + 1);
+  const base = d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  if (d.toDateString() === hoje.toDateString()) return `Hoje · ${base}`;
+  if (d.toDateString() === amanha.toDateString()) return `Amanhã · ${base}`;
+  return base;
+}
 
 export default function Agendamentos() {
   const { isAdmin } = useAuth();
@@ -37,7 +63,6 @@ export default function Agendamentos() {
   });
   const [modalAberto, setModalAberto] = useState(false);
   const [agendamentoEditando, setAgendamentoEditando] = useState(null);
-  const [visualizacao, setVisualizacao] = useState("lista"); // lista ou calendario
 
   useEffect(() => {
     carregarAgendamentos();
@@ -112,22 +137,7 @@ export default function Agendamentos() {
     }
   };
 
-  const getStatusBadgeVariant = (status) => {
-    switch (status) {
-      case "Agendado":
-        return "info";
-      case "Confirmado":
-        return "success";
-      case "Em Andamento":
-        return "warning";
-      case "Concluído":
-        return "success";
-      case "Cancelado":
-        return "error";
-      default:
-        return "default";
-    }
-  };
+
 
   if (loading) return <LoadingSpinner size="xl" />;
 
@@ -186,170 +196,98 @@ export default function Agendamentos() {
             <option value="Cancelado">Cancelado</option>
           </Select>
           <div className="flex items-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() =>
-                setVisualizacao(
-                  visualizacao === "lista" ? "calendario" : "lista"
-                )
-              }
-              className="flex-1 w-full"
-            >
-              {visualizacao === "lista" ? "Ver Calendário" : "Ver Lista"}
-            </Button>
           </div>
         </div>
       </Card>
 
-      {/* Lista de Agendamentos */}
-      <div className="grid gap-4">
-        {agendamentos.length === 0 ? (
-          <Card>
-            <div className="text-center py-12">
-              <FiCalendar className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                Nenhum agendamento
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Comece criando um novo agendamento.
-              </p>
-              <div className="mt-6">
-                <Button onClick={abrirModalNovo} icon={FiPlus}>
-                  Novo Agendamento
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ) : (
-          agendamentos.map((agendamento) => (
-            <Card
-              key={agendamento.id}
-              className="hover:shadow-lg transition-shadow"
-            >
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      {agendamento.cliente_nome}
-                    </h3>
-                    <Badge variant={getStatusBadgeVariant(agendamento.status)}>
-                      {agendamento.status}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <FiCalendar className="text-blue-500" />
-                      <span>{formatarData(agendamento.data_agendamento)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <FiClock className="text-green-500" />
-                      <span>
-                        {agendamento.hora_inicio}
-                        {agendamento.hora_fim && ` - ${agendamento.hora_fim}`}
-                      </span>
-                    </div>
-                    {(agendamento.veiculo_modelo || agendamento.veiculo_placa) && (
-                      <div>
-                        <strong>Veículo:</strong>{" "}
-                        {rotuloVeiculo({
-                          marca: agendamento.veiculo_marca,
-                          modelo: agendamento.veiculo_modelo,
-                          versao: agendamento.veiculo_versao,
-                          motor: agendamento.veiculo_motor,
-                          ano: agendamento.veiculo_ano,
-                          placa: agendamento.veiculo_placa,
-                        })}
+      {/* Agenda agrupada por dia */}
+      {agendamentos.length === 0 ? (
+        <div className="pro-card">
+          <EmptyState
+            icon={FiCalendar}
+            title="Nenhum agendamento"
+            description="Agende a entrada de veículos para organizar o dia da oficina."
+            action={
+              isAdmin && (
+                <button type="button" onClick={abrirModalNovo} className="btn-brand">
+                  <FiPlus className="h-4 w-4" /> Novo agendamento
+                </button>
+              )
+            }
+          />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {agruparPorDia(agendamentos).map(([dia, itens]) => (
+            <section key={dia} className="pro-card overflow-hidden">
+              <header className="card-header !py-2.5 bg-ink-50/60 dark:bg-ink-850/40">
+                <h2 className="text-sm font-semibold text-ink-900 dark:text-white capitalize">{rotuloDia(dia)}</h2>
+                <span className="text-xs text-ink-500">{itens.length} agendamento(s)</span>
+              </header>
+              <ul className="divide-y divide-ink-100 dark:divide-ink-800">
+                {itens.map((agendamento) => (
+                  <li key={agendamento.id} className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-3">
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className="w-14 shrink-0 text-right">
+                        <p className="text-sm font-semibold num text-ink-900 dark:text-white">{String(agendamento.hora_inicio || "").slice(0, 5)}</p>
+                        {agendamento.hora_fim && <p className="text-2xs text-ink-500 num">até {String(agendamento.hora_fim).slice(0, 5)}</p>}
                       </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3">
-                    <p className="text-sm">
-                      <strong className="text-gray-700 dark:text-gray-300">
-                        Serviço:
-                      </strong>{" "}
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {agendamento.tipo_servico}
-                      </span>
-                    </p>
-                    {agendamento.mecanico_responsavel && (
-                      <p className="text-sm mt-1">
-                        <strong className="text-gray-700 dark:text-gray-300">
-                          Mecânico:
-                        </strong>{" "}
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {agendamento.mecanico_responsavel}
-                        </span>
-                      </p>
-                    )}
-                    {agendamento.observacoes && (
-                      <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
-                        {agendamento.observacoes}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 w-full md:w-auto md:ml-4">
-                  {agendamento.status === "Agendado" && (
-                    <Button
-                      size="sm"
-                      variant="success"
-                      onClick={() =>
-                        handleAtualizarStatus(agendamento.id, "Confirmado")
-                      }
-                      icon={FiCheck}
-                      title="Confirmar"
-                    />
-                  )}
-                  {agendamento.status === "Confirmado" && (
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      onClick={() =>
-                        handleAtualizarStatus(agendamento.id, "Em Andamento")
-                      }
-                      title="Iniciar"
-                    >
-                      Iniciar
-                    </Button>
-                  )}
-                  {agendamento.status === "Em Andamento" && (
-                    <Button
-                      size="sm"
-                      variant="success"
-                      onClick={() =>
-                        handleAtualizarStatus(agendamento.id, "Concluído")
-                      }
-                      icon={FiCheck}
-                      title="Concluir"
-                    />
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => abrirModalEditar(agendamento)}
-                      icon={FiEdit2}
-                      className="flex-1 md:flex-none"
-                    />
-                  )}
-                  {isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDeletar(agendamento.id)}
-                      icon={FiTrash2}
-                      className="flex-1 md:flex-none"
-                    />
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
+                      <div className="min-w-0 flex-1 border-l-2 border-ink-200 dark:border-ink-700 pl-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-ink-900 dark:text-white">{agendamento.cliente_nome}</p>
+                          <StatusBadge kind="agendamento" status={agendamento.status} size="sm" />
+                        </div>
+                        <p className="text-sm text-ink-700 dark:text-ink-300">{agendamento.tipo_servico}</p>
+                        <p className="text-xs text-ink-500">
+                          {(agendamento.veiculo_modelo || agendamento.veiculo_placa) &&
+                            rotuloVeiculo({
+                              marca: agendamento.veiculo_marca,
+                              modelo: agendamento.veiculo_modelo,
+                              versao: agendamento.veiculo_versao,
+                              motor: agendamento.veiculo_motor,
+                              ano: agendamento.veiculo_ano,
+                              placa: agendamento.veiculo_placa,
+                            })}
+                          {agendamento.mecanico_responsavel ? ` · ${agendamento.mecanico_responsavel}` : ""}
+                          {agendamento.valor_estimado ? ` · estimado ${formatarMoeda(agendamento.valor_estimado)}` : ""}
+                        </p>
+                        {agendamento.observacoes && <p className="text-xs text-ink-500 mt-0.5">{agendamento.observacoes}</p>}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 sm:justify-end pl-[4.5rem] sm:pl-0">
+                      {agendamento.status === "Agendado" && (
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => handleAtualizarStatus(agendamento.id, "Confirmado")}>
+                          <FiCheck className="h-3.5 w-3.5" /> Confirmar
+                        </button>
+                      )}
+                      {agendamento.status === "Confirmado" && (
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => handleAtualizarStatus(agendamento.id, "Em Andamento")}>
+                          <FiPlay className="h-3.5 w-3.5" /> Iniciar
+                        </button>
+                      )}
+                      {agendamento.status === "Em Andamento" && (
+                        <button type="button" className="btn-success btn-sm" onClick={() => handleAtualizarStatus(agendamento.id, "Concluído")}>
+                          <FiCheck className="h-3.5 w-3.5" /> Concluir
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button type="button" className="btn-ghost btn-sm !px-1.5" onClick={() => abrirModalEditar(agendamento)} aria-label="Editar" title="Editar">
+                          <FiEdit2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button type="button" className="btn-ghost btn-sm !px-1.5 text-ink-400 hover:!text-red-600" onClick={() => handleDeletar(agendamento.id)} aria-label="Excluir" title="Excluir">
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
 
       {/* Modal de Criar/Editar */}
       {modalAberto && (

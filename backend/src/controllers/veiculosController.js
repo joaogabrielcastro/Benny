@@ -11,6 +11,7 @@ class VeiculosController {
     const { rows, total } = await veiculosService.listar(tenantId, {
       limit,
       offset,
+      busca: typeof req.query.busca === "string" ? req.query.busca : undefined,
     });
     sendPaginated(res, { rows, total, page, limit });
   }

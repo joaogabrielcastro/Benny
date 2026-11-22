@@ -23,10 +23,14 @@ Sistema de gestão para oficinas mecânicas: OS, orçamentos, estoque, agenda, f
 ## Funcionalidades
 
 ### Operação
-- **Ordens de serviço** — workflow (Aberta → Em andamento → Finalizada / Cancelada), impressão, auditoria
+- **Ordens de serviço** — workflow (Aberta → Em andamento → Finalizada / Cancelada), linha de etapas, edição de itens com ajuste automático de estoque, responsável vinculado a usuário, histórico, impressão, auditoria
+- **Pagamentos de OS** — recebimentos e parcelas a receber por OS; situação (em aberto / parcial / quitada)
+- **Financeiro** — visão por período (entradas, saídas, fluxo de caixa diário, por forma de pagamento), contas a receber e OS sem quitação
 - **Orçamentos** — link público, aprovação pelo cliente, conversão em OS com baixa de estoque
-- **Estoque** — produtos, alertas de mínimo, movimentações rastreadas
-- **Clientes e veículos** — CEP (ViaCEP + fallback BrasilAPI), exclusão em cascata (admin)
+- **Estoque** — peças com categoria, alertas de mínimo, entrada/saída manual com motivo e histórico de movimentações
+- **Serviços** — catálogo com categoria e tempo estimado
+- **Clientes e veículos** — ficha do cliente com veículos e histórico de OS, consulta de veículos por placa, CEP (ViaCEP + fallback BrasilAPI), exclusão em cascata (admin)
+- **Busca global** — Ctrl/⌘+K por placa, cliente ou nº da OS
 - **Agenda** — conflitos de horário, lembretes
 - **Contas a pagar** — categorias, vencimentos, contas recorrentes
 - **Usuários** — roles `admin` e `mecanico` (RBAC)
@@ -35,6 +39,7 @@ Sistema de gestão para oficinas mecânicas: OS, orçamentos, estoque, agenda, f
 - **Relatórios** — faturamento, OS, estoque (gráficos)
 - **Fechamento mensal** — totais NFS-e/NF-e do mês, tributos e **export ZIP** (CSV/JSON + PDF + XML) para o contador
 - **NFS-e** — emissão via Notaas a partir de OS finalizada (serviços; peças na mesma nota enquanto NF-e estiver off)
+- **Notas fiscais** — histórico de NFS-e/NF-e com filtros e motivo de rejeição (somente leitura; emissão na OS)
 - **NF-e** — emissão de peças via **Brasil NFe** (`BRASILNFE_TOKEN`); NFS-e de serviço continua na Notaas
 
 ### SaaS

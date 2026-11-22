@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 vi.mock("../contexts/AuthContext", () => ({
@@ -11,7 +12,9 @@ import { useAuth } from "../contexts/AuthContext";
 
 function renderWithAuth(auth, initialPath = "/estoque") {
   useAuth.mockReturnValue(auth);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
+    <QueryClientProvider client={qc}>
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route path="/login" element={<div>Login Page</div>} />
@@ -33,7 +36,8 @@ function renderWithAuth(auth, initialPath = "/estoque") {
           }
         />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

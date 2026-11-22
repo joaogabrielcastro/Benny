@@ -28,3 +28,10 @@ describe("busca de clientes", () => {
     });
   });
 });
+
+describe("normalizarBuscaCliente — termos mistos", () => {
+  it("termo com letras e dígitos não vira busca por telefone", () => {
+    assert.equal(normalizarBuscaCliente("E2E Teste").digitos, "");
+    assert.equal(normalizarBuscaCliente("Oficina 2000").digitos, "");
+  });
+});

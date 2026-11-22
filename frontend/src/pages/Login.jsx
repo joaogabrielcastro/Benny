@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FiTool, FiPackage, FiBarChart2 } from "react-icons/fi";
 import Logo from "../components/Logo";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -67,36 +68,36 @@ export default function Login() {
           </div>
 
           <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">
-            Benny's Motorsport
+            Benny's Centro Automotivo
           </h1>
           <p className="text-blue-300 text-lg mb-12">
-            Sistema de Gestão Automotiva
+            Gestão da oficina
           </p>
 
           {/* Destaques do sistema */}
           <div className="space-y-4 text-left max-w-xs mx-auto">
             {[
               {
-                icon: "🔧",
+                icon: FiTool,
                 label: "Ordens de Serviço",
                 desc: "Controle completo do atendimento",
               },
               {
-                icon: "📦",
+                icon: FiPackage,
                 label: "Estoque",
                 desc: "Gestão de peças em tempo real",
               },
               {
-                icon: "📊",
-                label: "Relatórios",
-                desc: "Dados para decisões inteligentes",
+                icon: FiBarChart2,
+                label: "Financeiro e fiscal",
+                desc: "Pagamentos, fluxo de caixa e notas fiscais",
               },
             ].map((item) => (
               <div
                 key={item.label}
                 className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl px-4 py-3"
               >
-                <span className="text-2xl">{item.icon}</span>
+                <item.icon className="h-5 w-5 text-blue-300 shrink-0" />
                 <div>
                   <p className="text-white font-semibold text-sm">
                     {item.label}
@@ -110,7 +111,7 @@ export default function Login() {
 
         {/* Rodapé do painel */}
         <p className="absolute bottom-6 text-blue-400/50 text-xs">
-          © 2026 Benny's Motorsport · Todos os direitos reservados
+          © 2026 Benny's Centro Automotivo · Todos os direitos reservados
         </p>
       </div>
 
@@ -121,16 +122,16 @@ export default function Login() {
           <div className="flex justify-center mb-3">
             <Logo size="lg" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Benny's Motorsport
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Benny's Centro Automotivo
           </h1>
-          <p className="text-sm text-gray-500">Sistema de Gestão Automotiva</p>
+          <p className="text-sm text-gray-500">Gestão da oficina</p>
         </div>
 
         <div className="w-full max-w-sm">
           {/* Cabeçalho do form */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
               Bem-vindo de volta
             </h2>
             <p className="text-gray-500 mt-1">

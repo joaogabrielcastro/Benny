@@ -19,9 +19,16 @@ class NotasFiscaisController {
   async listar(req, res) {
     const tenantId = resolveTenantId(req);
     const { limit, offset, page } = req.pagination;
+    const data = (v) =>
+      typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined;
     const { rows, total } = await notasFiscaisService.listar(tenantId, {
       limit,
       offset,
+      status: typeof req.query.status === "string" ? req.query.status : undefined,
+      modelo: typeof req.query.modelo === "string" ? req.query.modelo : undefined,
+      busca: typeof req.query.busca === "string" ? req.query.busca.trim() : undefined,
+      data_inicio: data(req.query.data_inicio),
+      data_fim: data(req.query.data_fim),
     });
     sendPaginated(res, { rows, total, page, limit });
   }

@@ -120,10 +120,36 @@ export const updateOrdemServicoSchema = z.object({
   observacoes_veiculo: z.string().optional().nullable(),
   observacoes_gerais: z.string().optional().nullable(),
   consumidor_final: z.boolean().nullable().optional(),
-  /** Enviados pelo formulário; ignorados pelo service até suportar edição de itens */
+  /**
+   * Sem `editar_itens`, apenas o NCM de linhas existentes é gravado (compat).
+   * Com `editar_itens: true`, produtos/serviços substituem os itens da OS
+   * e o estoque é ajustado pela diferença de quantidades.
+   */
   produtos: z.array(linhaProdutoSchema).optional(),
   servicos: z.array(linhaServicoSchema).optional(),
+  editar_itens: z.boolean().optional(),
+  cliente_id: z.coerce.number().int().positive().optional(),
+  veiculo_id: z.coerce.number().int().positive().optional(),
+  responsavel_usuario_id: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.coerce.number().int().positive().nullable().optional(),
+  ),
 });
+
+const dataISO = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (use AAAA-MM-DD)");
+
+export const pagamentoOsSchema = z.object({
+  valor: numeroBR.pipe(z.number().positive("Valor deve ser maior que zero")),
+  forma_pagamento: z.string().trim().min(1, "Forma de pagamento é obrigatória").max(40),
+  status: z.enum(["Recebido", "Pendente"]).default("Recebido"),
+  data_pagamento: dataISO.nullable().optional(),
+  data_vencimento: dataISO.nullable().optional(),
+  observacoes: z.string().max(500).nullable().optional(),
+});
+
+export const updatePagamentoOsSchema = pagamentoOsSchema.partial();
 
 export const orcamentoTokenParamSchema = z.object({
   token: z.string().min(32).max(128),

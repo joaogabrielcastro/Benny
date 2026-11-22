@@ -231,22 +231,29 @@ export function useNotasFiscaisOs({
     setNotaFiscalPecas,
   ]);
 
-  const handleCancelarNF = async (modelo = "NFSE") => {
+  /**
+   * Cancela a nota autorizada. `motivoInformado` vem do diálogo da tela;
+   * sem ele, mantém o prompt nativo (compatibilidade).
+   */
+  const handleCancelarNF = async (modelo = "NFSE", motivoInformado) => {
     const nota = notaPorModelo(modelo);
     if (!nota?.id) {
       toast.error("Nota fiscal não encontrada.");
-      return;
+      return false;
     }
     if (nota.status_nf !== "autorizada") {
       toast.error("Só é possível cancelar nota autorizada.");
-      return;
+      return false;
     }
     const label = modelo === "NFE" ? "NF-e" : "NFS-e";
-    const motivo = window.prompt(
-      `Motivo do cancelamento da ${label} (mín. 15 caracteres):`,
-      "Cancelamento solicitado pelo emitente conforme acordo com o cliente.",
-    );
-    if (motivo === null) return;
+    const motivo =
+      typeof motivoInformado === "string"
+        ? motivoInformado
+        : window.prompt(
+            `Motivo do cancelamento da ${label} (mín. 15 caracteres):`,
+            "Cancelamento solicitado pelo emitente conforme acordo com o cliente.",
+          );
+    if (motivo === null) return false;
     if (motivo.trim().length < 15) {
       toast.error("Informe um motivo com pelo menos 15 caracteres.");
       return;
@@ -259,6 +266,7 @@ export function useNotasFiscaisOs({
       toast.success(data.message || `${label} cancelada.`);
       setShowNFModal(modelo);
       await carregarOS();
+      return true;
     } catch (error) {
       toast.error(
         error.response?.data?.error ||

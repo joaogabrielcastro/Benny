@@ -8,10 +8,15 @@ class ServicosController {
     const tenantId = resolveTenantId(req);
     const { limit, offset, page } = req.pagination;
     const busca = req.query.busca || undefined;
+    const categoria =
+      typeof req.query.categoria === "string" && req.query.categoria
+        ? req.query.categoria
+        : undefined;
     const { rows, total } = await servicosService.listar(tenantId, {
       limit,
       offset,
       busca,
+      categoria,
     });
     sendPaginated(res, { rows, total, page, limit });
   }
