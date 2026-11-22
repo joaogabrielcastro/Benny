@@ -47,7 +47,7 @@ function App() {
         <AuthProvider>
           <Router>
             <Toaster
-              position="top-right"
+              position="top-center"
               toastOptions={{
                 duration: 3200,
                 className: "!text-sm !font-medium",

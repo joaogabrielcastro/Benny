@@ -1,932 +1,469 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import { FiPlus, FiSave, FiCheckCircle, FiPackage, FiTool } from "react-icons/fi";
 import api from "../services/api";
-import { unwrapListResponse } from "../utils/apiList";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import NovoClienteModal from "../components/NovoClienteModal";
 import NovoVeiculoModal from "../components/NovoVeiculoModal";
-import Button from "../components/Button";
-import Input from "../components/Input";
-import { showSuccess, showError, showPromise } from "../utils/toast.jsx";
-import { validarNumeroPositivo } from "../utils/validators";
 import ProdutoFormModal from "../components/ProdutoFormModal";
 import ServicoFormModal from "../components/ServicoFormModal";
+import ConfirmDialog from "../components/ConfirmDialog";
+import PageHeader from "../components/layout/PageHeader";
+import LoadingSpinner from "../components/LoadingSpinner";
+import Section from "../components/ui/Section";
 import AssistenteOrcamento from "../features/orcamentos/AssistenteOrcamento";
 import { aplicarSugestoesNoOrcamento } from "../features/orcamentos/aplicarSugestoes";
+import ItensEditor, { limparLinha, linhaDeProduto, linhaDeServico, totaisItens } from "../features/itens/ItensEditor";
 import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
+import { formatarMoeda } from "../utils/formatters";
 
-function precoDigitado(valor) {
-  const texto = String(valor ?? "").trim().replace(/\s/g, "");
-  if (!texto || texto === "," || texto === ".") return 0;
-  const normalizado = texto.includes(",")
-    ? texto.replace(/\./g, "").replace(",", ".")
-    : texto;
-  const n = Number(normalizado);
-  return Number.isFinite(n) ? n : 0;
+const FORM_VAZIO = {
+  cliente_id: "",
+  veiculo_id: "",
+  km: "",
+  previsao_entrega: "",
+  observacoes_veiculo: "",
+  responsavel_tecnico: "",
+  observacoes_gerais: "",
+};
+
+function erroApi(error, padrao) {
+  const d = error?.response?.data;
+  const campo = d?.details?.fieldErrors && Object.values(d.details.fieldErrors).flat()[0];
+  return d?.error && d.error !== "Dados inválidos" ? d.error : campo || d?.error || padrao;
 }
 
+/**
+ * Novo atendimento / orçamento. O orçamento é a porta de entrada da OS:
+ * "Salvar e abrir OS" cria e aprova na sequência (baixa estoque e gera a OS),
+ * exatamente como a aprovação pela tela de detalhes.
+ */
 export default function OrcamentoForm() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { id: orcamentoId } = useParams();
+  const [searchParams] = useSearchParams();
   const editando = Boolean(orcamentoId);
-  const [carregandoOrcamento, setCarregandoOrcamento] = useState(editando);
-  const [clientes, setClientes] = useState([]);
-  const [veiculos, setVeiculos] = useState([]);
+
+  const [form, setForm] = useState(() => ({
+    ...FORM_VAZIO,
+    cliente_id: searchParams.get("cliente_id") || "",
+    veiculo_id: searchParams.get("veiculo_id") || "",
+  }));
   const [produtos, setProdutos] = useState([]);
-  const [mostrarClienteForm, setMostrarClienteForm] = useState(false);
-  const [mostrarVeiculoForm, setMostrarVeiculoForm] = useState(false);
-  const [veiculoEmEdicao, setVeiculoEmEdicao] = useState(null);
-
-  const [formData, setFormData] = useState({
-    cliente_id: "",
-    veiculo_id: "",
-    km: "",
-    previsao_entrega: "",
-    observacoes_veiculo: "",
-    responsavel_tecnico: "",
-    observacoes_gerais: "",
-  });
-
-  const [itensProdutos, setItensProdutos] = useState([]);
-  const [itensServicos, setItensServicos] = useState([]);
-  const [mostrarProdutoModal, setMostrarProdutoModal] = useState(false);
-  const [produtoModalIndex, setProdutoModalIndex] = useState(null);
-  const [mostrarServicoModal, setMostrarServicoModal] = useState(false);
-  const [servicoModalIndex, setServicoModalIndex] = useState(null);
   const [servicos, setServicos] = useState([]);
-
-  useEffect(() => {
-    carregarClientes();
-    carregarProdutos();
-    carregarServicos();
-  }, []);
+  const [carregando, setCarregando] = useState(editando);
+  const [salvando, setSalvando] = useState(false);
+  const [novoCliente, setNovoCliente] = useState(false);
+  const [novoVeiculo, setNovoVeiculo] = useState(false);
+  const [novoProduto, setNovoProduto] = useState(false);
+  const [novoServico, setNovoServico] = useState(false);
+  const [confirmarAprovacao, setConfirmarAprovacao] = useState(false);
 
   useEffect(() => {
     if (!editando) return;
-    const carregar = async () => {
+    (async () => {
       try {
-        const response = await api.get(`/orcamentos/${orcamentoId}`);
-        const o = response.data;
+        const { data: o } = await api.get(`/orcamentos/${orcamentoId}`);
         if (o.status !== "Pendente") {
-          showError("Só é possível editar orçamentos pendentes.");
+          toast.error("Só é possível editar orçamentos pendentes.");
           navigate(`/orcamentos/${orcamentoId}`);
           return;
         }
-        setFormData({
+        setForm({
           cliente_id: String(o.cliente_id || ""),
           veiculo_id: String(o.veiculo_id || ""),
           km: o.km ?? "",
-          previsao_entrega: o.previsao_entrega
-            ? String(o.previsao_entrega).slice(0, 10)
-            : "",
+          previsao_entrega: o.previsao_entrega ? String(o.previsao_entrega).slice(0, 10) : "",
           observacoes_veiculo: o.observacoes_veiculo || "",
           responsavel_tecnico: o.responsavel_tecnico || "",
           observacoes_gerais: o.observacoes_gerais || "",
         });
-        setItensProdutos(o.produtos || []);
-        setItensServicos(o.servicos || []);
-        if (o.cliente_id) await carregarVeiculos(o.cliente_id);
+        setProdutos(
+          (o.produtos || []).map((p, i) => ({
+            _key: `p${p.id || i}`,
+            produto_id: p.produto_id || null,
+            codigo: p.codigo || "",
+            descricao: p.descricao,
+            ncm: p.ncm || p.produto_ncm || "",
+            quantidade: Number(p.quantidade),
+            valor_unitario: Number(p.valor_unitario),
+            valor_total: Number(p.valor_total),
+          })),
+        );
+        setServicos(
+          (o.servicos || []).map((s, i) => ({
+            _key: `s${s.id || i}`,
+            codigo: s.codigo || "",
+            descricao: s.descricao,
+            quantidade: Number(s.quantidade),
+            valor_unitario: Number(s.valor_unitario),
+            valor_total: Number(s.valor_total),
+          })),
+        );
       } catch {
-        showError("Erro ao carregar orçamento");
+        toast.error("Erro ao carregar orçamento");
         navigate("/orcamentos");
       } finally {
-        setCarregandoOrcamento(false);
+        setCarregando(false);
       }
-    };
-    carregar();
+    })();
   }, [editando, orcamentoId, navigate]);
 
-  useEffect(() => {
-    if (formData.cliente_id) {
-      carregarVeiculos(formData.cliente_id);
-    }
-  }, [formData.cliente_id]);
+  const { data: veiculos = [], refetch: recarregarVeiculos } = useQuery({
+    queryKey: ["veiculos", "cliente", String(form.cliente_id)],
+    enabled: Boolean(form.cliente_id),
+    queryFn: async () => (await api.get(`/veiculos/cliente/${form.cliente_id}`)).data,
+  });
 
-  const carregarClientes = async () => {
-    try {
-      const response = await api.get("/clientes", { params: { limit: 500 } });
-      setClientes(unwrapListResponse(response.data));
-    } catch (error) {
-      console.error("Erro ao carregar clientes:", error);
-    }
-  };
-
-  const carregarVeiculos = async (clienteId) => {
-    try {
-      const response = await api.get(`/veiculos/cliente/${clienteId}`);
-      setVeiculos(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar veículos:", error);
-    }
-  };
-
-  const handleVeiculoChange = (veiculoId) => {
-    setFormData({
-      ...formData,
-      veiculo_id: veiculoId,
-    });
-  };
-
-  const carregarProdutos = async () => {
-    try {
-      const response = await api.get("/produtos", {
-        params: { limit: 50000 },
+  // Sugere o último km conhecido do veículo selecionado
+  const { data: ultimaOs } = useQuery({
+    queryKey: ["ordens-servico", "ultima-km", form.veiculo_id],
+    enabled: Boolean(form.veiculo_id) && !editando,
+    queryFn: async () => {
+      const { data } = await api.get("/ordens-servico", {
+        params: { veiculo_id: form.veiculo_id, limit: 1, page: 1, ordenar: "criado_em", direcao: "desc" },
       });
-      // A API agora retorna { data: [...], pagination: {...} }
-      setProdutos(
-        Array.isArray(response.data) ? response.data : response.data.data || [],
-      );
-    } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
+      return (data?.data || [])[0] || null;
+    },
+  });
+
+  if (carregando) return <LoadingSpinner size="lg" />;
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const totais = totaisItens(produtos, servicos);
+  const veiculoSel = veiculos.find((v) => String(v.id) === String(form.veiculo_id));
+
+  const montarDados = () => ({
+    ...form,
+    km: form.km === "" ? null : form.km,
+    previsao_entrega: form.previsao_entrega || null,
+    status: "Pendente",
+    produtos: produtos.map(limparLinha),
+    servicos: servicos.map(limparLinha),
+  });
+
+  const validar = () => {
+    if (!form.cliente_id || !form.veiculo_id) {
+      toast.error("Selecione o cliente e o veículo.");
+      return false;
     }
+    if (!produtos.length && !servicos.length) {
+      toast.error("Adicione ao menos um serviço ou peça.");
+      return false;
+    }
+    if ([...produtos, ...servicos].some((l) => !String(l.descricao || "").trim())) {
+      toast.error("Informe a descrição de todos os itens.");
+      return false;
+    }
+    const ncm = produtos.find((l) => l.ncm && String(l.ncm).length !== 8);
+    if (ncm) {
+      toast.error(`NCM de “${ncm.descricao}” precisa ter 8 dígitos.`);
+      return false;
+    }
+    return true;
   };
 
-  const carregarServicos = async () => {
+  const salvar = async (e) => {
+    e?.preventDefault();
+    if (!validar()) return;
+    setSalvando(true);
     try {
-      const res = await api.get("/servicos", { params: { limit: 10000 } });
-      setServicos(unwrapListResponse(res.data));
-    } catch (error) {
-      console.error("Erro ao carregar serviços:", error);
-    }
-  };
-
-  const adicionarProduto = () => {
-    setItensProdutos([
-      ...itensProdutos,
-      {
-        produto_id: "",
-        codigo: "",
-        descricao: "",
-        ncm: "",
-        quantidade: 1,
-        valor_unitario: 0,
-        valor_total: 0,
-      },
-    ]);
-  };
-
-  const adicionarServico = () => {
-    setItensServicos([
-      ...itensServicos,
-      {
-        codigo: "",
-        descricao: "",
-        quantidade: 1,
-        valor_unitario: 0,
-        valor_total: 0,
-      },
-    ]);
-  };
-
-  const removerProduto = (index) => {
-    setItensProdutos(itensProdutos.filter((_, i) => i !== index));
-  };
-
-  const removerServico = (index) => {
-    setItensServicos(itensServicos.filter((_, i) => i !== index));
-  };
-
-  const atualizarProduto = (index, campo, valor) => {
-    const novosProdutos = [...itensProdutos];
-
-    novosProdutos[index][campo] = valor;
-
-    if (campo === "produto_id") {
-      if (valor === "__add_new__") {
-        setProdutoModalIndex(index);
-        setMostrarProdutoModal(true);
-      } else if (valor) {
-        const produto = produtos.find((p) => p.id == valor);
-        if (produto) {
-          novosProdutos[index].codigo = produto.codigo;
-          novosProdutos[index].descricao = produto.nome;
-          novosProdutos[index].valor_unitario = produto.valor_venda;
-          if (produto.ncm) novosProdutos[index].ncm = produto.ncm;
-        }
+      const dados = montarDados();
+      if (editando) {
+        await api.put(`/orcamentos/${orcamentoId}`, dados);
+        toast.success("Orçamento atualizado.");
+        navigate(`/orcamentos/${orcamentoId}`);
+      } else {
+        const { data } = await api.post("/orcamentos", dados);
+        toast.success(`Orçamento ${data?.numero || ""} criado.`.replace("  ", " "));
+        navigate(data?.id ? `/orcamentos/${data.id}` : "/orcamentos");
       }
-    }
-
-    const recalcularTotalLinhaProduto =
-      campo === "quantidade" ||
-      campo === "valor_unitario" ||
-      (campo === "produto_id" && valor && valor !== "__add_new__");
-    if (recalcularTotalLinhaProduto) {
-      const q = Number(novosProdutos[index].quantidade) || 0;
-      const vu = precoDigitado(novosProdutos[index].valor_unitario);
-      novosProdutos[index].valor_total = Math.round(q * vu * 100) / 100;
-    }
-
-    setItensProdutos(novosProdutos);
-  };
-
-  const handleProdutoCriado = (novoProduto) => {
-    carregarProdutos();
-    if (produtoModalIndex !== null) {
-      const idx = produtoModalIndex;
-      const novos = [...itensProdutos];
-      novos[idx].produto_id = novoProduto.id;
-      novos[idx].codigo = novoProduto.codigo || "";
-      novos[idx].descricao = novoProduto.nome || "";
-      novos[idx].valor_unitario = novoProduto.valor_venda || 0;
-      const q = Number(novos[idx].quantidade) || 0;
-      const vu = Number(novos[idx].valor_unitario) || 0;
-      novos[idx].valor_total = q * vu;
-      setItensProdutos(novos);
-      setProdutoModalIndex(null);
+      qc.invalidateQueries({ queryKey: ["orcamentos"] });
+    } catch (error) {
+      toast.error(erroApi(error, editando ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento"), { duration: 7000 });
+    } finally {
+      setSalvando(false);
     }
   };
 
-  const atualizarServico = (index, campo, valor) => {
-    const novosServicos = [...itensServicos];
-    novosServicos[index][campo] = valor;
-
-    if (campo === "quantidade" || campo === "valor_unitario") {
-      const q = Number(novosServicos[index].quantidade) || 0;
-      const vu = precoDigitado(novosServicos[index].valor_unitario);
-      novosServicos[index].valor_total = Math.round(q * vu * 100) / 100;
-    }
-
-    setItensServicos(novosServicos);
-  };
-
-  const handleServicoSelect = (index, valor) => {
-    const novos = [...itensServicos];
-    if (valor === "__add_new__") {
-      setServicoModalIndex(index);
-      setMostrarServicoModal(true);
-      return;
-    }
-    const servico = servicos.find((s) => s.id == valor);
-    if (servico) {
-      novos[index].codigo = servico.codigo;
-      novos[index].descricao = servico.nome;
-      novos[index].valor_unitario = servico.valor_unitario || 0;
-      novos[index].servico_id = servico.id;
-      const q = Number(novos[index].quantidade) || 0;
-      const vu = Number(novos[index].valor_unitario) || 0;
-      novos[index].valor_total = q * vu;
-      setItensServicos(novos);
+  const salvarEAprovar = async () => {
+    setConfirmarAprovacao(false);
+    setSalvando(true);
+    let criadoId = orcamentoId;
+    try {
+      const dados = montarDados();
+      if (editando) await api.put(`/orcamentos/${orcamentoId}`, dados);
+      else {
+        const { data } = await api.post("/orcamentos", dados);
+        criadoId = data?.id;
+      }
+      const { data: aprovado } = await api.put(`/orcamentos/${criadoId}`, { ...dados, status: "Aprovado" });
+      qc.invalidateQueries({ queryKey: ["orcamentos"] });
+      qc.invalidateQueries({ queryKey: ["ordens-servico"] });
+      qc.invalidateQueries({ queryKey: ["produtos"] });
+      if (aprovado?.os?.id) {
+        toast.success(`OS ${aprovado.os.numero} aberta.`);
+        navigate(`/ordens-servico/${aprovado.os.id}`);
+      } else {
+        toast.success("Orçamento aprovado.");
+        navigate(`/orcamentos/${criadoId}`);
+      }
+    } catch (error) {
+      toast.error(erroApi(error, "Não foi possível aprovar o orçamento."), { duration: 8000 });
+      if (criadoId && !editando) navigate(`/orcamentos/${criadoId}`);
+    } finally {
+      setSalvando(false);
     }
   };
 
-  const handleServicoCriado = (novoServico) => {
-    if (novoServico?.id) {
-      setServicos((prev) => {
-        if (prev.some((s) => Number(s.id) === Number(novoServico.id))) {
-          return prev;
-        }
-        return [...prev, novoServico].sort((a, b) =>
-          String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"),
-        );
-      });
-    }
-    carregarServicos();
-    if (servicoModalIndex !== null) {
-      const idx = servicoModalIndex;
-      const novos = [...itensServicos];
-      novos[idx].codigo = novoServico.codigo || "";
-      novos[idx].descricao = novoServico.nome || "";
-      novos[idx].valor_unitario = novoServico.valor_unitario || 0;
-      novos[idx].servico_id = novoServico.id;
-      const q = Number(novos[idx].quantidade) || 0;
-      const vu = Number(novos[idx].valor_unitario) || 0;
-      novos[idx].valor_total = q * vu;
-      setItensServicos(novos);
-      setServicoModalIndex(null);
-    }
-  };
-
-  const calcularTotal = () => {
-    const totalProdutos = itensProdutos.reduce(
-      (sum, item) => sum + (Number(item.valor_total) || 0),
-      0,
-    );
-    const totalServicos = itensServicos.reduce(
-      (sum, item) => sum + (Number(item.valor_total) || 0),
-      0,
-    );
-    return totalProdutos + totalServicos;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!formData.cliente_id || !formData.veiculo_id) {
-      showError("Selecione o cliente e o veículo");
-      return;
-    }
-
-    const dados = {
-      ...formData,
-      status: "Pendente",
-      produtos: itensProdutos,
-      servicos: itensServicos,
-    };
-
-    const request = editando
-      ? api.put(`/orcamentos/${orcamentoId}`, dados)
-      : api.post("/orcamentos", dados);
-
-    showPromise(request, {
-      loading: editando ? "Salvando orçamento..." : "Criando orçamento...",
-      success: editando
-        ? "Orçamento atualizado com sucesso!"
-        : "Orçamento criado com sucesso!",
-      error: (err) =>
-        err.response?.data?.error ||
-        (editando ? "Erro ao atualizar orçamento" : "Erro ao criar orçamento"),
-    })
-      .then(() => {
-        navigate(editando ? `/orcamentos/${orcamentoId}` : "/orcamentos");
-      })
-      .catch((error) => {
-        console.error("Erro ao salvar orçamento:", error);
-      });
-  };
-
-  if (carregandoOrcamento) {
-    return <div className="text-center py-8">Carregando orçamento...</div>;
-  }
+  const botoes = (
+    <>
+      <button type="submit" className="btn-secondary flex-1" disabled={salvando}>
+        <FiSave className="h-4 w-4" />
+        {editando ? "Salvar" : "Salvar orçamento"}
+      </button>
+      <button
+        type="button"
+        className="btn-brand flex-1"
+        disabled={salvando}
+        onClick={() => validar() && setConfirmarAprovacao(true)}
+      >
+        <FiCheckCircle className="h-4 w-4" />
+        Aprovar e abrir OS
+      </button>
+    </>
+  );
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          {editando ? "Editar Orçamento" : "Novo Orçamento"}
-        </h1>
-      </div>
+    <div className="page-enter">
+      <PageHeader
+        back={editando ? { to: `/orcamentos/${orcamentoId}`, label: "Orçamento" } : { to: "/orcamentos", label: "Orçamentos" }}
+        title={editando ? "Editar orçamento" : "Novo atendimento"}
+        subtitle={
+          editando
+            ? "Ajuste itens e valores antes de enviar ao cliente."
+            : "Identifique o veículo, descreva o problema e monte o orçamento. Aprove na hora para abrir a OS."
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Dados do Cliente e Veículo */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            Cliente e Veículo
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Cliente *
-              </label>
-              <div className="flex space-x-2">
-                <div className="flex-1">
-                  <ClienteAutocomplete
-                    value={formData.cliente_id}
-                    onChange={(clienteId) =>
-                      setFormData({
-                        ...formData,
-                        cliente_id: clienteId,
-                        veiculo_id: "",
-                      })
-                    }
-                    onClienteSelecionado={(cliente) => {
-                      if (cliente) {
-                        carregarVeiculos(cliente.id);
-                      } else {
-                        setVeiculos([]);
+      <form onSubmit={salvar} className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start pb-24 lg:pb-0">
+        <div className="lg:col-span-2 space-y-5 min-w-0">
+          <Section title="1 · Cliente e veículo">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label-pro">Cliente *</label>
+                <div className="flex gap-2">
+                  <div className="flex-1 min-w-0">
+                    <ClienteAutocomplete
+                      value={form.cliente_id}
+                      onChange={(cid) =>
+                        setForm((f) => (String(cid || "") === String(f.cliente_id || "") ? f : { ...f, cliente_id: cid, veiculo_id: "" }))
                       }
-                    }}
-                    required
-                  />
+                      required
+                    />
+                  </div>
+                  <button type="button" className="btn-secondary btn-icon" onClick={() => setNovoCliente(true)} title="Novo cliente" aria-label="Novo cliente">
+                    <FiPlus className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMostrarClienteForm(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  + Novo
-                </button>
+              </div>
+              <div>
+                <label className="label-pro" htmlFor="orc-veiculo">Veículo *</label>
+                <div className="flex gap-2">
+                  <select
+                    id="orc-veiculo"
+                    className="input-pro flex-1 min-w-0"
+                    value={form.veiculo_id}
+                    onChange={(e) => set("veiculo_id", e.target.value)}
+                    disabled={!form.cliente_id}
+                    required
+                  >
+                    <option value="">{form.cliente_id ? (veiculos.length ? "Selecione o veículo" : "Cliente sem veículos — cadastre ao lado") : "Escolha o cliente primeiro"}</option>
+                    {veiculos.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {rotuloVeiculo(v)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-secondary btn-icon"
+                    onClick={() => setNovoVeiculo(true)}
+                    disabled={!form.cliente_id}
+                    title="Novo veículo"
+                    aria-label="Novo veículo"
+                  >
+                    <FiPlus className="h-4 w-4" />
+                  </button>
+                </div>
+                {veiculoSel && ultimaOs && (
+                  <p className="help-pro">
+                    Último atendimento: {ultimaOs.numero}
+                    {ultimaOs.km ? ` · ${Number(ultimaOs.km).toLocaleString("pt-BR")} km` : ""}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="label-pro" htmlFor="orc-km">Quilometragem atual</label>
+                <input
+                  id="orc-km"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  className="input-pro num"
+                  value={form.km}
+                  onChange={(e) => set("km", e.target.value)}
+                  placeholder={ultimaOs?.km ? `Última: ${Number(ultimaOs.km).toLocaleString("pt-BR")}` : "Ex.: 58210"}
+                />
+                {form.km !== "" && ultimaOs?.km && Number(form.km) < Number(ultimaOs.km) && (
+                  <p className="help-pro text-amber-700 dark:text-amber-300">Menor que a última registrada ({Number(ultimaOs.km).toLocaleString("pt-BR")} km). Confira.</p>
+                )}
+              </div>
+              <div>
+                <label className="label-pro" htmlFor="orc-prev">Previsão de entrega</label>
+                <input id="orc-prev" type="date" className="input-pro" value={form.previsao_entrega} onChange={(e) => set("previsao_entrega", e.target.value)} />
               </div>
             </div>
+          </Section>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Veículo *
-              </label>
-              <div className="flex space-x-2">
-                <select
-                  value={formData.veiculo_id}
-                  onChange={(e) => handleVeiculoChange(e.target.value)}
-                  required
-                  disabled={!formData.cliente_id}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-800"
-                >
-                  <option value="">Selecione o veículo</option>
-                  {veiculos.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {rotuloVeiculo(v)}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const atual = veiculos.find(
-                      (v) => String(v.id) === String(formData.veiculo_id),
-                    );
-                    setVeiculoEmEdicao(atual || null);
-                    setMostrarVeiculoForm(true);
-                  }}
-                  disabled={!formData.veiculo_id}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:bg-gray-400 disabled:text-white"
-                >
-                  Dados
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVeiculoEmEdicao(null);
-                    setMostrarVeiculoForm(true);
-                  }}
-                  disabled={!formData.cliente_id}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
-                >
-                  + Novo
-                </button>
+          <Section title="2 · Problema e diagnóstico">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label-pro" htmlFor="orc-relato">Relato do cliente / condição do veículo</label>
+                <textarea
+                  id="orc-relato"
+                  rows={3}
+                  className="input-pro"
+                  value={form.observacoes_veiculo}
+                  onChange={(e) => set("observacoes_veiculo", e.target.value)}
+                  placeholder="Ex.: ruído ao frear, luz do óleo acendendo…"
+                />
+              </div>
+              <div>
+                <label className="label-pro" htmlFor="orc-obs">Diagnóstico e observações</label>
+                <textarea
+                  id="orc-obs"
+                  rows={3}
+                  className="input-pro"
+                  value={form.observacoes_gerais}
+                  onChange={(e) => set("observacoes_gerais", e.target.value)}
+                  placeholder="O que foi constatado, garantia, condições…"
+                />
               </div>
             </div>
-          </div>
+          </Section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Km
-              </label>
-              <input
-                type="number"
-                value={formData.km}
-                onChange={(e) =>
-                  setFormData({ ...formData, km: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Previsão de Entrega
-              </label>
-              <input
-                type="date"
-                value={formData.previsao_entrega}
-                onChange={(e) =>
-                  setFormData({ ...formData, previsao_entrega: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Responsável Técnico
-              </label>
-              <input
-                type="text"
-                value={formData.responsavel_tecnico}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    responsavel_tecnico: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nome do técnico responsável"
-              />
-            </div>
-          </div>
+          <AssistenteOrcamento
+            clienteId={form.cliente_id}
+            veiculoId={form.veiculo_id}
+            km={form.km}
+            itensProdutos={produtos}
+            itensServicos={servicos}
+            onAplicar={(args) => {
+              const aplicado = aplicarSugestoesNoOrcamento(args);
+              setProdutos(aplicado.itensProdutos);
+              setServicos(aplicado.itensServicos);
+              return aplicado;
+            }}
+          />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Observações do Veículo
-            </label>
-            <input
-              type="text"
-              value={formData.observacoes_veiculo}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  observacoes_veiculo: e.target.value,
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <ItensEditor produtos={produtos} servicos={servicos} onChangeProdutos={setProdutos} onChangeServicos={setServicos} />
+            <div className="mt-2 flex flex-wrap gap-3 text-xs">
+              <button type="button" className="link-pro inline-flex items-center gap-1" onClick={() => setNovoServico(true)}>
+                <FiTool className="h-3.5 w-3.5" /> Cadastrar serviço no catálogo
+              </button>
+              <button type="button" className="link-pro inline-flex items-center gap-1" onClick={() => setNovoProduto(true)}>
+                <FiPackage className="h-3.5 w-3.5" /> Cadastrar peça no catálogo
+              </button>
+            </div>
           </div>
         </div>
 
-        <AssistenteOrcamento
-          clienteId={formData.cliente_id}
-          veiculoId={formData.veiculo_id}
-          km={formData.km}
-          itensProdutos={itensProdutos}
-          itensServicos={itensServicos}
-          onAplicar={(args) => {
-            const aplicado = aplicarSugestoesNoOrcamento(args);
-            setItensProdutos(aplicado.itensProdutos);
-            setItensServicos(aplicado.itensServicos);
-            return aplicado;
-          }}
-        />
-
-        {/* Produtos */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Produtos
-            </h2>
-            <button
-              type="button"
-              onClick={adicionarProduto}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              + Adicionar Produto
-            </button>
+        <aside className="space-y-5 lg:sticky lg:top-20">
+          <Section title="Responsável">
+            <label className="label-pro" htmlFor="orc-resp">Responsável técnico</label>
+            <input id="orc-resp" className="input-pro" value={form.responsavel_tecnico} onChange={(e) => set("responsavel_tecnico", e.target.value)} placeholder="Opcional" />
+          </Section>
+          <div className="pro-card p-4 space-y-1.5">
+            <div className="flex justify-between text-sm text-ink-600 dark:text-ink-300">
+              <span>Serviços</span>
+              <span className="num">{formatarMoeda(totais.valor_servicos)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-ink-600 dark:text-ink-300">
+              <span>Peças</span>
+              <span className="num">{formatarMoeda(totais.valor_produtos)}</span>
+            </div>
+            <div className="flex justify-between pt-1 text-lg font-semibold text-ink-900 dark:text-white">
+              <span>Total</span>
+              <span className="num">{formatarMoeda(totais.valor_total)}</span>
+            </div>
+            <div className="hidden lg:flex flex-col gap-2 pt-3">{botoes}</div>
+            <p className="hidden lg:block text-2xs text-ink-500 pt-1">
+              “Salvar orçamento” deixa pendente para enviar ao cliente. “Aprovar e abrir OS” baixa as peças do estoque e abre a ordem de serviço.
+            </p>
+            <Link to={editando ? `/orcamentos/${orcamentoId}` : "/orcamentos"} className="hidden lg:flex btn-ghost w-full mt-1">
+              Cancelar
+            </Link>
           </div>
+        </aside>
 
-          <div className="space-y-3">
-            {itensProdutos.map((item, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3 min-w-0"
-              >
-                {item.origemSugestao && !item.produto_id ? (
-                  <>
-                    <div className="col-span-5 min-w-0">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Item
-                      </label>
-                      <input
-                        type="text"
-                        value={item.descricao}
-                        onChange={(e) =>
-                          atualizarProduto(index, "descricao", e.target.value)
-                        }
-                        title={item.descricao || ""}
-                        className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="col-span-2 min-w-0">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        NCM
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.ncm || ""}
-                        onChange={(e) =>
-                          atualizarProduto(index, "ncm", e.target.value.replace(/[^\d]/g, "").slice(0, 8))
-                        }
-                        placeholder="8 dígitos"
-                        title="Obrigatório para a NF-e autorizar"
-                        className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="col-span-2 min-w-0">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Produto
-                      </label>
-                      <select
-                        value={item.produto_id}
-                        onChange={(e) =>
-                          atualizarProduto(index, "produto_id", e.target.value)
-                        }
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Selecione...</option>
-                        <option value="__add_new__">+ Novo Produto</option>
-                        {produtos.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-1 min-w-0">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Código
-                      </label>
-                      <input
-                        type="text"
-                        value={item.codigo}
-                        onChange={(e) =>
-                          atualizarProduto(index, "codigo", e.target.value)
-                        }
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="col-span-2 min-w-0">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        NCM
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.ncm || ""}
-                        onChange={(e) =>
-                          atualizarProduto(
-                            index,
-                            "ncm",
-                            e.target.value.replace(/[^\d]/g, "").slice(0, 8),
-                          )
-                        }
-                        placeholder="8 dígitos"
-                        title="Obrigatório para a NF-e autorizar"
-                        className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="col-span-2 min-w-0">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Descrição
-                      </label>
-                      <input
-                        type="text"
-                        value={item.descricao}
-                        onChange={(e) =>
-                          atualizarProduto(index, "descricao", e.target.value)
-                        }
-                        title={item.descricao || ""}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </>
-                )}
-                <div className="col-span-1 min-w-0 overflow-hidden">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Qtd
-                  </label>
-                  <input
-                    type="number"
-                    value={item.quantidade}
-                    onChange={(e) =>
-                      atualizarProduto(
-                        index,
-                        "quantidade",
-                        parseFloat(e.target.value) || 0,
-                      )
-                    }
-                    min="0"
-                    step="1"
-                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2 min-w-0 overflow-hidden">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Valor Unit.
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={item.valor_unitario}
-                    onChange={(e) =>
-                      atualizarProduto(
-                        index,
-                        "valor_unitario",
-                        e.target.value.replace(/[^\d,.]/g, ""),
-                      )
-                    }
-                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-1 min-w-0 overflow-hidden">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Total
-                  </label>
-                  <p className="truncate px-1 py-1 text-sm text-gray-800 dark:text-gray-200">
-                    {`R$ ${Number(item.valor_total || 0).toFixed(2)}`}
-                  </p>
-                </div>
-                <div className="col-span-1">
-                  <button
-                    type="button"
-                    onClick={() => removerProduto(index)}
-                    className="w-full px-2 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                  >
-                    X
-                  </button>
-                </div>
-              </div>
-            ))}
+        <div className="lg:hidden fixed inset-x-0 bottom-14 z-30 border-t border-ink-200 dark:border-ink-800 bg-white/95 dark:bg-ink-900/95 backdrop-blur px-4 py-2.5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-ink-500">Total</span>
+            <span className="text-base font-semibold num text-ink-900 dark:text-white">{formatarMoeda(totais.valor_total)}</span>
           </div>
-        </div>
-
-        {/* Serviços */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Serviços
-            </h2>
-            <button
-              type="button"
-              onClick={adicionarServico}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              + Adicionar Serviço
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {itensServicos.map((item, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-12 gap-2 items-end border-b dark:border-gray-700 pb-3 min-w-0"
-              >
-                <div className={`${item.origemSugestao && !item.servico_id ? "col-span-6" : "col-span-4"} min-w-0`}>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Descrição
-                  </label>
-                  {item.origemSugestao && !item.servico_id ? (
-                    <input
-                      type="text"
-                      value={item.descricao || ""}
-                      onChange={(e) =>
-                        atualizarServico(index, "descricao", e.target.value)
-                      }
-                      title={item.descricao || ""}
-                      className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <select
-                      value={item.servico_id || ""}
-                      onChange={(e) => handleServicoSelect(index, e.target.value)}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Selecionar serviço --</option>
-                      <option value="__add_new__">+ Novo Serviço</option>
-                      {item.servico_id &&
-                        !servicos.some(
-                          (s) => Number(s.id) === Number(item.servico_id),
-                        ) && (
-                          <option value={item.servico_id}>
-                            {item.descricao || `Serviço #${item.servico_id}`}
-                          </option>
-                        )}
-                      {servicos.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.nome}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                {!(item.origemSugestao && !item.servico_id) && (
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Código
-                  </label>
-                  <input
-                    type="text"
-                    value={item.codigo}
-                    onChange={(e) =>
-                      atualizarServico(index, "codigo", e.target.value)
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                )}
-                <div className="col-span-2 min-w-0 overflow-hidden">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Qtd/Horas
-                  </label>
-                  <input
-                    type="number"
-                    value={item.quantidade}
-                    onChange={(e) =>
-                      atualizarServico(
-                        index,
-                        "quantidade",
-                        parseFloat(e.target.value) || 0,
-                      )
-                    }
-                    min="0"
-                    step="0.5"
-                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-2 min-w-0 overflow-hidden">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Valor Unit.
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={item.valor_unitario}
-                    onChange={(e) =>
-                      atualizarServico(
-                        index,
-                        "valor_unitario",
-                        e.target.value.replace(/[^\d,.]/g, ""),
-                      )
-                    }
-                    className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="col-span-1 min-w-0 overflow-hidden">
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Total
-                  </label>
-                  <p className="truncate px-1 py-1 text-sm text-gray-800 dark:text-gray-200">
-                    {`R$ ${Number(item.valor_total || 0).toFixed(2)}`}
-                  </p>
-                </div>
-                <div className="col-span-1">
-                  <button
-                    type="button"
-                    onClick={() => removerServico(index)}
-                    className="w-full px-2 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                  >
-                    X
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Observações e Total */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Observações Gerais
-            </label>
-            <textarea
-              value={formData.observacoes_gerais}
-              onChange={(e) =>
-                setFormData({ ...formData, observacoes_gerais: e.target.value })
-              }
-              rows="3"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex justify-between items-center border-t dark:border-gray-700 pt-4">
-            <span className="text-2xl font-bold text-gray-800 dark:text-white">
-              Valor Total:
-            </span>
-            <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              R$ {calcularTotal().toFixed(2)}
-            </span>
-          </div>
-        </div>
-
-        {/* Botões */}
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => navigate("/orcamentos")}
-            className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            {editando ? "Salvar alterações" : "Salvar Orçamento"}
-          </button>
+          <div className="flex gap-2">{botoes}</div>
         </div>
       </form>
 
-      {/* Modais */}
+      <ConfirmDialog
+        open={confirmarAprovacao}
+        title="Aprovar e abrir OS"
+        message={`O orçamento de ${formatarMoeda(totais.valor_total)} será salvo e aprovado: as peças são baixadas do estoque e a ordem de serviço é criada. Continuar?`}
+        confirmLabel="Aprovar e abrir OS"
+        variant="primary"
+        onConfirm={salvarEAprovar}
+        onCancel={() => setConfirmarAprovacao(false)}
+      />
       <NovoClienteModal
-        isOpen={mostrarClienteForm}
-        onClose={() => setMostrarClienteForm(false)}
+        isOpen={novoCliente}
+        onClose={() => setNovoCliente(false)}
         onClienteCriado={(cliente) => {
-          carregarClientes();
-          setFormData({ ...formData, cliente_id: cliente.id });
+          qc.invalidateQueries({ queryKey: ["clientes"] });
+          if (cliente?.id) setForm((f) => ({ ...f, cliente_id: String(cliente.id), veiculo_id: "" }));
         }}
       />
-
       <NovoVeiculoModal
-        isOpen={mostrarVeiculoForm}
-        onClose={() => {
-          setMostrarVeiculoForm(false);
-          setVeiculoEmEdicao(null);
-        }}
-        clienteId={formData.cliente_id}
-        veiculo={veiculoEmEdicao}
-        onVeiculoCriado={(veiculo) => {
-          carregarVeiculos(formData.cliente_id);
-          if (veiculo?.id) setFormData({ ...formData, veiculo_id: veiculo.id });
+        isOpen={novoVeiculo}
+        onClose={() => setNovoVeiculo(false)}
+        clienteId={form.cliente_id}
+        onVeiculoCriado={(v) => {
+          recarregarVeiculos();
+          const vid = v?.id || v?.veiculo?.id;
+          if (vid) set("veiculo_id", String(vid));
         }}
       />
-
       <ProdutoFormModal
-        isOpen={mostrarProdutoModal}
-        produtosExistentes={produtos}
-        onClose={() => setMostrarProdutoModal(false)}
+        isOpen={novoProduto}
+        produtosExistentes={[]}
+        onClose={() => setNovoProduto(false)}
         onSaved={(p) => {
-          handleProdutoCriado(p);
-          setMostrarProdutoModal(false);
+          if (p?.id) setProdutos((l) => [...l, linhaDeProduto(p)]);
+          qc.invalidateQueries({ queryKey: ["produtos"] });
+          setNovoProduto(false);
         }}
       />
-
       <ServicoFormModal
-        isOpen={mostrarServicoModal}
-        onClose={() => setMostrarServicoModal(false)}
+        isOpen={novoServico}
+        onClose={() => setNovoServico(false)}
         onSaved={(s) => {
-          handleServicoCriado(s);
-          setMostrarServicoModal(false);
+          if (s?.id) setServicos((l) => [...l, linhaDeServico(s)]);
+          qc.invalidateQueries({ queryKey: ["servicos"] });
+          setNovoServico(false);
         }}
       />
     </div>

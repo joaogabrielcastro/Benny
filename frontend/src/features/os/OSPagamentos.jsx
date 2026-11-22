@@ -241,7 +241,7 @@ export default function OSPagamentos({ os }) {
             </div>
           </div>
           <div className="mt-2 h-1.5 rounded-full bg-ink-100 dark:bg-ink-800 overflow-hidden" aria-hidden>
-            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+            <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
           </div>
 
           {pagamentos.length > 0 && (

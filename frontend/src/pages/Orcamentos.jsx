@@ -1,5 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { FiPlus, FiFileText, FiEdit2, FiTrash2, FiChevronRight } from "react-icons/fi";
+import FilterChips from "../components/ui/FilterChips";
+import StatusBadge from "../components/ui/StatusBadge";
+import EmptyState from "../components/ui/EmptyState";
+import { SkeletonRows } from "../components/ui/Skeleton";
+import { TONES } from "../utils/statusColors";
+import { tempoRelativo } from "../features/os/osHelpers";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import api from "../services/api";
@@ -11,13 +18,13 @@ import { formatarMoeda } from "../utils/formatters";
 import PageHeader from "../components/layout/PageHeader";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
-import LoadingSpinner from "../components/LoadingSpinner";
 import { rotuloVeiculo } from "../features/veiculos/rotuloVeiculo";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 15;
 
 export default function Orcamentos() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { confirm, dialogState, handleClose } = useConfirm();
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebounce(busca);
@@ -74,148 +81,120 @@ export default function Orcamentos() {
     }
   };
 
-  const formatarData = (d) => new Date(d).toLocaleString("pt-BR");
-
-  const getStatusColor = (status) => {
-    const colors = {
-      Pendente: "bg-yellow-100 text-yellow-800 border border-yellow-300",
-      Aprovado: "bg-green-100 text-green-800 border border-green-300",
-      Reprovado: "bg-red-100 text-red-800 border border-red-300",
-    };
-    return colors[status] || "bg-gray-100 text-gray-800 border border-gray-300";
-  };
-
-  if (isLoading && !data) return <LoadingSpinner size="xl" />;
+  const chips = [
+    { value: "", label: "Todos" },
+    { value: "Pendente", label: "Aguardando cliente", dot: TONES.violet.dot },
+    { value: "Aprovado", label: "Aprovados", dot: TONES.green.dot },
+    { value: "Reprovado", label: "Reprovados", dot: TONES.gray.dot },
+  ];
 
   return (
     <div className="page-enter">
       <PageHeader
         title="Orçamentos"
-        subtitle="Crie, envie e aprove propostas para o cliente."
+        subtitle="Monte a proposta, envie o link ao cliente e aprove para abrir a OS."
         actions={
-          <Link to="/orcamentos/novo" className="btn-brand w-full sm:w-auto">
+          <Link to="/orcamentos/novo" className="btn-brand">
+            <FiPlus className="h-4 w-4" />
             Novo orçamento
           </Link>
         }
       />
 
-      <div className="pro-card p-4 sm:p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <SearchBar
-            onSearch={setBusca}
-            placeholder="Buscar por número, cliente ou placa..."
-          />
-          <select
-            value={filtroStatus}
-            onChange={(e) => setFiltroStatus(e.target.value)}
-            className="input-pro"
-          >
-            <option value="">Todos os status</option>
-            <option value="Pendente">Pendente</option>
-            <option value="Aprovado">Aprovado</option>
-            <option value="Reprovado">Reprovado</option>
-          </select>
-        </div>
+      <div className="space-y-3 mb-4">
+        <FilterChips options={chips} value={filtroStatus} onChange={setFiltroStatus} ariaLabel="Filtrar por status" />
+        <SearchBar onSearch={setBusca} placeholder="Buscar por número, cliente ou placa…" />
       </div>
 
-      <div className="pro-card overflow-hidden relative">
-        {isLoading && (
-          <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center">
-            <LoadingSpinner />
-          </div>
-        )}
-
-        <div className="hidden md:block overflow-x-auto">
+      <div className="pro-card overflow-hidden">
+        {isLoading && !data ? (
+          <SkeletonRows rows={6} cols={5} />
+        ) : orcamentos.length === 0 ? (
+          <EmptyState
+            icon={FiFileText}
+            title={buscaDebounced || filtroStatus ? "Nenhum orçamento encontrado" : "Nenhum orçamento ainda"}
+            description={buscaDebounced || filtroStatus ? "Ajuste a busca ou o filtro." : "Crie um orçamento para iniciar um atendimento."}
+            action={
+              <Link to="/orcamentos/novo" className="btn-brand">
+                <FiPlus className="h-4 w-4" /> Novo orçamento
+              </Link>
+            }
+          />
+        ) : (
           <table className="table-pro">
             <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Número
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Cliente
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Veículo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Valor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                  Ações
-                </th>
+                <th>Número</th>
+                <th>Cliente / veículo</th>
+                <th className="hidden sm:table-cell">Status</th>
+                <th className="text-right">Valor</th>
+                <th className="hidden md:table-cell">Criado</th>
+                <th className="text-right"><span className="sr-only">Ações</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
               {orcamentos.map((orc) => (
-                <tr key={orc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-6 py-4 text-sm font-medium">{orc.numero}</td>
-                  <td className="px-6 py-4 text-sm">{orc.cliente_nome}</td>
-                  <td className="px-6 py-4 text-sm">
-                    {rotuloVeiculo({
-                      marca: orc.veiculo_marca,
-                      modelo: orc.veiculo_modelo,
-                      versao: orc.veiculo_versao,
-                      motor: orc.veiculo_motor,
-                      ano: orc.veiculo_ano,
-                      placa: orc.veiculo_placa,
-                    })}
+                <tr key={orc.id} className="row-link group" onClick={() => navigate(`/orcamentos/${orc.id}`)}>
+                  <td className="whitespace-nowrap">
+                    <Link
+                      to={`/orcamentos/${orc.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-semibold num text-ink-900 dark:text-white hover:text-brand-600"
+                    >
+                      {orc.numero}
+                    </Link>
+                    <div className="sm:hidden mt-1">
+                      <StatusBadge kind="orcamento" status={orc.status} size="sm" />
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold">
+                  <td className="max-w-[20rem]">
+                    <p className="font-medium text-ink-900 dark:text-ink-100 truncate">{orc.cliente_nome}</p>
+                    <p className="text-xs text-ink-500 truncate">
+                      {rotuloVeiculo({
+                        marca: orc.veiculo_marca,
+                        modelo: orc.veiculo_modelo,
+                        versao: orc.veiculo_versao,
+                        motor: orc.veiculo_motor,
+                        ano: orc.veiculo_ano,
+                        placa: orc.veiculo_placa,
+                      })}
+                    </p>
+                  </td>
+                  <td className="hidden sm:table-cell">
+                    <StatusBadge kind="orcamento" status={orc.status} />
+                  </td>
+                  <td className="text-right font-semibold num text-ink-900 dark:text-ink-100 whitespace-nowrap">
                     {formatarMoeda(orc.valor_total)}
                   </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(orc.status)}`}
-                    >
-                      {orc.status}
-                    </span>
+                  <td className="hidden md:table-cell whitespace-nowrap">
+                    <span className="num">{new Date(orc.criado_em).toLocaleDateString("pt-BR")}</span>
+                    <span className="block text-xs text-ink-500">{tempoRelativo(orc.criado_em)}</span>
                   </td>
-                  <td className="px-6 py-4 text-sm">{formatarData(orc.criado_em)}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex flex-wrap gap-3">
-                      <Link
-                        to={`/orcamentos/${orc.id}`}
-                        className="text-brand-600 hover:text-brand-700 font-medium"
-                      >
-                        Ver
-                      </Link>
+                  <td className="text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
                       {orc.status === "Pendente" && (
-                        <Link
-                          to={`/orcamentos/${orc.id}/editar`}
-                          className="text-amber-600 hover:text-amber-700 font-medium"
-                        >
-                          Editar
+                        <Link to={`/orcamentos/${orc.id}/editar`} className="btn-ghost btn-sm" title="Editar">
+                          <FiEdit2 className="h-3.5 w-3.5" />
+                          <span className="hidden lg:inline">Editar</span>
                         </Link>
                       )}
                       <button
                         type="button"
                         onClick={() => handleExcluirOrcamento(orc)}
-                        className="text-red-600 hover:text-red-800 font-medium"
+                        className="btn-ghost btn-sm !px-1.5 text-ink-400 hover:!text-red-600"
+                        title={`Excluir ${orc.numero}`}
+                        aria-label={`Excluir ${orc.numero}`}
                       >
-                        Excluir
+                        <FiTrash2 className="h-4 w-4" />
                       </button>
+                      <FiChevronRight className="hidden sm:block h-4 w-4 text-ink-300 group-hover:text-ink-500" />
                     </div>
                   </td>
                 </tr>
               ))}
-              {orcamentos.length === 0 && !isLoading && (
-                <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
-                    Nenhum orçamento encontrado
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
-        </div>
-
+        )}
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
