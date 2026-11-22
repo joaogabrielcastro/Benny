@@ -1,6 +1,6 @@
 import { resolveTenantId } from "../config/singleTenant.js";
 import produtosService from "../services/produtosService.js";
-import { AppError } from "../lib/AppError.js";
+import { AppError, badRequest } from "../lib/AppError.js";
 import { assertFound, rethrowKnownErrors } from "../lib/controllerHelpers.js";
 import { sendPaginated } from "../lib/paginationResponse.js";
 
@@ -8,11 +8,12 @@ class ProdutosController {
   async listar(req, res) {
     const tenantId = resolveTenantId(req);
     const { limit, offset, page } = req.pagination;
-    const { busca, estoque } = req.query;
+    const { busca, estoque, categoria } = req.query;
     const { rows, total } = await produtosService.listar(tenantId, {
       limit,
       offset,
       busca: busca || undefined,
+      categoria: typeof categoria === "string" && categoria ? categoria : undefined,
       estoque:
         estoque === "baixo" || estoque === "zerado" ? estoque : undefined,
     });
@@ -66,6 +67,47 @@ class ProdutosController {
     } catch (error) {
       rethrowKnownErrors(error);
     }
+  }
+
+  async movimentacoes(req, res) {
+    const { limit, offset, page } = req.pagination;
+    const produtoId = parseInt(req.query.produto_id, 10);
+    const { rows, total } = await produtosService.listarMovimentacoes(
+      resolveTenantId(req),
+      {
+        produto_id: Number.isFinite(produtoId) && produtoId > 0 ? produtoId : undefined,
+        tipo: req.query.tipo,
+        limit,
+        offset,
+      },
+    );
+    sendPaginated(res, { rows, total, page, limit });
+  }
+
+  async movimentar(req, res) {
+    const body = req.validated?.body ?? req.body;
+    try {
+      const produto = await produtosService.movimentar(
+        resolveTenantId(req),
+        Number(req.params.id),
+        body,
+      );
+      assertFound(produto, "Produto não encontrado");
+      res.status(201).json({ message: "Movimentação registrada", produto });
+    } catch (error) {
+      if (error?.code === "ESTOQUE_INSUFICIENTE") {
+        throw badRequest(error.message);
+      }
+      throw error;
+    }
+  }
+
+  async categorias(req, res) {
+    res.json(await produtosService.listarCategorias(resolveTenantId(req), "produtos"));
+  }
+
+  async categoriasServicos(req, res) {
+    res.json(await produtosService.listarCategorias(resolveTenantId(req), "servicos"));
   }
 
   async deletar(req, res) {

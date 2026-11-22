@@ -105,18 +105,55 @@ async function persistirAtualizacaoNfQuery(
 
 export const listar = async (
   tenantId = SINGLE_TENANT_ID,
-  { limit = 20, offset = 0 } = {},
+  { limit = 20, offset = 0, status, modelo, busca, data_inicio, data_fim } = {},
 ) => {
+  const params = [tenantId];
+  let where = "WHERE nf.tenant_id = $1";
+  if (status) {
+    params.push(status);
+    where += ` AND nf.status = $${params.length}`;
+  }
+  if (modelo) {
+    params.push(String(modelo).toUpperCase() === "NFE" ? "NFE" : "NFSE");
+    where += ` AND nf.modelo_documento = $${params.length}`;
+  }
+  if (busca) {
+    params.push(`%${busca}%`);
+    const b = `$${params.length}`;
+    where += ` AND (nf.numero ILIKE ${b} OR os.numero ILIKE ${b} OR c.nome ILIKE ${b} OR nf.chave_acesso ILIKE ${b})`;
+  }
+  if (data_inicio) {
+    params.push(data_inicio);
+    where += ` AND COALESCE(nf.data_emissao, nf.criado_em) >= $${params.length}::date`;
+  }
+  if (data_fim) {
+    params.push(data_fim);
+    where += ` AND COALESCE(nf.data_emissao, nf.criado_em) < ($${params.length}::date + INTERVAL '1 day')`;
+  }
+  const from = `FROM notas_fiscais nf
+    LEFT JOIN ordens_servico os ON os.id = nf.ordem_servico_id AND os.tenant_id = nf.tenant_id
+    LEFT JOIN clientes c ON c.id = os.cliente_id`;
   const countRes = await pool.query(
-    `SELECT COUNT(*)::int AS total FROM notas_fiscais WHERE tenant_id = $1`,
-    [tenantId],
+    `SELECT COUNT(*)::int AS total ${from} ${where}`,
+    params,
   );
   const total = countRes.rows[0]?.total ?? 0;
   const r = await pool.query(
-    `SELECT * FROM notas_fiscais WHERE tenant_id = $1 ORDER BY id DESC LIMIT $2 OFFSET $3`,
-    [tenantId, limit, offset],
+    `SELECT nf.*, os.numero AS os_numero, c.nome AS cliente_nome
+     ${from} ${where}
+     ORDER BY nf.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset],
   );
-  return { rows: r.rows.map(mapNfParaRespostaApi), total };
+  return {
+    rows: r.rows.map((row) => ({
+      ...mapNfParaRespostaApi(row),
+      ordem_servico_id: row.ordem_servico_id,
+      os_numero: row.os_numero ?? null,
+      cliente_nome: row.cliente_nome ?? null,
+      criado_em: row.criado_em ?? null,
+    })),
+    total,
+  };
 };
 
 export const buscarPorId = async (tenantId = SINGLE_TENANT_ID, id) => {
