@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "../services/api";
 import toast from "react-hot-toast";
+import { useCategorias } from "./ServicoFormModal";
 import Modal from "./Modal";
 import { buscarNcmAutomotivo, rotuloNcm } from "../features/produtos/ncmAutomotivo";
 
@@ -41,9 +42,11 @@ export default function ProdutoFormModal({
     valor_venda: 0,
     estoque_minimo: 5,
     ncm: "",
+    categoria: "",
   };
 
   const [buscaNcm, setBuscaNcm] = useState("");
+  const { data: categorias = [] } = useCategorias("produtos");
   const [formData, setFormData] = useState(() =>
     produto?.id
       ? {
@@ -55,6 +58,7 @@ export default function ProdutoFormModal({
           valor_venda: produto.valor_venda ?? 0,
           estoque_minimo: produto.estoque_minimo ?? 5,
           ncm: produto.ncm ?? "",
+          categoria: produto.categoria ?? "",
         }
       : { ...emptyForm },
   );
@@ -72,6 +76,7 @@ export default function ProdutoFormModal({
         valor_venda: produto.valor_venda ?? 0,
           estoque_minimo: produto.estoque_minimo ?? 5,
           ncm: produto.ncm ?? "",
+          categoria: produto.categoria ?? "",
       });
     } else {
       setFormData({ ...emptyForm });
@@ -121,7 +126,11 @@ export default function ProdutoFormModal({
       toast.error("NCM deve ter exatamente 8 dígitos.");
       return;
     }
-    const payloadBase = { ...formData, ncm: ncmInformado ? ncmDigits : null };
+    const payloadBase = {
+      ...formData,
+      ncm: ncmInformado ? ncmDigits : null,
+      categoria: String(formData.categoria || "").trim() || null,
+    };
 
     try {
       let res;
@@ -146,7 +155,7 @@ export default function ProdutoFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={produto ? "Editar Produto" : "Novo Produto"}
+      title={produto ? "Editar peça" : "Nova peça"}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -179,6 +188,24 @@ export default function ProdutoFormModal({
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="label-pro" htmlFor="produto-categoria">Categoria</label>
+          <input
+            id="produto-categoria"
+            name="categoria"
+            list="produto-categorias"
+            value={formData.categoria}
+            onChange={handleChange}
+            className="input-pro"
+            placeholder="Ex.: Freios, Filtros, Lubrificantes"
+          />
+          <datalist id="produto-categorias">
+            {categorias.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
 
         <div>

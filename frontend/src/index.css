@@ -149,23 +149,23 @@
     @apply w-full text-sm text-left;
   }
 
-  .table-pro thead {
+  .table-pro :where(thead) {
     @apply bg-ink-50/80 dark:bg-ink-850/80 text-ink-500 dark:text-ink-400 text-2xs uppercase tracking-[0.06em];
   }
 
-  .table-pro th {
+  .table-pro :where(th) {
     @apply px-4 py-2.5 font-semibold whitespace-nowrap;
   }
 
-  .table-pro td {
+  .table-pro :where(td) {
     @apply px-4 py-3 border-t border-ink-100 dark:border-ink-800 text-ink-700 dark:text-ink-300 align-middle;
   }
 
-  .table-pro tbody tr {
+  .table-pro :where(tbody tr) {
     @apply hover:bg-ink-50/70 dark:hover:bg-ink-850/60 transition-colors;
   }
 
-  .table-pro tfoot td {
+  .table-pro :where(tfoot td) {
     @apply px-4 py-3 border-t border-ink-200 dark:border-ink-700 font-semibold;
   }
 
