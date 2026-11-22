@@ -15,14 +15,16 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatarMoeda } from "../../utils/formatters";
-import { exportDashboardToPDF } from "../../utils/pdfExport";
 
+// Mesmas cores do sistema de status (utils/statusColors)
 const STATUS_COLORS = {
-  Aberta: "#3B82F6",
-  "Em andamento": "#EAB308",
-  Finalizada: "#10B981",
-  Cancelada: "#EF4444",
+  Aberta: "#3c6ef1",
+  "Em andamento": "#f59e0b",
+  Finalizada: "#10b981",
+  Cancelada: "#9aa2ae",
 };
+const GRID = "rgba(107,116,130,0.18)";
+const TICK = { fontSize: 11, fill: "#6b7482" };
 
 export default function DashboardCharts({ relatorio }) {
   if (!relatorio) return null;
@@ -49,6 +51,7 @@ export default function DashboardCharts({ relatorio }) {
 
   const handleExportPDF = async () => {
     try {
+      const { exportDashboardToPDF } = await import("../../utils/pdfExport");
       await exportDashboardToPDF(stats, chartData);
       toast.success("PDF gerado com sucesso!");
     } catch {
@@ -88,8 +91,9 @@ export default function DashboardCharts({ relatorio }) {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={90}
+                    innerRadius={58}
+                    outerRadius={92}
+                    paddingAngle={2}
                     dataKey="value"
                   >
                     {osStatus.map((entry, index) => (
@@ -97,6 +101,7 @@ export default function DashboardCharts({ relatorio }) {
                     ))}
                   </Pie>
                   <Tooltip />
+                  <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -112,15 +117,16 @@ export default function DashboardCharts({ relatorio }) {
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData.faturamentoMensal}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
+                <CartesianGrid stroke={GRID} vertical={false} />
+                <XAxis dataKey="mes" tick={TICK} axisLine={false} tickLine={false} />
+                <YAxis tick={TICK} axisLine={false} tickLine={false} width={56} />
                 <Tooltip formatter={(value) => formatarMoeda(value)} />
                 <Line
                   type="monotone"
                   dataKey="valor"
-                  stroke="#2563eb"
-                  strokeWidth={2}
+                  stroke="#2655dc"
+                  strokeWidth={2.5}
+                  dot={{ r: 3 }}
                   name="Faturamento"
                 />
               </LineChart>
@@ -135,11 +141,11 @@ export default function DashboardCharts({ relatorio }) {
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData.produtosMaisVendidos}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nome" />
-                <YAxis />
+                <CartesianGrid stroke={GRID} vertical={false} />
+                <XAxis dataKey="nome" tick={TICK} axisLine={false} tickLine={false} interval={0} />
+                <YAxis tick={TICK} axisLine={false} tickLine={false} width={56} />
                 <Tooltip />
-                <Bar dataKey="quantidade" fill="#2563eb" name="Quantidade" />
+                <Bar dataKey="quantidade" fill="#2655dc" name="Quantidade" radius={[4, 4, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -152,10 +158,8 @@ export default function DashboardCharts({ relatorio }) {
 function MetricCard({ label, value }) {
   return (
     <div className="pro-card p-4">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold text-slate-900 dark:text-white">{value}</p>
+      <p className="text-xs font-medium text-ink-500 dark:text-ink-400">{label}</p>
+      <p className="mt-1.5 text-xl sm:text-2xl font-semibold num text-ink-900 dark:text-white">{value}</p>
     </div>
   );
 }

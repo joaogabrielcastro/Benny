@@ -235,3 +235,17 @@
     display: none !important;
   }
 }
+
+@layer utilities {
+  /* Tabelas largas rolam dentro do próprio cartão em telas estreitas,
+     sem gerar rolagem horizontal na página. Especificidade maior que
+     .overflow-hidden de propósito. */
+  .pro-card:has(> .table-pro),
+  .pro-card:has(> div > .table-pro) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  main {
+    min-width: 0;
+  }
+}
