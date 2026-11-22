@@ -1,39 +1,336 @@
-import { useRef, useState, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import {
+  FiPlay,
+  FiCheckCircle,
+  FiPrinter,
+  FiEdit2,
+  FiMoreHorizontal,
+  FiXCircle,
+  FiTrash2,
+  FiUser,
+  FiTruck,
+  FiPhone,
+  FiMessageCircle,
+  FiList,
+  FiFileText,
+  FiAlertCircle,
+  FiExternalLink,
+} from "react-icons/fi";
 import api from "../services/api";
 import { useFiscalFeatures } from "../hooks/os/useFiscalFeatures";
 import { useOrdemServicoQuery } from "../hooks/os/useOrdemServicoQuery";
 import { useNotasFiscaisOs } from "../hooks/os/useNotasFiscaisOs";
 import OSImpressao from "../components/OSImpressao";
 import PersonalizarImpressaoModal from "../components/PersonalizarImpressaoModal";
-import {
-  carregarDefaultsImpressao,
-  salvarDefaultsImpressao,
-} from "../utils/impressaoDefaults";
-import OSDetalhesAcoes from "../features/os/OSDetalhesAcoes";
+import { carregarDefaultsImpressao, salvarDefaultsImpressao } from "../utils/impressaoDefaults";
 import { useAuth } from "../contexts/AuthContext";
 import ClienteEnderecoNfseBlock from "../features/os/ClienteEnderecoNfseBlock";
 import NotaFiscalModal from "../features/os/NotaFiscalModal";
-import AuditoriaFiscalOs from "../features/os/AuditoriaFiscalOs";
 import ClienteFormModal from "../components/ClienteFormModal";
+import ConfirmDialog from "../components/ConfirmDialog";
+import Modal from "../components/Modal";
 import { nfErroEnderecoTomador } from "../features/os/fiscalUtils";
 import { mascaraCEP } from "../utils/masks";
-import { formatarMoeda, formatarDataHora } from "../utils/formatters";
-import { osStatusClass } from "../utils/statusColors";
+import { formatarMoeda, formatarDataHora, formatarData } from "../utils/formatters";
 import PageHeader from "../components/layout/PageHeader";
 import LoadingSpinner from "../components/LoadingSpinner";
+import Section, { KeyValue } from "../components/ui/Section";
+import StatusBadge from "../components/ui/StatusBadge";
+import EmptyState from "../components/ui/EmptyState";
+import OSStepper from "../features/os/OSStepper";
+import OSFiscalPanel from "../features/os/OSFiscalPanel";
+import OSPagamentos, { usePagamentosOs } from "../features/os/OSPagamentos";
+import OSHistorico from "../features/os/OSHistorico";
+import { formatarPlaca, rotuloVeiculoSemPlaca } from "../features/os/osHelpers";
+
+const EDITAVEL = new Set(["Aberta", "Em andamento"]);
+
+function whatsappUrl(telefone) {
+  const d = String(telefone || "").replace(/\D/g, "");
+  if (d.length < 10) return null;
+  return `https://wa.me/${d.startsWith("55") ? d : `55${d}`}`;
+}
+
+function MenuMais({ itens }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!aberto) return undefined;
+    const fn = (e) => ref.current && !ref.current.contains(e.target) && setAberto(false);
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [aberto]);
+  const visiveis = itens.filter(Boolean);
+  if (!visiveis.length) return null;
+  return (
+    <div className="relative !flex-none" ref={ref}>
+      <button
+        type="button"
+        className="btn-secondary btn-icon"
+        onClick={() => setAberto((v) => !v)}
+        aria-label="Mais ações"
+        aria-expanded={aberto}
+      >
+        <FiMoreHorizontal className="h-4 w-4" />
+      </button>
+      {aberto && (
+        <div className="absolute right-0 top-full mt-1.5 w-56 pro-card shadow-pop z-30 p-1 animate-fade-in">
+          {visiveis.map((it) => (
+            <button
+              key={it.label}
+              type="button"
+              onClick={() => {
+                setAberto(false);
+                it.onClick();
+              }}
+              className={`w-full flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-left ${
+                it.danger
+                  ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                  : "text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-800"
+              }`}
+            >
+              <it.icon className="h-4 w-4" />
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CancelarNotaDialog({ modelo, onClose, onConfirmar }) {
+  const label = modelo === "NFE" ? "NF-e" : "NFS-e";
+  const [motivo, setMotivo] = useState("Cancelamento solicitado pelo emitente conforme acordo com o cliente.");
+  const [enviando, setEnviando] = useState(false);
+  const valido = motivo.trim().length >= 15;
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={`Cancelar ${label}`}
+      description="O cancelamento é enviado ao provedor fiscal e não pode ser desfeito."
+      size="sm"
+      footer={
+        <>
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            Voltar
+          </button>
+          <button
+            type="button"
+            className="btn-danger"
+            disabled={!valido || enviando}
+            onClick={async () => {
+              setEnviando(true);
+              const ok = await onConfirmar(motivo.trim());
+              setEnviando(false);
+              if (ok) onClose();
+            }}
+          >
+            {enviando ? "Enviando…" : `Cancelar ${label}`}
+          </button>
+        </>
+      }
+    >
+      <label className="label-pro" htmlFor="motivo-canc">Motivo (mínimo 15 caracteres)</label>
+      <textarea
+        id="motivo-canc"
+        className="input-pro min-h-[96px]"
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+      />
+      <p className={`help-pro ${valido ? "" : "text-red-600"}`}>{motivo.trim().length}/15 caracteres</p>
+    </Modal>
+  );
+}
+
+function ItensOS({ os, isAdmin, onSalvarNcm }) {
+  const produtos = os.produtos || [];
+  const servicos = os.servicos || [];
+  if (!produtos.length && !servicos.length) {
+    return (
+      <Section title="Serviços e peças" icon={FiList}>
+        <EmptyState compact title="Nenhum item nesta OS" description="Use Editar para incluir serviços e peças." />
+      </Section>
+    );
+  }
+  return (
+    <Section title="Serviços e peças" icon={FiList} padded={false}>
+      {servicos.length > 0 && (
+        <div>
+          <p className="eyebrow px-4 sm:px-5 pt-4 pb-2">Serviços · mão de obra</p>
+          <table className="table-pro">
+            <thead className="hidden sm:table-header-group">
+              <tr>
+                <th>Descrição</th>
+                <th className="text-right w-20">Qtd</th>
+                <th className="text-right w-32">Unitário</th>
+                <th className="text-right w-32">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {servicos.map((s, i) => (
+                <tr key={s.id || i}>
+                  <td>
+                    <p className="font-medium text-ink-900 dark:text-ink-100">{s.descricao}</p>
+                    <p className="text-2xs text-ink-500">
+                      {s.codigo}
+                      <span className="sm:hidden num"> · {Number(s.quantidade)} × {formatarMoeda(s.valor_unitario)}</span>
+                    </p>
+                  </td>
+                  <td className="text-right num hidden sm:table-cell">{Number(s.quantidade)}</td>
+                  <td className="text-right num hidden sm:table-cell">{formatarMoeda(s.valor_unitario)}</td>
+                  <td className="text-right num font-semibold text-ink-900 dark:text-ink-100">{formatarMoeda(s.valor_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {produtos.length > 0 && (
+        <div className={servicos.length ? "border-t border-ink-100 dark:border-ink-800" : ""}>
+          <p className="eyebrow px-4 sm:px-5 pt-4 pb-2">Peças</p>
+          <table className="table-pro">
+            <thead className="hidden sm:table-header-group">
+              <tr>
+                <th>Descrição</th>
+                {isAdmin && <th className="w-32">NCM</th>}
+                <th className="text-right w-20">Qtd</th>
+                <th className="text-right w-32">Unitário</th>
+                <th className="text-right w-32">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {produtos.map((p, i) => {
+                const ncm = p.ncm || p.produto_ncm || "";
+                return (
+                  <tr key={p.id || i}>
+                    <td>
+                      <p className="font-medium text-ink-900 dark:text-ink-100">{p.descricao}</p>
+                      <p className="text-2xs text-ink-500">
+                        {p.codigo}
+                        <span className="sm:hidden num"> · {p.quantidade} × {formatarMoeda(p.valor_unitario)}</span>
+                      </p>
+                      {isAdmin && (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          defaultValue={ncm}
+                          key={`m-${p.id}-${ncm}`}
+                          onBlur={(e) => onSalvarNcm(p, e.target.value.replace(/\D/g, "").slice(0, 8))}
+                          placeholder="NCM (8 dígitos)"
+                          aria-label={`NCM de ${p.descricao}`}
+                          className="sm:hidden input-pro !min-h-0 !py-1 !text-xs mt-1.5 w-40 font-mono"
+                        />
+                      )}
+                    </td>
+                    {isAdmin && (
+                      <td className="hidden sm:table-cell">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          defaultValue={ncm}
+                          key={`${p.id}-${ncm}`}
+                          onBlur={(e) => onSalvarNcm(p, e.target.value.replace(/\D/g, "").slice(0, 8))}
+                          placeholder="8 dígitos"
+                          title="Obrigatório para a NF-e autorizar"
+                          aria-label={`NCM de ${p.descricao}`}
+                          className={`input-pro !min-h-0 !py-1 !text-xs w-28 font-mono ${ncm ? "" : "!border-amber-300 dark:!border-amber-700"}`}
+                        />
+                      </td>
+                    )}
+                    <td className="text-right num hidden sm:table-cell">{p.quantidade}</td>
+                    <td className="text-right num hidden sm:table-cell">{formatarMoeda(p.valor_unitario)}</td>
+                    <td className="text-right num font-semibold text-ink-900 dark:text-ink-100">{formatarMoeda(p.valor_total)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <dl className="border-t border-ink-200 dark:border-ink-700 px-4 sm:px-5 py-3 space-y-1 text-sm bg-ink-50/60 dark:bg-ink-850/40 rounded-b-xl">
+        <div className="flex justify-between text-ink-600 dark:text-ink-300">
+          <dt>Serviços</dt>
+          <dd className="num">{formatarMoeda(os.valor_servicos)}</dd>
+        </div>
+        <div className="flex justify-between text-ink-600 dark:text-ink-300">
+          <dt>Peças</dt>
+          <dd className="num">{formatarMoeda(os.valor_produtos)}</dd>
+        </div>
+        <div className="flex justify-between pt-1 text-base font-semibold text-ink-900 dark:text-white">
+          <dt>Total</dt>
+          <dd className="num">{formatarMoeda(os.valor_total)}</dd>
+        </div>
+      </dl>
+    </Section>
+  );
+}
+
+function ResponsavelSelect({ os, onSalvo }) {
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ["responsaveis"],
+    queryFn: async () => (await api.get("/responsaveis")).data,
+    staleTime: 5 * 60_000,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const atualId = os.responsavel_usuario_id ? String(os.responsavel_usuario_id) : "";
+  const textoLivreSemVinculo = !atualId && os.responsavel_tecnico;
+
+  const salvar = async (valor) => {
+    setSalvando(true);
+    try {
+      await api.put(`/ordens-servico/${os.id}`, {
+        responsavel_usuario_id: valor ? Number(valor) : null,
+        ...(valor ? {} : { responsavel_tecnico: null }),
+      });
+      toast.success("Responsável atualizado.");
+      onSalvo();
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Não foi possível atualizar o responsável.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="text-xs text-ink-500" htmlFor="resp">Responsável</label>
+      <select
+        id="resp"
+        className="input-pro mt-0.5 !min-h-[2.25rem]"
+        value={atualId}
+        disabled={salvando || os.status === "Cancelada"}
+        onChange={(e) => salvar(e.target.value)}
+      >
+        <option value="">{textoLivreSemVinculo ? `${os.responsavel_tecnico} (texto livre)` : "Não atribuído"}</option>
+        {usuarios.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.nome}
+            {u.role === "mecanico" ? " · mecânico" : ""}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export default function OSDetalhes() {
   const { isAdmin } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [editarClienteAberto, setEditarClienteAberto] = useState(false);
   const [showImpressaoModal, setShowImpressaoModal] = useState(false);
-  const [textosImpressao, setTextosImpressao] = useState(() =>
-    carregarDefaultsImpressao("os"),
-  );
+  const [confirmacao, setConfirmacao] = useState(null);
+  const [cancelarNota, setCancelarNota] = useState(null);
+  const [mudandoStatus, setMudandoStatus] = useState(false);
+  const [mostrarEndereco, setMostrarEndereco] = useState(false);
+  const [textosImpressao, setTextosImpressao] = useState(() => carregarDefaultsImpressao("os"));
   const { nfeHabilitada, nfseIncluirPecas } = useFiscalFeatures();
   const {
     os,
@@ -44,6 +341,12 @@ export default function OSDetalhes() {
     setNotaFiscalPecas,
     carregar: carregarOS,
   } = useOrdemServicoQuery(id);
+  const { data: pagamentosData } = usePagamentosOs(id, isAdmin);
+
+  const recarregar = () => {
+    carregarOS();
+    qc.invalidateQueries({ queryKey: ["ordens-servico"] });
+  };
 
   const nf = useNotasFiscaisOs({
     osId: id,
@@ -96,20 +399,32 @@ export default function OSDetalhes() {
     }
   };
 
-  const handleAtualizarStatus = async (novoStatus) => {
+  const atualizarStatus = async (novoStatus) => {
+    setMudandoStatus(true);
     try {
-      await api.put(`/ordens-servico/${id}`, {
-        status: novoStatus,
-        responsavel_tecnico: os.responsavel_tecnico,
-        km: os.km ?? null,
-        previsao_entrega: os.previsao_entrega,
-        observacoes_veiculo: os.observacoes_veiculo,
-        observacoes_gerais: os.observacoes_gerais,
-      });
-      toast.success("Status atualizado com sucesso!");
-      carregarOS();
-    } catch {
-      toast.error("Erro ao atualizar status");
+      await api.put(`/ordens-servico/${id}`, { status: novoStatus });
+      const msg = {
+        "Em andamento": "Serviço iniciado.",
+        Finalizada: "OS finalizada.",
+        Cancelada: "OS cancelada. Peças devolvidas ao estoque.",
+      };
+      toast.success(msg[novoStatus] || "Status atualizado.");
+      recarregar();
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Erro ao atualizar status");
+    } finally {
+      setMudandoStatus(false);
+    }
+  };
+
+  const excluirOs = async () => {
+    try {
+      await api.delete(`/ordens-servico/${id}`);
+      toast.success("Ordem de serviço excluída.");
+      qc.invalidateQueries({ queryKey: ["ordens-servico"] });
+      navigate("/ordens-servico");
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Erro ao excluir OS");
     }
   };
 
@@ -134,10 +449,6 @@ export default function OSDetalhes() {
     `,
   });
 
-  const handleAbrirImpressao = () => {
-    setShowImpressaoModal(true);
-  };
-
   const handleConfirmarImpressao = (textos) => {
     salvarDefaultsImpressao("os", textos);
     setTextosImpressao(textos);
@@ -146,424 +457,304 @@ export default function OSDetalhes() {
   };
 
   const motivoEnderecoNf = useMemo(() => {
-    const cepOk =
-      String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
+    const cepOk = String(os?.cliente_cep || "").replace(/\D/g, "").length === 8;
     const nfRejeitada =
-      (nf.notaFiscalServico?.status_nf === "rejeitada" &&
-        nfErroEnderecoTomador(nf.notaFiscalServico)) ||
-      (nfeHabilitada &&
-        nf.notaFiscalPecas?.status_nf === "rejeitada" &&
-        nfErroEnderecoTomador(nf.notaFiscalPecas));
+      (nf.notaFiscalServico?.status_nf === "rejeitada" && nfErroEnderecoTomador(nf.notaFiscalServico)) ||
+      (nfeHabilitada && nf.notaFiscalPecas?.status_nf === "rejeitada" && nfErroEnderecoTomador(nf.notaFiscalPecas));
     if (nfRejeitada) return "cep_invalido";
     if (!cepOk) return "cep_ausente";
     return null;
   }, [os?.cliente_cep, nf.notaFiscalServico, nf.notaFiscalPecas, nfeHabilitada]);
 
-  if (loading) {
-    return <LoadingSpinner size="xl" />;
-  }
-
+  if (loading) return <LoadingSpinner size="lg" />;
   if (!os) {
     return (
-      <div className="text-center py-8 text-slate-500">OS não encontrada</div>
+      <EmptyState
+        icon={FiAlertCircle}
+        title="OS não encontrada"
+        action={<Link to="/ordens-servico" className="btn-secondary">Voltar para a lista</Link>}
+      />
     );
   }
 
+  const editavel = EDITAVEL.has(os.status);
+  const situacao = pagamentosData?.resumo?.situacao;
+  const notaAutorizada =
+    nf.notaFiscalServico?.status_nf === "autorizada" || nf.notaFiscalPecas?.status_nf === "autorizada";
+  const wa = whatsappUrl(os.cliente_telefone);
+
+  const acaoPrincipal =
+    os.status === "Aberta" ? (
+      <button type="button" className="btn-brand" disabled={mudandoStatus} onClick={() => atualizarStatus("Em andamento")}>
+        <FiPlay className="h-4 w-4" />
+        Iniciar serviço
+      </button>
+    ) : os.status === "Em andamento" ? (
+      <button
+        type="button"
+        className="btn-success"
+        disabled={mudandoStatus}
+        onClick={() =>
+          setConfirmacao({
+            title: "Finalizar ordem de serviço",
+            message:
+              "Confirme que o serviço foi concluído. Depois de finalizada, a OS não aceita mais alteração de itens e fica liberada para pagamento e nota fiscal.",
+            confirmLabel: "Finalizar",
+            variant: "primary",
+            onConfirm: () => atualizarStatus("Finalizada"),
+          })
+        }
+      >
+        <FiCheckCircle className="h-4 w-4" />
+        Finalizar serviço
+      </button>
+    ) : null;
+
   return (
-    <div className="page-enter space-y-6">
+    <div className="page-enter">
       <PageHeader
-        title={`OS ${os.numero}`}
-        subtitle={`Cliente: ${os.cliente_nome} · ${os.veiculo_placa || ""}`}
-        badge={
-          <span
-            className={`px-3 py-1 text-sm font-semibold rounded-full ${osStatusClass(os.status)}`}
-          >
-            {os.status}
-          </span>
+        back={{ to: "/ordens-servico", label: "Ordens de serviço" }}
+        eyebrow="Ordem de serviço"
+        title={<span className="num">{os.numero}</span>}
+        badge={<StatusBadge kind="os" status={os.status} />}
+        subtitle={
+          <>
+            {os.cliente_nome} · <span className="font-mono">{formatarPlaca(os.veiculo_placa)}</span> · aberta em{" "}
+            {formatarDataHora(os.criado_em)}
+            {os.finalizado_em ? ` · finalizada em ${formatarDataHora(os.finalizado_em)}` : ""}
+          </>
+        }
+        actions={
+          <>
+            {acaoPrincipal}
+            {editavel && (
+              <Link to={`/ordens-servico/${id}/editar`} className="btn-secondary">
+                <FiEdit2 className="h-4 w-4" />
+                Editar
+              </Link>
+            )}
+            <button type="button" className="btn-secondary" onClick={() => setShowImpressaoModal(true)}>
+              <FiPrinter className="h-4 w-4" />
+              Imprimir
+            </button>
+            <MenuMais
+              itens={[
+                editavel && {
+                  label: "Cancelar OS",
+                  icon: FiXCircle,
+                  danger: true,
+                  onClick: () =>
+                    setConfirmacao({
+                      title: "Cancelar ordem de serviço",
+                      message: `Cancelar a ${os.numero}? As peças desta OS voltam para o estoque. Esta ação não pode ser desfeita.`,
+                      confirmLabel: "Cancelar OS",
+                      onConfirm: () => atualizarStatus("Cancelada"),
+                    }),
+                },
+                isAdmin && {
+                  label: "Excluir OS",
+                  icon: FiTrash2,
+                  danger: true,
+                  onClick: () =>
+                    setConfirmacao({
+                      title: "Excluir ordem de serviço",
+                      message: `Excluir a ${os.numero}? Movimentações de estoque desta OS serão desfeitas.`,
+                      confirmLabel: "Excluir",
+                      onConfirm: excluirOs,
+                    }),
+                },
+              ]}
+            />
+          </>
         }
       />
 
-      <OSDetalhesAcoes
-        os={os}
-        osId={id}
-        notaFiscalServico={nf.notaFiscalServico}
-        notaFiscalPecas={nf.notaFiscalPecas}
-        gerandoNfse={nf.gerandoNfse}
-        gerandoNfe={nf.gerandoNfe}
-        onGerarNF={nf.handleGerarNF}
-        onShowNFModal={nf.setShowNFModal}
-        onAtualizarStatus={handleAtualizarStatus}
-        onImprimir={handleAbrirImpressao}
-        isAdmin={isAdmin}
-        nfeHabilitada={nfeHabilitada}
-        nfseIncluirPecas={nfseIncluirPecas}
-      />
+      <div className="pro-card px-3 sm:px-5 pt-4 pb-3 mb-5">
+        <OSStepper os={os} situacaoPagamento={situacao} notaAutorizada={notaAutorizada} mostrarFinanceiro={isAdmin} />
+      </div>
 
-      {isAdmin && motivoEnderecoNf && (
-        <ClienteEnderecoNfseBlock
-          os={os}
-          motivo={motivoEnderecoNf}
-          rejeicaoKey={[
-            nf.notaFiscalServico?.id,
-            nf.notaFiscalServico?.atualizado_em_nf,
-            nf.notaFiscalServico?.detalhe_rejeicao,
-            nf.notaFiscalPecas?.id,
-            nf.notaFiscalPecas?.atualizado_em_nf,
-          ].join("-")}
-          onSalvo={carregarOS}
-        />
+      {isAdmin && motivoEnderecoNf && !mostrarEndereco && motivoEnderecoNf !== "cep_invalido" && (
+        <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+          <FiAlertCircle className="h-4 w-4 text-amber-600 shrink-0 hidden sm:block" />
+          <p className="flex-1 text-sm text-amber-900 dark:text-amber-200">
+            <span className="font-semibold">Endereço do cliente incompleto.</span> O CEP é obrigatório para emitir a NFS-e.
+          </p>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setMostrarEndereco(true)}>
+            Completar endereço
+          </button>
+        </div>
       )}
 
-      <p className="text-sm text-slate-500 dark:text-slate-400 -mt-2">
-        Aberta em {formatarDataHora(os.criado_em)}
-      </p>
+      {isAdmin && motivoEnderecoNf && (mostrarEndereco || motivoEnderecoNf === "cep_invalido") && (
+        <div className="mb-5">
+          <ClienteEnderecoNfseBlock
+            os={os}
+            motivo={motivoEnderecoNf}
+            rejeicaoKey={[
+              nf.notaFiscalServico?.id,
+              nf.notaFiscalServico?.atualizado_em_nf,
+              nf.notaFiscalServico?.detalhe_rejeicao,
+              nf.notaFiscalPecas?.id,
+              nf.notaFiscalPecas?.atualizado_em_nf,
+            ].join("-")}
+            onSalvo={carregarOS}
+          />
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="pro-card p-6">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              Cliente
-            </h2>
-            {isAdmin && os.cliente_id && (
-              <button
-                type="button"
-                onClick={() => setEditarClienteAberto(true)}
-                className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
-              >
-                Editar
-              </button>
-            )}
-          </div>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                Nome:
-              </span>
-              <p className="text-lg text-gray-800 dark:text-gray-200">
-                {os.cliente_nome}
-              </p>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                Telefone:
-              </span>
-              <p className="text-lg text-gray-800 dark:text-gray-200">
-                {os.cliente_telefone || "Não informado"}
-              </p>
-            </div>
-            {os.cliente_cpf_cnpj && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <div className="lg:col-span-2 space-y-5 min-w-0">
+          <Section title="Relato e diagnóstico" icon={FiFileText}>
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  CPF/CNPJ:
-                </span>
-                <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {os.cliente_cpf_cnpj}
+                <p className="text-xs text-ink-500">Relato do cliente / condição do veículo</p>
+                <p className="mt-1 text-sm text-ink-900 dark:text-ink-100 whitespace-pre-wrap">
+                  {os.observacoes_veiculo || <span className="text-ink-400">Não informado</span>}
                 </p>
+              </div>
+              <div>
+                <p className="text-xs text-ink-500">Diagnóstico e observações</p>
+                <p className="mt-1 text-sm text-ink-900 dark:text-ink-100 whitespace-pre-wrap">
+                  {os.observacoes_gerais || <span className="text-ink-400">Não informado</span>}
+                </p>
+              </div>
+            </div>
+          </Section>
+
+          <ItensOS os={os} isAdmin={isAdmin} onSalvarNcm={salvarNcmProduto} />
+
+          {isAdmin && <OSHistorico os={os} />}
+        </div>
+
+        <aside className="space-y-5 min-w-0">
+          {isAdmin && <OSPagamentos os={os} />}
+
+          <Section title="Atendimento" icon={FiList}>
+            <dl className="grid grid-cols-2 gap-4">
+              <KeyValue label="Quilometragem">
+                {os.km != null && os.km !== "" ? <span className="num">{Number(os.km).toLocaleString("pt-BR")} km</span> : null}
+              </KeyValue>
+              <KeyValue label="Previsão de entrega">{os.previsao_entrega ? formatarData(os.previsao_entrega) : null}</KeyValue>
+              <div className="col-span-2">
+                {isAdmin ? (
+                  <ResponsavelSelect os={os} onSalvo={recarregar} />
+                ) : (
+                  <KeyValue label="Responsável">{os.responsavel_tecnico}</KeyValue>
+                )}
+              </div>
+            </dl>
+          </Section>
+
+          <Section
+            title="Cliente"
+            icon={FiUser}
+            actions={
+              isAdmin && os.cliente_id ? (
+                <button type="button" onClick={() => setEditarClienteAberto(true)} className="text-xs link-pro">
+                  Editar
+                </button>
+              ) : null
+            }
+          >
+            <p className="text-sm font-semibold text-ink-900 dark:text-white">{os.cliente_nome}</p>
+            {os.cliente_cpf_cnpj && <p className="text-xs text-ink-500 num">{os.cliente_cpf_cnpj}</p>}
+            {os.cliente_telefone && (
+              <div className="mt-3 flex gap-2">
+                <a href={`tel:${String(os.cliente_telefone).replace(/\D/g, "")}`} className="btn-secondary btn-sm flex-1">
+                  <FiPhone className="h-3.5 w-3.5" />
+                  {os.cliente_telefone}
+                </a>
+                {wa && (
+                  <a href={wa} target="_blank" rel="noreferrer" className="btn-secondary btn-sm" title="Abrir WhatsApp">
+                    <FiMessageCircle className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </a>
+                )}
               </div>
             )}
             {(os.cliente_endereco || os.cliente_cep) && (
-              <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  Endereço:
-                </span>
-                <p className="text-gray-800 dark:text-gray-200">
-                  {[
-                    os.cliente_endereco,
-                    os.cliente_numero,
-                    os.cliente_bairro,
-                    os.cliente_cidade,
-                    os.cliente_estado,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                  {os.cliente_cep && (
-                    <span className="block text-sm text-slate-500 mt-1">
-                      CEP {mascaraCEP(os.cliente_cep)}
-                    </span>
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="pro-card p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Veículo
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                Modelo:
-              </span>
-              <p className="text-lg text-gray-800 dark:text-gray-200">
-                {[os.veiculo_marca, os.veiculo_modelo, os.veiculo_versao]
+              <p className="mt-3 text-xs text-ink-500">
+                {[os.cliente_endereco, os.cliente_numero, os.cliente_bairro, os.cliente_cidade, os.cliente_estado]
                   .filter(Boolean)
-                  .join(" ") || os.veiculo_modelo}
+                  .join(", ")}
+                {os.cliente_cep && ` · CEP ${mascaraCEP(os.cliente_cep)}`}
               </p>
-            </div>
-            {(os.veiculo_motor || os.veiculo_combustivel) && (
-              <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  Motor:
-                </span>
-                <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {[os.veiculo_motor, os.veiculo_combustivel].filter(Boolean).join(" • ")}
-                </p>
-              </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  Placa:
-                </span>
-                <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {os.veiculo_placa}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  Cor:
-                </span>
-                <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {os.veiculo_cor}
+            {isAdmin && os.cliente_id && (
+              <Link to={`/clientes/${os.cliente_id}`} className="mt-3 text-xs link-pro inline-flex items-center gap-1">
+                Ficha e histórico do cliente <FiExternalLink className="h-3 w-3" />
+              </Link>
+            )}
+          </Section>
+
+          <Section title="Veículo" icon={FiTruck}>
+            <div className="flex items-center gap-3">
+              <span className="rounded-md border-2 border-ink-800 dark:border-ink-300 px-2 py-0.5 font-mono text-sm font-bold tracking-wider text-ink-900 dark:text-white bg-white dark:bg-ink-900">
+                {formatarPlaca(os.veiculo_placa)}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink-900 dark:text-white truncate">{rotuloVeiculoSemPlaca(os)}</p>
+                <p className="text-xs text-ink-500">
+                  {[os.veiculo_ano, os.veiculo_cor, os.veiculo_combustivel].filter(Boolean).join(" · ")}
                 </p>
               </div>
             </div>
-            {os.veiculo_chassi && (
-              <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  Chassi:
-                </span>
-                <p className="text-lg text-gray-800 dark:text-gray-200 font-mono text-sm break-all">
+            <dl className="mt-3 grid grid-cols-2 gap-3">
+              {os.veiculo_motor && <KeyValue label="Motor">{os.veiculo_motor}</KeyValue>}
+              {os.veiculo_chassi && (
+                <KeyValue label="Chassi" mono className="col-span-2">
                   {os.veiculo_chassi}
-                </p>
-              </div>
+                </KeyValue>
+              )}
+            </dl>
+            {isAdmin && os.cliente_id && (
+              <Link
+                to={`/clientes/${os.cliente_id}?veiculo=${os.veiculo_id}`}
+                className="mt-3 text-xs link-pro inline-flex items-center gap-1"
+              >
+                Histórico deste veículo <FiExternalLink className="h-3 w-3" />
+              </Link>
             )}
-            {os.km != null && os.km !== "" && (
-              <div>
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  KM:
-                </span>
-                <p className="text-lg text-gray-800 dark:text-gray-200">
-                  {Number(os.km).toLocaleString("pt-BR")}
-                </p>
-              </div>
-            )}
-            {os.observacoes_veiculo && (
-              <div className="mt-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
-                <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                  Observações:
-                </span>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                  {os.observacoes_veiculo}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+          </Section>
+
+          {isAdmin && (
+            <OSFiscalPanel
+              os={os}
+              notaFiscalServico={nf.notaFiscalServico}
+              notaFiscalPecas={nf.notaFiscalPecas}
+              gerandoNfse={nf.gerandoNfse}
+              gerandoNfe={nf.gerandoNfe}
+              onGerarNF={nf.handleGerarNF}
+              onShowNFModal={nf.setShowNFModal}
+              nfeHabilitada={nfeHabilitada}
+              nfseIncluirPecas={nfseIncluirPecas}
+            />
+          )}
+        </aside>
       </div>
 
-      {os.produtos && os.produtos.length > 0 && (
-        <div className="pro-card p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Produtos
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="table-pro">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Código
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Descrição
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    NCM
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Qtd
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Valor Unit.
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {os.produtos.map((produto, index) => (
-                  <tr
-                    key={index}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
-                      {produto.codigo}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
-                      {produto.descricao}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        defaultValue={produto.ncm || produto.produto_ncm || ""}
-                        key={`${produto.id}-${produto.ncm || produto.produto_ncm || ""}`}
-                        onBlur={(e) =>
-                          salvarNcmProduto(
-                            produto,
-                            e.target.value.replace(/\D/g, "").slice(0, 8),
-                          )
-                        }
-                        placeholder="8 dígitos"
-                        title="Obrigatório para a NF-e autorizar"
-                        className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-800 dark:text-gray-200">
-                      {produto.quantidade}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-800 dark:text-gray-200">
-                      {formatarMoeda(produto.valor_unitario)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
-                      {formatarMoeda(produto.valor_total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-blue-50 dark:bg-gray-700 font-semibold">
-                  <td
-                    colSpan="5"
-                    className="px-4 py-3 text-right text-gray-800 dark:text-gray-200"
-                  >
-                    Subtotal Produtos:
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
-                    {formatarMoeda(os.valor_produtos)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {os.servicos && os.servicos.length > 0 && (
-        <div className="pro-card p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Serviços
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="table-pro">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Código
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Descrição
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Qtd
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Valor Unit.
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {os.servicos.map((servico, index) => (
-                  <tr
-                    key={index}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
-                      {servico.codigo}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
-                      {servico.descricao}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center text-gray-800 dark:text-gray-200">
-                      {servico.quantidade}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-800 dark:text-gray-200">
-                      {formatarMoeda(servico.valor_unitario)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-gray-100">
-                      {formatarMoeda(servico.valor_total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-green-50 dark:bg-gray-700 font-semibold">
-                  <td
-                    colSpan="4"
-                    className="px-4 py-3 text-right text-gray-800 dark:text-gray-200"
-                  >
-                    Subtotal Serviços:
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-900 dark:text-gray-100">
-                    {formatarMoeda(os.valor_servicos)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="pro-card p-6 bg-brand-600 text-white border-0">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-          <span className="text-lg font-semibold">Valor total da OS</span>
-          <span className="text-3xl font-bold tabular-nums">
-            {formatarMoeda(os.valor_total)}
-          </span>
-        </div>
-      </div>
-
-      {isAdmin && <AuditoriaFiscalOs osId={os.id} osNumero={os.numero} />}
-
-      {os.observacoes_gerais && (
-        <div className="pro-card p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Observações gerais
-          </h2>
-          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-            {os.observacoes_gerais}
-          </p>
-        </div>
-      )}
-
-      {os.responsavel_tecnico && (
-        <div className="pro-card p-6">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Responsável técnico
-          </h2>
-          <p className="text-lg text-gray-800 dark:text-gray-200">
-            {os.responsavel_tecnico}
-          </p>
-        </div>
-      )}
-
-      <OSImpressao
-        ref={componentRef}
-        os={os}
-        textosImpressao={textosImpressao}
-      />
+      <OSImpressao ref={componentRef} os={os} textosImpressao={textosImpressao} />
 
       <PersonalizarImpressaoModal
         isOpen={showImpressaoModal}
         onClose={() => setShowImpressaoModal(false)}
         tipo="os"
         onConfirmar={handleConfirmarImpressao}
+      />
+
+      <ConfirmDialog
+        open={!!confirmacao}
+        title={confirmacao?.title}
+        message={confirmacao?.message}
+        confirmLabel={confirmacao?.confirmLabel}
+        cancelLabel="Voltar"
+        variant={confirmacao?.variant || "danger"}
+        onCancel={() => setConfirmacao(null)}
+        onConfirm={() => {
+          const fn = confirmacao?.onConfirm;
+          setConfirmacao(null);
+          fn?.();
+        }}
       />
 
       {isAdmin && (
@@ -573,7 +764,11 @@ export default function OSDetalhes() {
           nota={nf.notaFiscalModal}
           os={os}
           onClose={() => nf.setShowNFModal(null)}
-          onCancelar={() => nf.handleCancelarNF(nf.showNFModal)}
+          onCancelar={() => {
+            const modelo = nf.showNFModal;
+            nf.setShowNFModal(null);
+            setCancelarNota(modelo);
+          }}
           onCorrigirEndereco={
             nf.notaFiscalModal &&
             nf.notaFiscalModal.status_nf === "rejeitada" &&
@@ -584,6 +779,14 @@ export default function OSDetalhes() {
                 }
               : undefined
           }
+        />
+      )}
+
+      {cancelarNota && (
+        <CancelarNotaDialog
+          modelo={cancelarNota}
+          onClose={() => setCancelarNota(null)}
+          onConfirmar={(motivo) => nf.handleCancelarNF(cancelarNota, motivo)}
         />
       )}
 

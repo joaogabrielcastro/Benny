@@ -312,7 +312,7 @@ export default function AppSidebar() {
       </aside>
 
       {/* Barra superior */}
-      <header className="sticky top-0 z-40 lg:pl-60 bg-white/85 dark:bg-ink-950/85 backdrop-blur-md border-b border-ink-200/70 dark:border-ink-800 no-print">
+      <header className="sticky top-0 z-40 lg:ml-60 bg-white/85 dark:bg-ink-950/85 backdrop-blur-md border-b border-ink-200/70 dark:border-ink-800 no-print">
         <div className="flex h-14 items-center gap-2 px-3 sm:px-5">
           <button
             type="button"

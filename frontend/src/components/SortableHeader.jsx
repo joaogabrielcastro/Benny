@@ -1,48 +1,38 @@
-import { FiChevronUp, FiChevronDown } from "react-icons/fi";
+import { FiArrowUp, FiArrowDown } from "react-icons/fi";
 
-export default function SortableHeader({
-  label,
-  field,
-  currentSort,
-  onSort,
-  className = "",
-}) {
+export default function SortableHeader({ label, field, currentSort, onSort, className = "" }) {
   const isActive = currentSort.field === field;
   const direction = currentSort.direction;
+  const alignRight = className.includes("text-right");
 
   const handleClick = () => {
-    if (isActive) {
-      // Se já está ordenando por este campo, inverte a direção
-      onSort(field, direction === "asc" ? "desc" : "asc");
-    } else {
-      // Se não está ordenando por este campo, começa com ascendente
-      onSort(field, "asc");
-    }
+    if (isActive) onSort(field, direction === "asc" ? "desc" : "asc");
+    else onSort(field, "asc");
   };
 
   return (
     <th
-      onClick={handleClick}
-      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider 
-                cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none ${className}`}
+      className={className}
+      aria-sort={isActive ? (direction === "asc" ? "ascending" : "descending") : "none"}
     >
-      <div className="flex items-center space-x-1">
-        <span>{label}</span>
-        <span className="text-gray-400">
-          {!isActive && (
-            <div className="flex flex-col h-4 w-4 -space-y-1">
-              <FiChevronUp className="h-2 w-4 opacity-50" />
-              <FiChevronDown className="h-2 w-4 opacity-50" />
-            </div>
-          )}
-          {isActive && direction === "asc" && (
-            <FiChevronUp className="h-4 w-4 text-blue-500" />
-          )}
-          {isActive && direction === "desc" && (
-            <FiChevronDown className="h-4 w-4 text-blue-500" />
-          )}
-        </span>
-      </div>
+      <button
+        type="button"
+        onClick={handleClick}
+        className={`inline-flex items-center gap-1 uppercase tracking-[0.06em] font-semibold hover:text-ink-900 dark:hover:text-white ${
+          alignRight ? "flex-row-reverse" : ""
+        } ${isActive ? "text-ink-900 dark:text-white" : ""}`}
+      >
+        {label}
+        {isActive ? (
+          direction === "asc" ? (
+            <FiArrowUp className="h-3 w-3" />
+          ) : (
+            <FiArrowDown className="h-3 w-3" />
+          )
+        ) : (
+          <FiArrowDown className="h-3 w-3 opacity-0 group-hover:opacity-40" />
+        )}
+      </button>
     </th>
   );
 }
