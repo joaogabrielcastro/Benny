@@ -81,7 +81,7 @@ describe("ClienteFormModal - edição de documento", () => {
     await user.type(campo, "11111111111111");
     await user.click(screen.getByText("Salvar alterações"));
 
-    expect(showError).toHaveBeenCalledWith("Informe um CNPJ válido.");
+    expect(showError).toHaveBeenCalledWith(expect.stringMatching(/CNPJ inválido/));
     expect(api.put).not.toHaveBeenCalled();
   });
 
@@ -99,5 +99,59 @@ describe("ClienteFormModal - edição de documento", () => {
       `/clientes/${CLIENTE_PJ.id}`,
       expect.objectContaining({ cpf_cnpj: "11222333000181" }),
     );
+  });
+});
+
+describe("ClienteFormModal - cadastro rápido", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuth.mockReturnValue({ isAdmin: true });
+  });
+
+  function renderNovo(onSuccess = vi.fn()) {
+    render(<ClienteFormModal isOpen clienteId={null} onClose={() => {}} onSuccess={onSuccess} />);
+    return onSuccess;
+  }
+
+  it("cadastra só com o nome (endereço e documento ficam para depois)", async () => {
+    const user = userEvent.setup();
+    api.post.mockResolvedValue({ data: { id: 99 } });
+    const onSuccess = renderNovo();
+
+    await user.type(screen.getByLabelText(/Nome completo/), "  Cliente Balcão  ");
+    await user.click(screen.getByText("Cadastrar cliente"));
+
+    expect(showError).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledWith(
+      "/clientes",
+      expect.objectContaining({ nome: "Cliente Balcão", cpf_cnpj: "", cep: "" }),
+    );
+    expect(onSuccess).toHaveBeenCalledWith({ id: 99 });
+  });
+
+  it("exige o nome", async () => {
+    const user = userEvent.setup();
+    renderNovo();
+    await user.click(screen.getByText("Cadastrar cliente"));
+    expect(showError).toHaveBeenCalledWith("Informe o nome do cliente.");
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("endereço fica recolhido no cadastro novo e CEP incompleto é recusado", async () => {
+    const user = userEvent.setup();
+    renderNovo();
+    expect(screen.queryByPlaceholderText("00000-000")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Endereço e dados fiscais/ }));
+    await user.type(screen.getByLabelText(/Nome completo/), "Fulano");
+    await user.type(screen.getByPlaceholderText("00000-000"), "8001");
+    await user.click(screen.getByText("Cadastrar cliente"));
+    expect(showError).toHaveBeenCalledWith(expect.stringMatching(/CEP deve ter 8 dígitos/));
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it("na edição o endereço já aparece aberto", async () => {
+    api.get.mockResolvedValue({ data: CLIENTE_PJ });
+    render(<ClienteFormModal isOpen clienteId={CLIENTE_PJ.id} onClose={() => {}} />);
+    expect(await screen.findByDisplayValue("Rua Emanuel Kant")).toBeInTheDocument();
   });
 });

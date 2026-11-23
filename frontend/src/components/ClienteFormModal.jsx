@@ -82,9 +82,14 @@ export default function ClienteFormModal({
   const [loading, setLoading] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
+  const [mostrarEndereco, setMostrarEndereco] = useState(false);
+  const enderecoCompleto =
+    removerMascara(formData.cep || "").length === 8 && Boolean(formData.cidade?.trim());
 
   useEffect(() => {
     if (!isOpen) return;
+    // Editando (ex.: "Completar endereço" para a nota): mostra o endereço aberto
+    setMostrarEndereco(editando);
     if (!editando) {
       setFormData(emptyForm);
       return;
@@ -139,26 +144,34 @@ export default function ClienteFormModal({
       inscricao_estadual: formData.inscricao_estadual.trim() || null,
     };
 
-    if (!validarCPFouCNPJ(formData.cpf_cnpj)) {
+    // Cadastro rápido: só o nome é obrigatório. Os demais campos são
+    // validados apenas se preenchidos; CPF/CNPJ e endereço completos são
+    // exigidos na emissão da nota fiscal (o backend bloqueia e a OS avisa).
+    if (!formData.nome.trim()) {
+      showError("Informe o nome do cliente.");
+      return;
+    }
+
+    if (formData.cpf_cnpj && !validarCPFouCNPJ(formData.cpf_cnpj)) {
       showError(
         formData.tipo_pessoa === "fisica"
-          ? "Informe um CPF válido."
-          : "Informe um CNPJ válido.",
+          ? "CPF inválido. Corrija ou deixe em branco para completar depois."
+          : "CNPJ inválido. Corrija ou deixe em branco para completar depois.",
       );
       return;
     }
 
-    if (dadosLimpos.cep.length !== 8) {
-      showError(
-        "Informe um CEP com 8 dígitos. Use Buscar para preencher cidade e bairro corretamente.",
-      );
+    if (formData.telefone && !validarTelefone(formData.telefone)) {
+      showError("Telefone inválido. Use DDD + número ou deixe em branco.");
       return;
     }
 
-    if (!dadosLimpos.cidade?.trim()) {
-      showError("Informe a cidade do cliente (use Buscar no CEP).");
+    if (dadosLimpos.cep && dadosLimpos.cep.length !== 8) {
+      showError("CEP deve ter 8 dígitos. Corrija ou deixe em branco para completar depois.");
       return;
     }
+
+    dadosLimpos.nome = formData.nome.trim();
 
     setLoading(true);
     try {
@@ -276,7 +289,9 @@ export default function ClienteFormModal({
             value={formData.nome}
             onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
             validator={validarObrigatorio}
+            helperText="Informe o nome"
             required
+            autoFocus={!editando}
           />
 
           <div>
@@ -288,7 +303,8 @@ export default function ClienteFormModal({
               }
               mask={getMascaraDocumento()}
               validator={validarCPFouCNPJ}
-              required
+              helperText={formData.tipo_pessoa === "fisica" ? "CPF inválido" : "CNPJ inválido"}
+              placeholder="Opcional — exigido para nota fiscal"
               disabled={documentoBloqueado}
             />
             {documentoBloqueado && (
@@ -301,6 +317,17 @@ export default function ClienteFormModal({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
+              label="Telefone"
+              value={formData.telefone}
+              onChange={(e) =>
+                setFormData({ ...formData, telefone: e.target.value })
+              }
+              mask={mascaraTelefone}
+              validator={validarTelefone}
+              helperText="Telefone inválido"
+              placeholder="(41) 99999-9999"
+            />
+            <Input
               label="E-mail"
               type="email"
               value={formData.email}
@@ -309,17 +336,31 @@ export default function ClienteFormModal({
               }
               validator={validarEmail}
             />
-            <Input
-              label="Telefone"
-              value={formData.telefone}
-              onChange={(e) =>
-                setFormData({ ...formData, telefone: e.target.value })
-              }
-              mask={mascaraTelefone}
-              validator={validarTelefone}
-              required
-            />
           </div>
+
+          <div className="rounded-lg border border-ink-200 dark:border-ink-700">
+            <button
+              type="button"
+              onClick={() => setMostrarEndereco((v) => !v)}
+              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left"
+              aria-expanded={mostrarEndereco}
+            >
+              <span>
+                <span className="block text-sm font-medium text-ink-800 dark:text-ink-100">
+                  Endereço e dados fiscais
+                </span>
+                <span className="block text-xs text-ink-500">
+                  {enderecoCompleto
+                    ? "Preenchido"
+                    : "Pode completar depois — necessário para emitir nota fiscal"}
+                </span>
+              </span>
+              <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 shrink-0">
+                {mostrarEndereco ? "Ocultar" : "Preencher"}
+              </span>
+            </button>
+            {mostrarEndereco && (
+            <div className="space-y-4 px-3 pb-3 pt-1 border-t border-ink-100 dark:border-ink-800">
 
           <BuscaCEP
             value={formData.cep}
@@ -367,7 +408,6 @@ export default function ClienteFormModal({
               onChange={(e) =>
                 setFormData({ ...formData, cidade: e.target.value })
               }
-              required
             />
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="situacao-icms">
@@ -417,6 +457,9 @@ export default function ClienteFormModal({
               maxLength={2}
               placeholder="SP"
             />
+          </div>
+            </div>
+            )}
           </div>
         </form>
       )}
