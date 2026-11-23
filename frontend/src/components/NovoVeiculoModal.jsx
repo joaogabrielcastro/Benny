@@ -40,6 +40,9 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
   const editando = Boolean(veiculo?.id);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(vazio);
+  const [maisDetalhes, setMaisDetalhes] = useState(false);
+  const placaDigitada = formData.placa.replace(/[^A-Z0-9]/gi, "");
+  const placaForaDoPadrao = placaDigitada.length > 0 && !validarPlaca(placaDigitada);
 
   const anoAtual = new Date().getFullYear();
   const anosDisponiveis = Array.from({ length: 30 }, (_, i) => anoAtual - i);
@@ -47,6 +50,9 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
   useEffect(() => {
     if (!isOpen) return;
     setFormData(veiculo?.id ? preencher(veiculo) : vazio);
+    setMaisDetalhes(
+      Boolean(veiculo?.id && (veiculo.chassi || veiculo.versao || veiculo.motor || veiculo.combustivel || veiculo.cor)),
+    );
   }, [isOpen, veiculo]);
 
   const handleSubmit = async (e) => {
@@ -57,11 +63,24 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
       return;
     }
 
+    // Cadastro rápido: só placa e modelo são obrigatórios (exigência do banco).
+    if (!placaDigitada) {
+      showError("Informe a placa do veículo.");
+      return;
+    }
+    if (!formData.modelo.trim()) {
+      showError("Informe o modelo do veículo.");
+      return;
+    }
+
     // Remover apenas o traço da placa antes de enviar, mantendo letras e números
     const dadosLimpos = {
       ...formData,
       cliente_id: clienteId,
-      placa: formData.placa.replace(/[^A-Z0-9]/g, ""),
+      placa: formData.placa.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+      modelo: formData.modelo.trim(),
+      marca: formData.marca.trim() || null,
+      ano: formData.ano ? Number(formData.ano) : null, // vazio não pode virar ano 0
       chassi: formData.chassi.trim().toUpperCase() || undefined,
     };
 
@@ -90,7 +109,7 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={editando ? "Editar Veículo" : "Novo Veículo"}
+      title={editando ? "Editar veículo" : "Novo veículo"}
       size="lg"
       footer={
         <>
@@ -130,9 +149,9 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
                   }
                 }}
                 mask={mascaraPlaca}
-                validator={validarPlaca}
                 placeholder="ABC-1234 ou ABC1D23"
                 required
+                autoFocus={!editando}
               />
             </div>
             <BuscaPlacaVeiculoButton
@@ -150,12 +169,73 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
               }
             />
           </div>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            Comece pela placa — clique em <strong>Buscar pela placa</strong> ou
-            pressione Enter para preencher os demais campos.
-          </p>
+          {placaForaDoPadrao ? (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Placa fora do padrão (antigo ou Mercosul). Confira — dá para salvar assim mesmo.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Comece pela placa — clique em <strong>Buscar pela placa</strong> ou
+              pressione Enter para preencher os demais campos.
+            </p>
+          )}
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Marca"
+            value={formData.marca}
+            onChange={(e) =>
+              setFormData({ ...formData, marca: e.target.value })
+            }
+            placeholder="Ex: Volkswagen, Fiat, Toyota"
+          />
+
+          <Input
+            label="Modelo"
+            value={formData.modelo}
+            onChange={(e) =>
+              setFormData({ ...formData, modelo: e.target.value })
+            }
+            validator={validarObrigatorio}
+            helperText="Informe o modelo"
+            placeholder="Ex: Gol, Uno, Corolla"
+            required
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Ano"
+            value={formData.ano}
+            onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
+            options={[
+              { value: "", label: "Não informado" },
+              ...anosDisponiveis.map((ano) => ({
+                value: String(ano),
+                label: String(ano),
+              })),
+            ]}
+          />
+          <Input
+            label="Cor"
+            value={formData.cor}
+            onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
+            placeholder="Ex: Prata, Preto, Branco"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMaisDetalhes((v) => !v)}
+          className="text-sm font-medium text-brand-600 dark:text-brand-400 hover:underline"
+          aria-expanded={maisDetalhes}
+        >
+          {maisDetalhes ? "Ocultar detalhes" : "Mais detalhes (chassi, versão, motor, combustível)"}
+        </button>
+
+        {maisDetalhes && (
+        <div className="space-y-4">
         <Input
           label="Chassi"
           value={formData.chassi}
@@ -170,52 +250,12 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
           placeholder="Preenchido ao buscar pela placa"
           maxLength={20}
         />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Marca"
-            value={formData.marca}
-            onChange={(e) =>
-              setFormData({ ...formData, marca: e.target.value })
-            }
-            validator={validarObrigatorio}
-            placeholder="Ex: Volkswagen, Fiat, Toyota"
-            required
-          />
-
-          <Input
-            label="Modelo"
-            value={formData.modelo}
-            onChange={(e) =>
-              setFormData({ ...formData, modelo: e.target.value })
-            }
-            validator={validarObrigatorio}
-            placeholder="Ex: Gol, Uno, Corolla"
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Versão"
-            value={formData.versao}
-            onChange={(e) => setFormData({ ...formData, versao: e.target.value })}
-            placeholder="Ex: Comfortline, Highline"
-          />
-          <Select
-            label="Ano"
-            value={formData.ano}
-            onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
-            options={[
-              { value: "", label: "Selecione o ano" },
-              ...anosDisponiveis.map((ano) => ({
-                value: String(ano),
-                label: String(ano),
-              })),
-            ]}
-            required
-          />
-        </div>
+        <Input
+          label="Versão"
+          value={formData.versao}
+          onChange={(e) => setFormData({ ...formData, versao: e.target.value })}
+          placeholder="Ex: Comfortline, Highline"
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
@@ -235,12 +275,8 @@ const NovoVeiculoModal = ({ isOpen, onClose, clienteId, onVeiculoCriado, veiculo
           />
         </div>
 
-        <Input
-          label="Cor"
-          value={formData.cor}
-          onChange={(e) => setFormData({ ...formData, cor: e.target.value })}
-          placeholder="Ex: Prata, Preto, Branco"
-        />
+        </div>
+        )}
       </form>
     </Modal>
   );
